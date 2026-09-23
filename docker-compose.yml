@@ -1,14 +1,14 @@
 services:
-  # API publica 8080 (app) y 8090 (PocketBase). PocketBase comparte esta red
-  # (network_mode: service:api) para evitar fallos de bridge entre contenedores
-  # y para que ambos puertos queden expuestos de forma fiable.
+  # App en host :3000 (evita conflictos frecuentes con :8080 en Linux).
+  # PocketBase admin en host :8090. Ambos puertos los publica `api`;
+  # PocketBase usa network_mode: service:api (misma red, DB en volumen Docker).
   api:
     build:
       context: ./api
     container_name: helpdesk-api
     restart: unless-stopped
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "${API_PORT:-3000}:8080"
       - "${PB_PORT:-8090}:8090"
     environment:
       HTTP_ADDR: ":8080"
@@ -29,7 +29,6 @@ services:
     restart: unless-stopped
     network_mode: "service:api"
     volumes:
-      # Base de datos: SOLO volumen Docker (nunca carpeta del host).
       - helpdesk_pb_data:/pb_data
     environment:
       PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@helpdesk.local}

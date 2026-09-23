@@ -28,12 +28,12 @@ docker compose up --build
 
 | URL | Qué |
 |-----|-----|
-| http://localhost:8080 | **App Helpdesk** (categorías + tickets) |
-| http://localhost:8080/categories | Crear categoría (ej. *desarrollo a medida*) |
-| http://localhost:8080/tickets | Crear ticket eligiendo esa categoría |
+| http://localhost:3000 | **App Helpdesk** (categorías + tickets) |
+| http://localhost:3000/categories | Crear categoría (ej. *desarrollo a medida*) |
+| http://localhost:3000/tickets | Crear ticket eligiendo esa categoría |
 | http://localhost:8090/_/ | PocketBase admin (email/password del `.env`) |
 
-Ambos puertos (`8080` y `8090`) los publica el contenedor `api`; PocketBase comparte su red. La DB sigue en el volumen Docker `helpdesk_pb_data`.
+La app usa el puerto host **3000** (no 8080) para evitar conflictos en Linux/Fedora. Cámbialo con `API_PORT` en `.env` si hace falta.
 
 Flujo preliminar: **Categorías → crear “desarrollo a medida” → Tickets → elegir esa categoría → crear ticket**.
 
