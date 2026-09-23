@@ -43,7 +43,11 @@ Flujo preliminar: **Categorías → crear “desarrollo a medida” → Tickets 
 
 API JSON: `GET/POST /api/categories`, `GET/POST /api/tickets` (`category_id` al crear).
 
-Parar: `docker compose down`. Datos en el volumen `pb_data`.
+Parar: `docker compose down` (el volumen `helpdesk_pb_data` **se conserva**).  
+Borrar la base: `docker compose down -v` (destruye el volumen Docker).
+
+**Base de datos:** solo dentro de Docker — volumen nombrado `helpdesk_pb_data` montado en `/pb_data` del contenedor PocketBase. No hay SQLite ni `pb_data` en el repo/host del proyecto.
+
 
 ## Documentos
 

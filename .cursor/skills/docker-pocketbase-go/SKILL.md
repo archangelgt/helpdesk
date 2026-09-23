@@ -30,8 +30,8 @@ Local and erpsys (Fase 6) use the **same model**: containers, env files, volumes
 ## Do
 
 - Add/change services in Compose; rebuild with `docker compose build` / `up --build`.
-- Persist PocketBase data in a named volume or bind mount under the project (never commit `pb_data` with secrets).
-- Configure the Go API to talk to PocketBase by **Compose service DNS** (e.g. `http://pocketbase:8090`), not `localhost` from inside another container unless intentional.
+- Persist PocketBase **only** in a **Docker named volume** (e.g. `helpdesk_pb_data` → `/pb_data`). Never bind-mount a host/project folder for the database. Never commit DB files.
+- Configure the Go API to talk to PocketBase by **Compose service DNS** (e.g. `http://pocketbase:8090`), not `localhost` from inside another container unless intentional (host-network override).
 - Keep secrets in `.env` (gitignored) or the host secret store — never in images or docs.
 - Healthchecks on `pocketbase` and `api` before declaring the stack up.
 - Prefer multi-stage Dockerfiles for Go (`CGO_ENABLED=0`) producing a minimal runtime image.
@@ -42,7 +42,8 @@ Local and erpsys (Fase 6) use the **same model**: containers, env files, volumes
 |-----|------|
 | `curl …/pocketbase.zip && ./pocketbase serve` | `docker compose up pocketbase` |
 | `go run ./cmd/api` as the default app process | `docker compose up api` |
-| Sharing CRM `pb_data` or crmsys URLs | Own compose service + own data volume |
+| `./pb_data:/pb_data` bind mount on the host | Named volume `helpdesk_pb_data:/pb_data` |
+| Sharing CRM `pb_data` or crmsys URLs | Own compose service + own Docker volume |
 | Documenting “install Go + PB on the laptop” as setup | Document `docker compose up` only |
 
 Exceptions (narrow): one-shot `docker compose exec api go test` / `migrate` **inside** the container is fine. Host `go test` only if the user explicitly asks and CI already mirrors it — still must not replace Compose as the app runtime.

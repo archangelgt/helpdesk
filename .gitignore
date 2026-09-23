@@ -8,7 +8,8 @@ tmp/
 .env.*
 !.env.example
 
-# PocketBase local data (Compose uses a named volume; keep accidental binds out of git)
+# PocketBase local data — la DB real vive en el volumen Docker `helpdesk_pb_data`,
+# nunca como carpeta del proyecto. Estos paths solo evitan commits accidentales.
 pb_data/
 docker/pocketbase/pb_data/
 

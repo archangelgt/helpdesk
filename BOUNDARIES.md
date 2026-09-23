@@ -11,7 +11,7 @@ Reglas para no cruzar productos, tenants ajenos ni stacks.
 | Ticket implementación (erpsys / ERPNext / a medida) | Proyecto o issue tracker del CRM |
 | API / adaptador **ERPSYS Chat** → ticket | Meter código de erpsys/crm dentro de este repo |
 | Deploy del helpdesk en erpsys (Fase 6) | Ritual de deploy `crm` |
-| PocketBase **de este** helpdesk en Docker | Reutilizar `pb_data` o schemas del CRM |
+| PocketBase **de este** helpdesk (volumen Docker) | Reutilizar `pb_data` o schemas del CRM |
 
 `../crm` y otros labs **no** son dependencia ni plantilla.
 
