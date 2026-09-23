@@ -1,0 +1,31 @@
+---
+description: Límites duros — helpdesk no se mezcla con CRM ni otros productos Cherub
+alwaysApply: true
+---
+
+# No mezclar
+
+Este workspace es **solo** [archangelgt/helpdesk](https://github.com/archangelgt/helpdesk).
+
+## Fuera de este repo (no tocar desde aquí)
+
+- Cherub CRM / CRMSYS (`../crm`, tenants siforest/seraph/etc., PocketBase CRM, ritual de deploy crmsys)
+- ShopiFEL, HARP, ERPNext/nomsys, Servo, LMS u otros labs Cherub
+- Código, schemas, seeds, env o scripts de esos proyectos
+
+Si hace falta algo de otro producto: **parar y preguntar**. No copiar ni “aprovechar” el CRM por cercanía de carpeta.
+
+## Dentro del producto helpdesk
+
+| Separar | Cómo |
+|---------|------|
+| Fases | Seguir ROADMAP: no meter chat ni email→ticket en el MVP de tickets |
+| Clientes | Cap World ≠ Power Tech: filtrar/aislar; no fusionar identidades |
+| Estilo Infile | Imitar cola/estados/prioridad; no clonar ni migrar Infile |
+| Deploy erpsys | Solo Fase 6; no acoplar infra prematura |
+
+## Este chat
+
+- Trabajar solo bajo el root de `helpdesk`
+- No abrir ni editar archivos de `cherub/crm` u otros repos “de paso”
+- Docs de producto viven aquí (`README`, `ROADMAP`, `MVP`, `BOUNDARIES`)

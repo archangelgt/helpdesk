@@ -20,6 +20,7 @@ Meta: que Cap World, Power Tech y el resto de cuentas operen soporte con trazabi
 |-----|-----------|
 | [ROADMAP.md](./ROADMAP.md) | Fases 0 → 6 (docs → MVP → email → chat → Docker en erpsys) |
 | [MVP.md](./MVP.md) | Alcance, etapas, criterios de aceptación, Cap World / Power Tech |
+| [BOUNDARIES.md](./BOUNDARIES.md) | Qué no mezclar (CRM, fases, clientes, Infile) |
 
 ## Stack previsto (orientativo)
 
