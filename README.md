@@ -28,12 +28,13 @@ docker compose up --build
 
 | URL | Qué |
 |-----|-----|
-| http://localhost:3000 | **App Helpdesk** (categorías + tickets) |
-| http://localhost:3000/categories | Crear categoría (ej. *desarrollo a medida*) |
-| http://localhost:3000/tickets | Crear ticket eligiendo esa categoría |
-| http://localhost:8090/_/ | PocketBase admin (email/password del `.env`) |
+| http://localhost:3000 | **Tablero** (cards por estado / prioridad) |
+| http://localhost:3000/tickets/new | Crear ticket |
+| http://localhost:3000/tickets | Lista compacta |
+| http://localhost:3000/categories | Categorías |
+| http://localhost:8090/_/ | PocketBase admin |
 
-La app usa el puerto host **3000** (no 8080) para evitar conflictos en Linux/Fedora. Cámbialo con `API_PORT` en `.env` si hace falta.
+La app usa el puerto host **3000**. En el tablero puedes mover el estado desde cada card.
 
 Flujo preliminar: **Categorías → crear “desarrollo a medida” → Tickets → elegir esa categoría → crear ticket**.
 

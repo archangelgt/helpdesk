@@ -1,0 +1,112 @@
+{{define "board.html"}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="board-page">
+    <div class="toolbar">
+      <div>
+        <h1>Tablero</h1>
+        <p class="lead" style="margin-bottom:0">Cards por {{if eq .Group "priority"}}prioridad{{else}}estado{{end}}. Cambia el estado desde cada tarjeta.</p>
+      </div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+        <div class="seg">
+          <a class="{{if eq .Group "status"}}is-on{{end}}" href="/board?group=status">Por estado</a>
+          <a class="{{if eq .Group "priority"}}is-on{{end}}" href="/board?group=priority">Por prioridad</a>
+        </div>
+        <a class="btn" href="/tickets/new">+ Nuevo ticket</a>
+      </div>
+    </div>
+
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <form class="panel filters" method="get" action="/board" style="margin-bottom:1rem">
+      <input type="hidden" name="group" value="{{.Group}}" />
+      <div>
+        <label>Buscar</label>
+        <input name="q" value="{{.Filters.Q}}" placeholder="HD-00001, asunto…" />
+      </div>
+      <div>
+        <label>Tipo</label>
+        <select name="type">
+          <option value="">Todos</option>
+          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType .}}</option>{{end}}
+        </select>
+      </div>
+      <div>
+        <label>Categoría</label>
+        <select name="category">
+          <option value="">Todas</option>
+          {{range .Categories}}<option value="{{.ID}}" {{selected $.Filters.CategoryID .ID}}>{{.Name}}</option>{{end}}
+        </select>
+      </div>
+      {{if eq .Group "status"}}
+      <div>
+        <label>Prioridad</label>
+        <select name="priority">
+          <option value="">Todas</option>
+          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
+        </select>
+      </div>
+      {{else}}
+      <div>
+        <label>Estado</label>
+        <select name="status">
+          <option value="">Todos</option>
+          {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
+        </select>
+      </div>
+      {{end}}
+      <div><button class="btn ghost" type="submit">Filtrar</button></div>
+    </form>
+
+    <div class="board">
+      {{range .Columns}}
+      <section class="column">
+        <div class="column-head">
+          <h2>{{.Label}}</h2>
+          <span class="count">{{len .Tickets}}</span>
+        </div>
+        {{if .Tickets}}
+          {{range .Tickets}}
+          {{$card := .}}
+          <article class="card">
+            <div class="card-top">
+              <span class="badge">{{$card.Ticket.Number}}</span>
+              <span class="pill {{priorityClass $card.Ticket.Priority}}">{{labelPriority $card.Ticket.Priority}}</span>
+            </div>
+            <h3><a href="/tickets/{{$card.Ticket.ID}}">{{$card.Ticket.Subject}}</a></h3>
+            <div class="card-meta">
+              <span class="pill {{statusClass $card.Ticket.Status}}">{{labelStatus $card.Ticket.Status}}</span>
+              <span class="pill">{{labelType $card.Ticket.Type}}</span>
+              <span class="pill">{{$card.CategoryName}}</span>
+              {{if $card.Ticket.Assignee}}<span class="pill">{{$card.Ticket.Assignee}}</span>{{end}}
+            </div>
+            <div class="move">
+              {{range $card.NextStatuses}}
+              <form method="post" action="/tickets/{{$card.Ticket.ID}}/status">
+                <input type="hidden" name="status" value="{{.}}" />
+                <input type="hidden" name="return_to" value="board" />
+                <button type="submit" title="Mover a {{labelStatus .}}">→ {{labelStatus .}}</button>
+              </form>
+              {{end}}
+            </div>
+          </article>
+          {{end}}
+        {{else}}
+          <p class="muted" style="padding:.5rem;font-size:.85rem">Sin tickets</p>
+        {{end}}
+      </section>
+      {{end}}
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

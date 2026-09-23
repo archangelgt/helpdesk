@@ -24,9 +24,21 @@ type Server struct {
 }
 
 var statuses = []string{"abierto", "pendiente", "en_proceso", "resuelto", "cerrado"}
-var priorities = []string{"baja", "media", "alta", "critica"}
+var priorities = []string{"critica", "alta", "media", "baja"}
 var ticketTypes = []string{"implementacion", "soporte"}
 var stageStates = []string{"pendiente", "en_curso", "hecha", "bloqueada"}
+
+type boardColumn struct {
+	Key     string
+	Label   string
+	Tickets []boardCard
+}
+
+type boardCard struct {
+	Ticket       pb.Ticket
+	CategoryName string
+	NextStatuses []string
+}
 
 func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 	funcs := template.FuncMap{
@@ -41,7 +53,14 @@ func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 			}
 			return ""
 		},
-		"statusClass": statusClass,
+		"statusClass":   statusClass,
+		"priorityClass": priorityClass,
+		"activeNav": func(cur, want string) string {
+			if cur == want {
+				return "is-active"
+			}
+			return ""
+		},
 	}
 	tmpl := template.Must(template.New("root").Funcs(funcs).ParseGlob(filepath.Join(cfg.WebDir, "templates", "*.html")))
 	return &Server{cfg: cfg, pb: client, log: logger, tmpl: tmpl}
@@ -59,11 +78,13 @@ func (s *Server) Routes() http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	r.Get("/", s.handleHome)
+	r.Get("/", s.handleBoard)
+	r.Get("/board", s.handleBoard)
 	r.Get("/categories", s.handleCategoriesPage)
 	r.Post("/categories", s.handleCreateCategoryForm)
 
 	r.Get("/tickets", s.handleTicketsPage)
+	r.Get("/tickets/new", s.handleNewTicketPage)
 	r.Post("/tickets", s.handleCreateTicketForm)
 	r.Get("/tickets/{id}", s.handleTicketDetail)
 	r.Post("/tickets/{id}/update", s.handleTicketUpdate)
@@ -88,40 +109,116 @@ func (s *Server) Routes() http.Handler {
 	return r
 }
 
-func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
-	tickets, _ := s.pb.ListTickets(r.Context(), pb.TicketFilters{})
-	cats, _ := s.pb.ListCategories(r.Context())
-	byStatus := map[string]int{}
-	byType := map[string]int{}
-	for _, t := range tickets {
-		byStatus[t.Status]++
-		byType[t.Type]++
+func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
+	group := r.URL.Query().Get("group")
+	if group == "" {
+		group = "status"
 	}
-	s.render(w, "home.html", map[string]any{
-		"Title":         "Helpdesk",
-		"CategoryCount": len(cats),
-		"TicketCount":   len(tickets),
-		"ByStatus":      byStatus,
-		"ByType":        byType,
-		"Statuses":      statuses,
-		"Recent":        firstN(tickets, 8),
-		"Flash":         r.URL.Query().Get("ok"),
-		"Error":         r.URL.Query().Get("err"),
+	f := pb.TicketFilters{
+		Type:       r.URL.Query().Get("type"),
+		CategoryID: r.URL.Query().Get("category"),
+		Q:          r.URL.Query().Get("q"),
+		Priority:   r.URL.Query().Get("priority"),
+		Status:     r.URL.Query().Get("status"),
+	}
+	// Board already groups by status/priority — clear the same axis filter to show all columns.
+	if group == "status" {
+		f.Status = ""
+	}
+	if group == "priority" {
+		f.Priority = ""
+	}
+	cats, _ := s.pb.ListCategories(r.Context())
+	tickets, err := s.pb.ListTickets(r.Context(), f)
+	catNames := map[string]string{}
+	for _, c := range cats {
+		catNames[c.ID] = c.Name
+	}
+	columns := buildBoardColumns(group, tickets, catNames)
+	errMsg := ""
+	if err != nil {
+		errMsg = err.Error()
+	}
+	s.render(w, "board.html", map[string]any{
+		"Title":      "Tablero",
+		"Nav":        "board",
+		"Group":      group,
+		"Columns":    columns,
+		"Categories": cats,
+		"Filters":    f,
+		"Types":      ticketTypes,
+		"Priorities": priorities,
+		"Statuses":   statuses,
+		"Flash":      r.URL.Query().Get("ok"),
+		"Error":      errMsg,
 	})
+}
+
+func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]string) []boardColumn {
+	keys := statuses
+	if group == "priority" {
+		keys = priorities
+	}
+	buckets := map[string][]boardCard{}
+	for _, k := range keys {
+		buckets[k] = nil
+	}
+	for _, t := range tickets {
+		key := t.Status
+		if group == "priority" {
+			key = t.Priority
+		}
+		if _, ok := buckets[key]; !ok {
+			continue
+		}
+		name := catNames[t.Category]
+		if name == "" {
+			name = t.Category
+		}
+		buckets[key] = append(buckets[key], boardCard{
+			Ticket:       t,
+			CategoryName: name,
+			NextStatuses: nextStatuses(t.Status),
+		})
+	}
+	out := make([]boardColumn, 0, len(keys))
+	for _, k := range keys {
+		label := labelStatus(k)
+		if group == "priority" {
+			label = labelPriority(k)
+		}
+		out = append(out, boardColumn{Key: k, Label: label, Tickets: buckets[k]})
+	}
+	return out
+}
+
+func nextStatuses(current string) []string {
+	out := make([]string, 0, len(statuses)-1)
+	for _, st := range statuses {
+		if st != current {
+			out = append(out, st)
+		}
+	}
+	return out
+}
+
+func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/board", http.StatusSeeOther)
 }
 
 func (s *Server) handleCategoriesPage(w http.ResponseWriter, r *http.Request) {
 	cats, err := s.pb.ListCategories(r.Context())
-	data := map[string]any{
-		"Title":      "Categorías",
-		"Categories": cats,
-		"Error":      "",
-		"Flash":      r.URL.Query().Get("ok"),
-	}
+	errMsg := ""
 	if err != nil {
-		data["Error"] = err.Error()
+		errMsg = err.Error()
 	}
-	s.render(w, "categories.html", data)
+	s.render(w, "categories.html", map[string]any{
+		"Title":      "Categorías",
+		"Nav":        "categories",
+		"Categories": cats,
+		"Error":      errMsg,
+		"Flash":      r.URL.Query().Get("ok"),
+	})
 }
 
 func (s *Server) handleCreateCategoryForm(w http.ResponseWriter, r *http.Request) {
@@ -165,7 +262,8 @@ func (s *Server) handleTicketsPage(w http.ResponseWriter, r *http.Request) {
 		errMsg = errTickets.Error()
 	}
 	s.render(w, "tickets.html", map[string]any{
-		"Title":      "Cola de tickets",
+		"Title":      "Lista",
+		"Nav":        "list",
 		"Categories": cats,
 		"Tickets":    tickets,
 		"CatNames":   catNames,
@@ -178,9 +276,26 @@ func (s *Server) handleTicketsPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleNewTicketPage(w http.ResponseWriter, r *http.Request) {
+	cats, err := s.pb.ListCategories(r.Context())
+	errMsg := r.URL.Query().Get("err")
+	if err != nil && errMsg == "" {
+		errMsg = err.Error()
+	}
+	s.render(w, "ticket_new.html", map[string]any{
+		"Title":      "Nuevo ticket",
+		"Nav":        "new",
+		"Categories": cats,
+		"Statuses":   statuses,
+		"Priorities": priorities,
+		"Types":      ticketTypes,
+		"Error":      errMsg,
+	})
+}
+
 func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/tickets?err=form", http.StatusSeeOther)
+		http.Redirect(w, r, "/tickets/new?err=form", http.StatusSeeOther)
 		return
 	}
 	subject := strings.TrimSpace(r.FormValue("subject"))
@@ -191,16 +306,16 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	ticketType := defaultSelect(r.FormValue("type"), "implementacion")
 	assignee := strings.TrimSpace(r.FormValue("assignee"))
 	if subject == "" || categoryID == "" {
-		http.Redirect(w, r, "/tickets?err="+url.QueryEscape("asunto y categoría requeridos"), http.StatusSeeOther)
+		http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape("asunto y categoría requeridos"), http.StatusSeeOther)
 		return
 	}
 	t, err := s.pb.CreateTicket(r.Context(), subject, description, categoryID, status, priority, ticketType, assignee)
 	if err != nil {
 		s.log.Printf("create ticket: %v", err)
-		http.Redirect(w, r, "/tickets?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/tickets/"+t.ID+"?ok="+url.QueryEscape("Ticket creado"), http.StatusSeeOther)
+	http.Redirect(w, r, "/board?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
 }
 
 func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
@@ -218,18 +333,20 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 		catName = c.Name
 	}
 	s.render(w, "ticket_detail.html", map[string]any{
-		"Title":      ticket.Number,
-		"Ticket":     ticket,
+		"Title":        ticket.Number,
+		"Nav":          "board",
+		"Ticket":       ticket,
 		"CategoryName": catName,
-		"Categories": cats,
-		"Comments":   comments,
-		"Stages":     stages,
-		"Statuses":   statuses,
-		"Priorities": priorities,
-		"Types":      ticketTypes,
-		"StageStates": stageStates,
-		"Flash":      r.URL.Query().Get("ok"),
-		"Error":      r.URL.Query().Get("err"),
+		"Categories":   cats,
+		"Comments":     comments,
+		"Stages":       stages,
+		"Statuses":     statuses,
+		"Priorities":   priorities,
+		"Types":        ticketTypes,
+		"StageStates":  stageStates,
+		"NextStatuses": nextStatuses(ticket.Status),
+		"Flash":        r.URL.Query().Get("ok"),
+		"Error":        r.URL.Query().Get("err"),
 	})
 }
 
@@ -270,13 +387,22 @@ func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	status := strings.TrimSpace(r.FormValue("status"))
+	returnTo := strings.TrimSpace(r.FormValue("return_to"))
 	if status == "" {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape("estado requerido"), http.StatusSeeOther)
 		return
 	}
 	upd := pb.TicketUpdate{Status: &status}
 	if _, err := s.pb.UpdateTicket(r.Context(), id, upd); err != nil {
-		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		dest := "/tickets/" + id
+		if returnTo == "board" {
+			dest = "/board"
+		}
+		http.Redirect(w, r, dest+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	if returnTo == "board" {
+		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+labelStatus(status)), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Estado cambiado a "+status), http.StatusSeeOther)
@@ -603,6 +729,21 @@ func statusClass(s string) string {
 		return "st-done"
 	case "cerrado":
 		return "st-closed"
+	default:
+		return ""
+	}
+}
+
+func priorityClass(s string) string {
+	switch s {
+	case "critica":
+		return "pr-crit"
+	case "alta":
+		return "pr-high"
+	case "media":
+		return "pr-mid"
+	case "baja":
+		return "pr-low"
 	default:
 		return ""
 	}

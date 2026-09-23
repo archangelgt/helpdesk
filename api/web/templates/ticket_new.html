@@ -1,0 +1,79 @@
+{{define "ticket_new.html"}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <div class="hero-create">
+      <h1>Nuevo ticket</h1>
+      <p class="lead" style="margin:0">Define categoría, tipo y prioridad. Luego lo mueves por el tablero con los botones de estado.</p>
+    </div>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    {{if .Categories}}
+    <div class="grid create-layout">
+      <form class="panel" method="post" action="/tickets">
+        <h2>1 · Qué se atiende</h2>
+        <label>Asunto</label>
+        <input name="subject" required autofocus placeholder="Ej. Implementación Cap World — fase go-live" />
+        <label>Descripción</label>
+        <textarea name="description" placeholder="Alcance, cliente, riesgos, links…"></textarea>
+
+        <h2>2 · Clasificación</h2>
+        <div class="grid grid-2">
+          <div>
+            <label>Categoría</label>
+            <select name="category" required>
+              <option value="">Selecciona…</option>
+              {{range .Categories}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+            </select>
+          </div>
+          <div>
+            <label>Tipo</label>
+            <select name="type">
+              {{range .Types}}<option value="{{.}}">{{labelType .}}</option>{{end}}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div>
+            <label>Prioridad</label>
+            <select name="priority">
+              {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>{{end}}
+            </select>
+          </div>
+          <div>
+            <label>Estado inicial</label>
+            <select name="status">
+              {{range .Statuses}}<option value="{{.}}" {{if eq . "abierto"}}selected{{end}}>{{labelStatus .}}</option>{{end}}
+            </select>
+          </div>
+        </div>
+        <label>Asignado a</label>
+        <input name="assignee" placeholder="Nombre del responsable" />
+
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.4rem">
+          <button class="btn" type="submit">Crear y ir al tablero</button>
+          <a class="btn ghost" href="/board">Cancelar</a>
+        </div>
+      </form>
+      <aside class="hint-box">
+        <strong style="color:var(--ink);display:block;margin-bottom:.4rem">Flujo sugerido</strong>
+        Crea el ticket → ábrelo en el tablero → mueve estados (Abierto → En proceso → Resuelto) → agrega comentarios y etapas en el detalle.
+      </aside>
+    </div>
+    {{else}}
+    <div class="panel">
+      <p>Antes crea una <a href="/categories">categoría</a> (por ejemplo <em>desarrollo a medida</em>).</p>
+    </div>
+    {{end}}
+  </main>
+</body>
+</html>
+{{end}}

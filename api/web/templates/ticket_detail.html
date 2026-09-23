@@ -9,38 +9,40 @@
 </head>
 <body>
   {{template "nav" .}}
-  <main>
-    <p class="muted" style="margin:0 0 .4rem"><a href="/tickets">← Cola</a></p>
-    <h1>
-      <span class="badge">{{.Ticket.Number}}</span>
-      {{.Ticket.Subject}}
-    </h1>
-    <p class="lead">
-      <span class="pill {{statusClass .Ticket.Status}}">{{labelStatus .Ticket.Status}}</span>
-      · {{labelType .Ticket.Type}}
-      · {{labelPriority .Ticket.Priority}}
-      · {{.CategoryName}}
-      {{if .Ticket.Assignee}}· Asignado: {{.Ticket.Assignee}}{{end}}
-    </p>
-    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
-    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-
-    <div class="panel" style="margin-bottom:1.1rem">
-      <h2>Cambio rápido de estado</h2>
-      <div class="quick-status row">
-        {{range .Statuses}}
-        <form method="post" action="/tickets/{{$.Ticket.ID}}/status">
-          <input type="hidden" name="status" value="{{.}}" />
-          <button type="submit" class="{{if eq $.Ticket.Status .}}{{else}}secondary{{end}}">{{labelStatus .}}</button>
-        </form>
-        {{end}}
+  <main class="page">
+    <p class="muted" style="margin:0 0 .5rem"><a href="/board">← Tablero</a></p>
+    <div class="toolbar">
+      <div>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.35rem">
+          <span class="badge">{{.Ticket.Number}}</span>
+          <span class="pill {{statusClass .Ticket.Status}}">{{labelStatus .Ticket.Status}}</span>
+          <span class="pill {{priorityClass .Ticket.Priority}}">{{labelPriority .Ticket.Priority}}</span>
+        </div>
+        <h1>{{.Ticket.Subject}}</h1>
+        <p class="lead" style="margin-bottom:0">{{labelType .Ticket.Type}} · {{.CategoryName}}{{if .Ticket.Assignee}} · {{.Ticket.Assignee}}{{end}}</p>
       </div>
     </div>
 
-    <div class="grid grid-aside">
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="panel" style="margin-bottom:1rem">
+      <h2>Cambiar estado</h2>
+      <div class="status-rail">
+        {{range .Statuses}}
+        <form method="post" action="/tickets/{{$.Ticket.ID}}/status">
+          <input type="hidden" name="status" value="{{.}}" />
+          <button type="submit" class="{{if eq $.Ticket.Status .}}current{{end}}">{{labelStatus .}}</button>
+        </form>
+        {{end}}
+      </div>
+      <p class="muted" style="margin:0;font-size:.85rem">El cambio queda en el historial como nota de sistema.</p>
+    </div>
+
+    <div class="grid create-layout">
       <div class="grid">
         <div class="panel">
-          <h2>Detalle</h2>
+          <h2>Editar ticket</h2>
           <form method="post" action="/tickets/{{.Ticket.ID}}/update">
             <label>Asunto</label>
             <input name="subject" value="{{.Ticket.Subject}}" required />
@@ -75,91 +77,69 @@
               </div>
               <div>
                 <label>Asignado a</label>
-                <input name="assignee" value="{{.Ticket.Assignee}}" placeholder="agente" />
+                <input name="assignee" value="{{.Ticket.Assignee}}" />
               </div>
             </div>
-            <button type="submit">Guardar cambios</button>
+            <button class="btn" type="submit">Guardar</button>
           </form>
         </div>
 
         {{if eq .Ticket.Type "implementacion"}}
         <div class="panel">
-          <h2>Etapas de implementación</h2>
+          <h2>Etapas</h2>
           {{if .Stages}}
-          <table>
-            <thead><tr><th>#</th><th>Etapa</th><th>Fechas</th><th>Estado</th><th>Avance</th><th></th></tr></thead>
-            <tbody>
             {{range .Stages}}
-              <tr>
-                <td colspan="6" style="padding-top:1rem">
-                  {{$st := .}}
-                  <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}" class="grid grid-2">
-                    <div>
-                      <label>Nombre</label>
-                      <input name="name" value="{{$st.Name}}" />
-                      <label>Orden</label>
-                      <input name="orden" type="number" step="1" value="{{printf "%.0f" $st.Orden}}" />
-                      <label>Estado</label>
-                      <select name="estado">
-                        {{range $.StageStates}}<option value="{{.}}" {{selected $st.Estado .}}>{{labelStage .}}</option>{{end}}
-                      </select>
-                    </div>
-                    <div>
-                      <label>Inicio plan</label>
-                      <input name="fecha_plan_inicio" value="{{$st.FechaPlanInicio}}" placeholder="YYYY-MM-DD" />
-                      <label>Fin plan</label>
-                      <input name="fecha_plan_fin" value="{{$st.FechaPlanFin}}" placeholder="YYYY-MM-DD" />
-                      <label>Avance %</label>
-                      <input name="avance" type="number" min="0" max="100" value="{{printf "%.0f" $st.Avance}}" />
-                      <button type="submit">Actualizar etapa</button>
-                    </div>
-                  </form>
-                </td>
-              </tr>
+            {{$st := .}}
+            <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}" class="grid grid-2" style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px dashed var(--line)">
+              <div>
+                <label>Nombre</label>
+                <input name="name" value="{{$st.Name}}" />
+                <label>Orden</label>
+                <input name="orden" type="number" value="{{printf "%.0f" $st.Orden}}" />
+                <label>Estado</label>
+                <select name="estado">
+                  {{range $.StageStates}}<option value="{{.}}" {{selected $st.Estado .}}>{{labelStage .}}</option>{{end}}
+                </select>
+              </div>
+              <div>
+                <label>Inicio</label>
+                <input name="fecha_plan_inicio" value="{{$st.FechaPlanInicio}}" placeholder="YYYY-MM-DD" />
+                <label>Fin</label>
+                <input name="fecha_plan_fin" value="{{$st.FechaPlanFin}}" placeholder="YYYY-MM-DD" />
+                <label>Avance %</label>
+                <input name="avance" type="number" min="0" max="100" value="{{printf "%.0f" $st.Avance}}" />
+                <button class="btn ghost" type="submit">Actualizar etapa</button>
+              </div>
+            </form>
             {{end}}
-            </tbody>
-          </table>
           {{else}}
-          <p class="muted">Sin etapas. Agrega discovery, desarrollo, UAT…</p>
+          <p class="muted">Sin etapas todavía.</p>
           {{end}}
-          <hr style="border:0;border-top:1px solid var(--line);margin:1rem 0" />
-          <h2>Nueva etapa</h2>
+          <h2>Agregar etapa</h2>
           <form method="post" action="/tickets/{{.Ticket.ID}}/stages">
             <label>Nombre</label>
             <input name="name" required placeholder="UAT" />
             <label>Orden</label>
             <input name="orden" type="number" value="{{len .Stages}}" />
             <div class="grid grid-2">
-              <div>
-                <label>Inicio plan</label>
-                <input name="fecha_plan_inicio" placeholder="YYYY-MM-DD" />
-              </div>
-              <div>
-                <label>Fin plan</label>
-                <input name="fecha_plan_fin" placeholder="YYYY-MM-DD" />
-              </div>
+              <div><label>Inicio</label><input name="fecha_plan_inicio" placeholder="YYYY-MM-DD" /></div>
+              <div><label>Fin</label><input name="fecha_plan_fin" placeholder="YYYY-MM-DD" /></div>
             </div>
             <label>Estado</label>
-            <select name="estado">
-              {{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}
-            </select>
-            <button type="submit">Agregar etapa</button>
+            <select name="estado">{{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}</select>
+            <button class="btn" type="submit">Agregar</button>
           </form>
         </div>
         {{end}}
       </div>
 
       <div class="panel">
-        <h2>Historial / comentarios</h2>
-        <div class="timeline" style="margin-bottom:1.2rem">
+        <h2>Historial</h2>
+        <div class="timeline" style="margin-bottom:1rem">
           {{if .Comments}}
             {{range .Comments}}
             <div class="comment {{.Visibility}}">
-              <div class="meta">
-                <strong>{{labelVis .Visibility}}</strong>
-                · {{if .Author}}{{.Author}}{{else}}—{{end}}
-                · {{.Created}}
-              </div>
+              <div class="meta"><strong>{{labelVis .Visibility}}</strong> · {{.Author}} · {{.Created}}</div>
               <div>{{.Body}}</div>
             </div>
             {{end}}
@@ -167,18 +147,18 @@
             <p class="muted">Sin comentarios.</p>
           {{end}}
         </div>
-        <h2>Nuevo comentario</h2>
+        <h2>Comentar</h2>
         <form method="post" action="/tickets/{{.Ticket.ID}}/comments">
           <label>Visibilidad</label>
           <select name="visibility">
-            <option value="interno">Interno (solo equipo)</option>
-            <option value="cliente">Visible al cliente</option>
+            <option value="interno">Interno</option>
+            <option value="cliente">Cliente</option>
           </select>
           <label>Autor</label>
-          <input name="author" placeholder="tu nombre" value="agente" />
+          <input name="author" value="agente" />
           <label>Mensaje</label>
-          <textarea name="body" required placeholder="Actualización…"></textarea>
-          <button type="submit">Publicar</button>
+          <textarea name="body" required></textarea>
+          <button class="btn" type="submit">Publicar</button>
         </form>
       </div>
     </div>

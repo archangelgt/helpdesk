@@ -9,109 +9,62 @@
 </head>
 <body>
   {{template "nav" .}}
-  <main>
-    <h1>Cola de tickets</h1>
-    <p class="lead">Filtra, crea y abre un ticket para cambiar estado, comentar o gestionar etapas.</p>
+  <main class="page">
+    <div class="toolbar">
+      <div>
+        <h1>Lista</h1>
+        <p class="lead" style="margin:0">Vista compacta. Para cards usa el <a href="/board">tablero</a>.</p>
+      </div>
+      <a class="btn" href="/tickets/new">+ Nuevo ticket</a>
+    </div>
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
-    <div class="panel" style="margin-bottom:1.1rem">
-      <form class="filters" method="get" action="/tickets">
-        <div>
-          <label>Buscar</label>
-          <input name="q" value="{{.Filters.Q}}" placeholder="número, asunto…" />
-        </div>
-        <div>
-          <label>Estado</label>
-          <select name="status">
-            <option value="">Todos</option>
-            {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
-          </select>
-        </div>
-        <div>
-          <label>Prioridad</label>
-          <select name="priority">
-            <option value="">Todas</option>
-            {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
-          </select>
-        </div>
-        <div>
-          <label>Tipo</label>
-          <select name="type">
-            <option value="">Todos</option>
-            {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType .}}</option>{{end}}
-          </select>
-        </div>
-        <div>
-          <label>Categoría</label>
-          <select name="category">
-            <option value="">Todas</option>
-            {{range .Categories}}<option value="{{.ID}}" {{selected $.Filters.CategoryID .ID}}>{{.Name}}</option>{{end}}
-          </select>
-        </div>
-        <div><button type="submit">Filtrar</button></div>
-      </form>
-    </div>
-
-    <div class="grid grid-aside">
-      <div class="panel">
-        <h2>Tickets ({{len .Tickets}})</h2>
-        {{if .Tickets}}
-        <table>
-          <thead><tr><th>#</th><th>Asunto</th><th>Cat.</th><th>Estado</th><th></th></tr></thead>
-          <tbody>
-          {{range .Tickets}}
-            <tr>
-              <td><span class="badge">{{.Number}}</span></td>
-              <td>
-                <a href="/tickets/{{.ID}}"><strong>{{.Subject}}</strong></a>
-                <div class="muted" style="font-size:.8rem">{{labelType .Type}} · {{labelPriority .Priority}}{{if .Assignee}} · {{.Assignee}}{{end}}</div>
-              </td>
-              <td class="muted">{{index $.CatNames .Category}}</td>
-              <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
-              <td><a href="/tickets/{{.ID}}">abrir</a></td>
-            </tr>
-          {{end}}
-          </tbody>
-        </table>
-        {{else}}
-        <p class="muted">No hay tickets con estos filtros.</p>
-        {{end}}
+    <form class="panel filters" method="get" action="/tickets" style="margin-bottom:1rem">
+      <div><label>Buscar</label><input name="q" value="{{.Filters.Q}}" /></div>
+      <div>
+        <label>Estado</label>
+        <select name="status">
+          <option value="">Todos</option>
+          {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
+        </select>
       </div>
-
-      <div class="panel">
-        <h2>Nuevo ticket</h2>
-        {{if .Categories}}
-        <form method="post" action="/tickets">
-          <label>Asunto</label>
-          <input name="subject" required placeholder="Portal de pedidos — fase 1" />
-          <label>Categoría</label>
-          <select name="category" required>
-            <option value="">Selecciona…</option>
-            {{range .Categories}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
-          </select>
-          <label>Tipo</label>
-          <select name="type">
-            {{range .Types}}<option value="{{.}}">{{labelType .}}</option>{{end}}
-          </select>
-          <label>Prioridad</label>
-          <select name="priority">
-            {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>{{end}}
-          </select>
-          <label>Estado inicial</label>
-          <select name="status">
-            {{range .Statuses}}<option value="{{.}}" {{if eq . "abierto"}}selected{{end}}>{{labelStatus .}}</option>{{end}}
-          </select>
-          <label>Asignado a</label>
-          <input name="assignee" placeholder="nombre del agente" />
-          <label>Descripción</label>
-          <textarea name="description" placeholder="Alcance, cliente, notas…"></textarea>
-          <button type="submit">Crear ticket</button>
-        </form>
-        {{else}}
-        <p class="muted">Primero crea una <a href="/categories">categoría</a>.</p>
-        {{end}}
+      <div>
+        <label>Prioridad</label>
+        <select name="priority">
+          <option value="">Todas</option>
+          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
+        </select>
       </div>
+      <div>
+        <label>Tipo</label>
+        <select name="type">
+          <option value="">Todos</option>
+          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType .}}</option>{{end}}
+        </select>
+      </div>
+      <div><button class="btn ghost" type="submit">Filtrar</button></div>
+    </form>
+
+    <div class="panel">
+      {{if .Tickets}}
+      <table>
+        <thead><tr><th>#</th><th>Asunto</th><th>Estado</th><th>Prioridad</th><th></th></tr></thead>
+        <tbody>
+        {{range .Tickets}}
+          <tr>
+            <td><span class="badge">{{.Number}}</span></td>
+            <td><a href="/tickets/{{.ID}}">{{.Subject}}</a><div class="muted" style="font-size:.8rem">{{labelType .Type}} · {{index $.CatNames .Category}}</div></td>
+            <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
+            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority .Priority}}</span></td>
+            <td><a href="/tickets/{{.ID}}">abrir</a></td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="muted">Sin resultados.</p>
+      {{end}}
     </div>
   </main>
 </body>
