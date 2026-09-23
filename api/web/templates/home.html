@@ -1,0 +1,32 @@
+{{define "home.html"}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main>
+    <h1>Helpdesk preliminar</h1>
+    <p class="lead">Crea categorías (por ejemplo <em>desarrollo a medida</em>) y luego tickets asociados a esa categoría. Stack: Docker + PocketBase + Go.</p>
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <div class="grid grid-2">
+      <div class="panel">
+        <div class="muted">Categorías</div>
+        <div class="stat">{{.CategoryCount}}</div>
+        <p><a class="btn" href="/categories">Gestionar categorías</a></p>
+      </div>
+      <div class="panel">
+        <div class="muted">Tickets</div>
+        <div class="stat">{{.TicketCount}}</div>
+        <p><a class="btn" href="/tickets">Crear / ver tickets</a></p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

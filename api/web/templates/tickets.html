@@ -1,0 +1,83 @@
+{{define "tickets.html"}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main>
+    <h1>Tickets</h1>
+    <p class="lead">Elige una categoría existente y crea el ticket de seguimiento.</p>
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <div class="grid grid-2">
+      <div class="panel">
+        <h2 style="margin-top:0;font-size:1.1rem">Nuevo ticket</h2>
+        {{if .Categories}}
+        <form method="post" action="/tickets">
+          <label for="subject">Asunto</label>
+          <input id="subject" name="subject" required placeholder="Portal de pedidos — fase 1" />
+          <label for="category">Categoría</label>
+          <select id="category" name="category" required>
+            <option value="">Selecciona…</option>
+            {{range .Categories}}
+            <option value="{{.ID}}">{{.Name}}</option>
+            {{end}}
+          </select>
+          <label for="type">Tipo</label>
+          <select id="type" name="type">
+            <option value="implementacion">Implementación</option>
+            <option value="soporte">Soporte</option>
+          </select>
+          <label for="priority">Prioridad</label>
+          <select id="priority" name="priority">
+            <option value="baja">Baja</option>
+            <option value="media" selected>Media</option>
+            <option value="alta">Alta</option>
+            <option value="critica">Crítica</option>
+          </select>
+          <label for="status">Estado</label>
+          <select id="status" name="status">
+            <option value="abierto" selected>Abierto</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_proceso">En proceso</option>
+            <option value="resuelto">Resuelto</option>
+            <option value="cerrado">Cerrado</option>
+          </select>
+          <label for="description">Descripción</label>
+          <textarea id="description" name="description" placeholder="Alcance, cliente, notas iniciales…"></textarea>
+          <button type="submit">Crear ticket</button>
+        </form>
+        {{else}}
+        <p class="muted">Primero crea una <a href="/categories">categoría</a>.</p>
+        {{end}}
+      </div>
+      <div class="panel">
+        <h2 style="margin-top:0;font-size:1.1rem">Cola</h2>
+        {{if .Tickets}}
+        <table>
+          <thead><tr><th>#</th><th>Asunto</th><th>Categoría</th><th>Estado</th></tr></thead>
+          <tbody>
+          {{range .Tickets}}
+            <tr>
+              <td><span class="pill">{{.Number}}</span></td>
+              <td>{{.Subject}}<div class="muted" style="font-size:.8rem">{{.Type}} · {{.Priority}}</div></td>
+              <td>{{index $.CatNames .Category}}</td>
+              <td>{{.Status}}</td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <p class="muted">Sin tickets todavía.</p>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

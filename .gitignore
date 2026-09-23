@@ -1,0 +1,22 @@
+# Binaries / local tooling
+bin/
+dist/
+tmp/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# PocketBase local data (Compose uses a named volume; keep accidental binds out of git)
+pb_data/
+docker/pocketbase/pb_data/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Go
+vendor/

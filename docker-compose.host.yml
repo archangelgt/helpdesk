@@ -1,0 +1,16 @@
+# Optional override when container-to-container bridge networking is broken
+# (some cloud/CI VMs). Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.host.yml up --build
+#
+# On Docker Desktop (macOS/Windows) prefer the default docker-compose.yml (bridge).
+
+services:
+  pocketbase:
+    network_mode: host
+    ports: !reset []
+
+  api:
+    network_mode: host
+    ports: !reset []
+    environment:
+      POCKETBASE_URL: http://127.0.0.1:8090

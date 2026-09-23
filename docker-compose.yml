@@ -1,0 +1,44 @@
+services:
+  pocketbase:
+    build:
+      context: ./docker/pocketbase
+    container_name: helpdesk-pocketbase
+    restart: unless-stopped
+    ports:
+      - "${PB_PORT:-8090}:8090"
+    volumes:
+      - pb_data:/pb_data
+    environment:
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@helpdesk.local}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-helpdesk-admin-change-me}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  api:
+    build:
+      context: ./api
+    container_name: helpdesk-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      HTTP_ADDR: ":8080"
+      POCKETBASE_URL: http://pocketbase:8090
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@helpdesk.local}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:-helpdesk-admin-change-me}
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  pb_data:
