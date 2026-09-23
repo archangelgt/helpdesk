@@ -1,43 +1,46 @@
 # Límites (no mezclar)
 
-Reglas de separación para no volver a cruzar productos, fases ni stacks.
+Reglas para no cruzar productos, tenants ajenos ni stacks.
 
 ## Producto vs otros labs
 
 | Esto (helpdesk) | No es |
 |-----------------|--------|
 | Repo `archangelgt/helpdesk` | Cherub CRM / CRMSYS |
-| Tickets como **única entrada** + email/chat-on-ticket | Portal CRM, PocketBase de tenants crmsys |
-| Pilotos Cap World / Power Tech como **clientes del helpdesk** | Tenants de CRM (siforest, seraph, …) |
-| Deploy futuro en erpsys (Fase 6) | Deploy ritual de `crm` |
-| PocketBase **de este** helpdesk en Docker | Reutilizar o compartir PB/schemas del CRM |
+| Tenants del helpdesk (empresas aisladas) | Tenants PocketBase de crmsys (siforest, seraph, …) |
+| Ticket implementación (erpsys / ERPNext / a medida) | Proyecto o issue tracker del CRM |
+| API / adaptador **ERPSYS Chat** → ticket | Meter código de erpsys/crm dentro de este repo |
+| Deploy del helpdesk en erpsys (Fase 6) | Ritual de deploy `crm` |
+| PocketBase **de este** helpdesk en Docker | Reutilizar `pb_data` o schemas del CRM |
 
-Carpeta hermana `../crm` **no** es dependencia ni plantilla.
+`../crm` y otros labs **no** son dependencia ni plantilla.
 
-## Pilares (orden)
+## Qué sí es este producto
 
-1. **Tickets** (MVP) — la entrada; todo lo demás alimenta tickets  
-2. **Email → ticket** — Fase 3  
-3. **Chat-on-ticket** — Fase 4 (hilo del ticket; no chat libre de equipo)  
+1. **Multitenancy** helpdesk (varias empresas, datos aislados).  
+2. Tickets de **implementación** con etapas, periodos y avance (equipo primero; compartible al cliente).  
+3. Tickets de **soporte**.  
+4. **API de ingesta** hacia Email, WhatsApp, ERPSYS Chat (fases 3–4).  
 
-No implementar 2 o 3 “de paso” mientras el MVP de tickets esté abierto.  
-WhatsApp / teléfono / API pública: fuera hasta decisión explícita.
+## Orden de construcción
+
+1. Fundación Docker + tenants + tickets (impl + soporte)  
+2. API de ingesta  
+3. Canales Email / WhatsApp / ERPSYS Chat  
+4. Hardening + deploy erpsys  
+
+No implementar canales “de paso” mientras el MVP de UI interna no cierre.
 
 ## Stack (duro)
 
-- **Siempre** Docker Compose: PocketBase + Go (+ UI).  
-- **Nunca** PocketBase ni API Go como binario en el host.  
+- Siempre Docker Compose: PocketBase + Go (+ UI).  
+- Nunca binario PB/Go en el host.  
 - Skill: `.cursor/skills/docker-pocketbase-go/SKILL.md`.
 
-## Clientes piloto
+## Pilotos
 
-- Cap World ≠ Power Tech.  
-- No reutilizar IDs ni configs de otros sistemas Cherub sin decisión explícita.
-
-## Referencia Infile
-
-- **Sí:** cola, estados, prioridad, asignación, historial.  
-- **No:** paridad de features ni migración Infile en esta etapa.
+- Cap World ≠ Power Tech (tenants distintos).  
+- No reutilizar IDs/creds de CRM u otros sistemas sin decisión explícita.
 
 ## Docs canónicos
 
@@ -45,6 +48,6 @@ WhatsApp / teléfono / API pública: fuera hasta decisión explícita.
 |-----|-----|
 | [README.md](./README.md) | Visión + stack |
 | [ROADMAP.md](./ROADMAP.md) | Fases 0→6 |
-| [MVP.md](./MVP.md) | Alcance tickets |
-| [FEATURES.md](./FEATURES.md) | Catálogo de capacidades |
+| [MVP.md](./MVP.md) | Alcance MVP |
+| [FEATURES.md](./FEATURES.md) | Capacidades |
 | Este archivo | Qué no mezclar |

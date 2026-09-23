@@ -1,5 +1,5 @@
 ---
-description: Límites duros — helpdesk no se mezcla con CRM; tickets como entrada; Docker+PB+Go
+description: Límites duros — helpdesk multitenancy; no mezclar con CRM; impl+soporte+API canales
 alwaysApply: true
 ---
 
@@ -9,26 +9,26 @@ Este workspace es **solo** [archangelgt/helpdesk](https://github.com/archangelgt
 
 ## Fuera de este repo (no tocar desde aquí)
 
-- Cherub CRM / CRMSYS (`../crm`, tenants siforest/seraph/etc., PocketBase CRM, ritual de deploy crmsys)
-- ShopiFEL, HARP, ERPNext/nomsys, Servo, LMS u otros labs Cherub
+- Cherub CRM / CRMSYS (`../crm`, tenants siforest/seraph/etc., PocketBase CRM, ritual crmsys)
+- ShopiFEL, HARP, ERPNext/nomsys app code, Servo, LMS u otros labs (salvo **integrar por API** documentada)
 - Código, schemas, seeds, env o scripts de esos proyectos
 
-Si hace falta algo de otro producto: **parar y preguntar**. No copiar ni “aprovechar” el CRM por cercanía de carpeta.
+Integración **ERPSYS Chat** = adaptador/cliente HTTP en este repo hacia APIs externas; no copiar el monorepo erpsys/crm aquí.
+
+Si hace falta algo de otro producto: **parar y preguntar**.
 
 ## Dentro del producto helpdesk
 
 | Separar | Cómo |
 |---|---|
-| Fases | Seguir ROADMAP: no meter chat ni email→ticket en el MVP de tickets |
-| Entrada | Todo es **ticket**; chat solo chat-on-ticket (Fase 4), no chat libre |
-| Clientes | Cap World ≠ Power Tech: filtrar/aislar; no fusionar identidades |
-| Estilo Infile | Imitar cola/estados/prioridad; no clonar ni migrar Infile |
-| Stack | Siempre Docker: PocketBase + Go en contenedores; **nunca** binario PB/Go en host |
-| Deploy erpsys | Solo Fase 6; no acoplar infra prematura |
+| Tenants helpdesk | Empresas aisladas en este producto ≠ tenants CRM |
+| Tipos de ticket | `implementacion` (etapas/plazos/avance) y `soporte` |
+| Visibilidad | Interno (equipo) vs compartido al cliente |
+| Canales | Email / WhatsApp / ERPSYS Chat solo vía API de ingesta (Fases 3–4) |
+| Stack | Docker: PocketBase + Go; **nunca** binario en host |
+| Deploy erpsys | Fase 6 |
 
-## Este chat
+## Docs
 
-- Trabajar solo bajo el root de `helpdesk`
-- No abrir ni editar archivos de `cherub/crm` u otros repos “de paso”
-- Docs: `README`, `ROADMAP`, `MVP`, `FEATURES`, `BOUNDARIES`
-- Skill de stack: `.cursor/skills/docker-pocketbase-go/SKILL.md`
+`README`, `ROADMAP`, `MVP`, `FEATURES`, `BOUNDARIES`  
+Skill stack: `.cursor/skills/docker-pocketbase-go/SKILL.md`

@@ -1,151 +1,94 @@
 # Características del Help Desk
 
-Un software Help Desk centraliza, organiza y da seguimiento a las solicitudes de soporte. En este producto **toda entrada es un ticket**; los canales (email, portal, chat) alimentan o continúan tickets, no sustituyen la cola.
+Producto **multitenancy**: el equipo interno gestiona tickets de **implementación** y de **soporte** por empresa (tenant). Toda entrada es un ticket; Email, WhatsApp y ERPSYS Chat llegan por **API de ingesta**.
 
-## Decisión de producto: tickets como entrada
+## Enfoque de producto
+
+### 1. Seguimiento de implementaciones (uso principal interno)
+
+Cuando un cliente contrata, por ejemplo:
+
+- Alta / implementación **erpsys**
+- Implementación **ERPNext**
+- **Desarrollo a medida**
+
+Creamos un ticket de implementación y le agregamos:
+
+- **Etapas** (p. ej. discovery → diseño → desarrollo → UAT → go-live)
+- **Periodos de tiempo** (fechas planificadas / reales por etapa)
+- **Avance** (cómo va cada etapa y el conjunto)
+
+El equipo ve todo (notas internas, retrasos, riesgos). Al cliente se le puede **compartir** una vista filtrada (avance, etapas, mensajes visibles).
+
+### 2. Tickets de soporte
+
+Misma plataforma, otro tipo (o categoría) de ticket: incidencias, prioridad, asignación, resolución — estilo cola de help desk.
+
+### 3. Multitenancy
+
+Varias empresas en el mismo software, datos aislados:
+
+`Tenant (empresa) → Clientes/proyectos → Tickets (implementación | soporte) → Etapas / historial`
+
+Pilotos iniciales de referencia: Cap World, Power Tech (como tenants o cuentas dentro del modelo; ver MVP).
+
+### 4. API de ingesta (canales)
+
+Endpoints autenticados para crear / actualizar tickets desde:
 
 | Canal | Rol |
 |-------|-----|
-| Portal / UI agentes | Crear y gestionar tickets |
-| Email | Crear ticket o responder al hilo del ticket |
-| Chat | Solo **sobre un ticket** (hilo del ticket), no chat libre aparte de la cola |
-| WhatsApp / teléfono / API | Fuera de alcance hasta decisión explícita |
+| **Email** | Correo → ticket (o reply → hilo) |
+| **WhatsApp** | Mensaje → ticket / comentario |
+| **ERPSYS Chat** | Mensaje desde chat erpsys → ticket |
+
+La UI interna sigue siendo el lugar donde el equipo opera etapas y avance.
 
 Comentarios:
 
-- **Interno** — solo técnicos / agentes  
-- **Respuesta al cliente** — visible o enviada al cliente  
+- **Interno** — solo el equipo  
+- **Visible al cliente** — lo compartido / enviado al cliente  
 
 ---
 
-## 1. Gestión de tickets
+## Capacidades generales
 
-Función principal.
+### Gestión de tickets
 
-- Creación por cliente o usuario  
-- Número único de ticket  
-- Asunto y descripción  
-- Prioridad: baja, media, alta, crítica  
-- Estado: abierto, pendiente, en proceso, resuelto, cerrado  
-- Asignación a técnico o departamento  
-- Categorías y subcategorías  
-- Historial completo de cambios y acciones  
-- Archivos adjuntos (capturas, documentos)  
+- Tipos: `implementacion` | `soporte` (nombres ajustables)
+- Número único, asunto, descripción
+- Prioridad, estado, asignación, categorías
+- Historial de cambios; adjuntos
+- En implementación: **etapas**, fechas, avance
 
-**Fase:** núcleo en MVP (Fase 2); adjuntos y categorías completas según roadmap.
+### Clientes / tenants
 
-## 2. Gestión de clientes y usuarios
+- Tenant = empresa que opera (o a la que se da servicio) en aislamiento
+- Contactos, historial, productos/servicios (erpsys, ERPNext, a medida)
+- Cadena: `Tenant → Cliente/proyecto → Producto → Tickets → Etapas / soporte`
 
-Quién solicita el soporte.
+### Panel y métricas
 
-- Información del cliente  
-- Contactos y usuarios asociados  
-- Empresa / sucursal / departamento  
-- Historial de tickets por cliente  
-- Productos o servicios contratados  
-- Datos de contacto  
-- Permisos y roles  
+- Abiertos / pendientes / resueltos; por técnico, tenant, tipo
+- Avance de implementaciones; vencidos / SLA (soporte)
 
-Cadena útil (ERP / cuentas):
+### SLA
 
-`Cliente → Empresa → Producto contratado → Tickets abiertos → Historial de soporte`
+Matrices por prioridad (soporte); alertas cercanas a incumplimiento. Post-MVP.
 
-**Fase:** cliente + agentes en MVP; producto contratado y jerarquía empresa en fases posteriores.
+### Comunicación
 
-## 3. Panel de control y métricas
+Portal, email, WhatsApp, ERPSYS Chat → tickets; notificaciones; plantillas; interno vs cliente.
 
-- Tickets abiertos / pendientes / resueltos / vencidos  
-- Por técnico, cliente, categoría  
-- Tiempo promedio de respuesta y de resolución  
-- Cantidad por período  
-- Cumplimiento de SLA  
+### Automatización
 
-**Fase:** métricas mínimas en hardening; panel completo después del MVP.
+Reglas, asignación, reopen, alertas de etapa vencida, etc. Post-MVP.
 
-## 4. SLA (Service Level Agreement)
+### Base de conocimientos / búsqueda / roles / adjuntos / auditoría
 
-Ejemplo de matriz:
+Como en un help desk estándar; ver fases en [ROADMAP.md](./ROADMAP.md).
 
-| Prioridad | Tiempo de respuesta | Tiempo de resolución |
-|-----------|---------------------|----------------------|
-| Crítica | 15 min | 4 horas |
-| Alta | 1 hora | 8 horas |
-| Media | 4 horas | 24 horas |
-| Baja | 8 horas | 72 horas |
-
-Alertas cuando un ticket está cerca de incumplir el SLA.
-
-**Fase:** post-MVP (hardening / fase SLA dedicada). No en MVP.
-
-## 5. Comunicación con el cliente
-
-El cliente no debería depender siempre de entrar al sistema.
-
-- Correo → creación automática de ticket  
-- Respuestas por correo  
-- Portal web  
-- Chat **ligado al ticket**  
-- Notificaciones  
-- Comentarios internos vs visibles al cliente  
-- Plantillas de respuesta  
-
-**Fase:** comentarios (interno / cliente) en MVP; email→ticket Fase 3; chat-on-ticket Fase 4.
-
-## 6. Automatización
-
-Ejemplos:
-
-- Categoría = Facturación → asignar a Contabilidad  
-- Prioridad = Crítica → notificar supervisor  
-- 24 h sin respuesta → alerta  
-- Cliente responde ticket cerrado → reabrir  
-
-También: reglas, asignación automática, respuestas automáticas, recordatorios, escalamiento, cambio de estados.
-
-**Fase:** post-MVP; reglas simples tras email.
-
-## 7. Base de conocimientos
-
-Artículos para problemas frecuentes (p. ej. “No puedo iniciar sesión”) para reducir tickets humanos.
-
-**Fase:** fuera del MVP; fase posterior.
-
-## 8. Búsqueda e historial
-
-Buscar por: número, cliente, usuario, NIT, correo, técnico, estado, categoría, fecha, palabras clave.
-
-Consulta tipo: *¿Qué problemas ha tenido este cliente en los últimos 6 meses?*
-
-**Fase:** búsqueda simple en MVP; avanzada después.
-
-## 9. Roles y permisos
-
-| Rol | Acceso típico |
-|-----|----------------|
-| Administrador | Configuración, usuarios, reportes, permisos |
-| Supervisor | Todos los tickets, asignar, métricas |
-| Técnico | Tickets asignados, responder, cambiar estados |
-| Cliente | Crear / ver / responder sus tickets |
-
-**Fase:** agentes + separación cliente en MVP; matriz completa en hardening.
-
-## 10. Archivos y evidencias
-
-Imágenes, PDF, Excel, videos, logs, capturas, documentos — con quién adjuntó y cuándo.
-
-**Fase:** post-MVP cercano (después de cola estable).
-
-## 11. Auditoría
-
-Registro de acciones (quién creó, asignó, cambió prioridad, respondió, cuándo).
-
-**Fase:** hardening.
-
-## 12. Multicanal
-
-Portal, correo, WhatsApp, chat, teléfono, móvil, API → **mismo sistema de tickets**.
-
-**Fase:** portal + email primero; resto solo con decisión explícita ([BOUNDARIES.md](./BOUNDARIES.md)).
+Roles típicos: admin tenant, supervisor, técnico, **cliente (solo lo compartido)**.
 
 ---
 
@@ -153,12 +96,12 @@ Portal, correo, WhatsApp, chat, teléfono, móvil, API → **mismo sistema de ti
 
 | Feature | MVP | Luego |
 |---------|-----|--------|
-| Tickets (cola, estados, prioridad, asignación, comentarios) | Sí | — |
-| Clientes Cap World / Power Tech | Sí | Jerarquía empresa/producto |
-| Comentario interno vs cliente | Sí (básico) | Plantillas |
-| Email → ticket | No | Fase 3 |
-| Chat sobre ticket | No | Fase 4 |
-| SLA / automations / KB / métricas avanzadas | No | Hardening+ |
-| WhatsApp / teléfono | No | Fuera hasta decisión |
+| Multitenancy básico (2+ empresas aisladas) | Sí | Hardening |
+| Ticket implementación + etapas + fechas + avance | Sí | Plantillas de etapas |
+| Compartir avance al cliente (vista / comentarios) | Sí (básico) | Portal cliente rico |
+| Ticket soporte (cola, prioridad, asignación) | Sí | SLA completo |
+| API ingesta (contrato + al menos un canal) | Stub / contrato | Email, WhatsApp, ERPSYS Chat |
+| Email / WhatsApp / ERPSYS Chat en producción | No | Fases de canales |
+| SLA / automations / KB avanzados | No | Hardening+ |
 
-Detalle de fases: [ROADMAP.md](./ROADMAP.md). Aceptación MVP: [MVP.md](./MVP.md).
+Detalle: [ROADMAP.md](./ROADMAP.md), [MVP.md](./MVP.md).

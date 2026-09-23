@@ -1,10 +1,10 @@
 # MVP
 
-Minimum Viable Product: **cola de tickets** usable por agentes, con clientes piloto **Cap World** y **Power Tech**.
+MVP del helpdesk **multitenancy**: el equipo interno gestiona tickets de **implementación** (etapas, plazos, avance, compartibles al cliente) y de **soporte**, con tenants piloto **Cap World** y **Power Tech**.
 
-Email→ticket y chat-on-ticket vienen después ([ROADMAP.md](./ROADMAP.md)). El MVP es solo la **entrada y gestión de tickets**.
+La **API de ingesta** (Email / WhatsApp / ERPSYS Chat) empieza en Fase 3–4 ([ROADMAP.md](./ROADMAP.md)); el MVP opera desde la UI interna.
 
-Visión de producto completa: [FEATURES.md](./FEATURES.md).
+Visión: [FEATURES.md](./FEATURES.md).
 
 ---
 
@@ -12,144 +12,139 @@ Visión de producto completa: [FEATURES.md](./FEATURES.md).
 
 ### Incluye
 
-- Stack local: **Docker Compose** (PocketBase + API Go); sin binarios sueltos
-- Login de agentes (usuarios internos mínimos)
-- CRUD / ciclo de vida de tickets
-- Número único, asunto, descripción
-- Prioridad: baja / media / alta / crítica
-- Estados: abierto → pendiente → en proceso → resuelto → cerrado
-- Asignación a agente
-- Comentarios con distinción básica **interno** vs **visible al cliente**
-- Listado con filtros (estado, prioridad, cliente, asignado)
-- Búsqueda simple (número, cliente, palabras en asunto)
-- Separación por cliente (Cap World, Power Tech)
-- UI usable en desktop
+- Stack: **Docker Compose** (PocketBase + API Go); sin binarios en host
+- **Multitenancy** básico: al menos dos tenants aislados (Cap World, Power Tech)
+- Login del equipo interno
+- Tipos de ticket: `implementacion` | `soporte`
+
+**Implementación**
+
+- Crear ticket ligado a tenant / cliente / tipo de trabajo (erpsys | ERPNext | desarrollo a medida | otro)
+- **Etapas** con nombre, orden, fecha planificada, fecha real (opcional), estado de etapa
+- **Avance** global o por etapa (porcentaje o estados)
+- Comentarios **internos** vs **visibles al cliente**
+- Vista o listado que se pueda compartir / mostrar al cliente (solo lo no interno)
+
+**Soporte**
+
+- Cola: prioridad, estado, asignación, comentarios (interno / cliente)
+- Filtros por tenant, tipo, estado, prioridad
+
+**Común**
+
+- Número único, asunto, descripción, historial básico
+- UI desktop usable para el equipo
 
 ### No incluye (MVP)
 
-- Ingesta de email
-- Chat (ni siquiera chat-on-ticket)
-- SLA / alertas de vencimiento
+- API de ingesta en producción (Email / WhatsApp / ERPSYS Chat)
+- SLA automáticos
 - Automatizaciones / escalamiento
-- Adjuntos de archivos
+- Adjuntos (salvo decisión mínima)
 - Base de conocimientos
-- Panel de métricas avanzado
-- Producto contratado / jerarquía empresa completa
-- WhatsApp / multicanal extra
+- Portal cliente rico (basta vista compartida básica)
 - App móvil nativa
-- Integraciones FEL / ERP profundas (más allá de identificar cliente)
+- Mezclar datos o schemas con CRM
 
 ---
 
-## Clientes piloto
+## Tenants / clientes piloto
 
-| Cliente | Uso esperado en MVP |
-|---------|---------------------|
-| **Cap World** | Tickets creados y gestionados por agentes; filtros y asignación reales |
-| **Power Tech** | Mismo flujo; validar multi-cliente |
+| Tenant | Uso en MVP |
+|--------|------------|
+| **Cap World** | Ticket de implementación (p. ej. erpsys o a medida) con etapas + un ticket de soporte |
+| **Power Tech** | Igual en el otro tenant; validar aislamiento |
 
-Cada piloto debe poder:
+Cada tenant debe:
 
-1. Tener tickets propios visibles en su contexto (o filtrados por cliente).
-2. Ser atendido por uno o más agentes.
-3. Completar el ciclo abierto → resuelto sin pasos fuera del sistema.
+1. Ver solo sus tickets.  
+2. Tener al menos una implementación con etapas y avance.  
+3. Poder marcar comentarios visibles al cliente vs internos.  
+4. Completar ciclo de un soporte abierto → resuelto.
 
 ---
 
 ## Etapas del MVP
 
-### E1 — Modelo y API (Docker)
+### E1 — Modelo y API (Docker + tenants)
 
-- Compose: PocketBase + servicio Go
-- Entidades: `Ticket`, `Comment`, `User`/`Agent`, `Client`
-- Endpoints: listar, crear, actualizar estado/asignación, comentar
-- Validaciones básicas
+- Compose: PocketBase + Go  
+- Entidades: `Tenant`, `Ticket`, `Stage`, `Comment`, `User`  
+- Endpoints: CRUD tickets, etapas, comentarios; filtro por tenant  
 
-### E2 — UI agentes
+### E2 — UI equipo
 
-- Inbox / cola
-- Formulario de alta
-- Detalle + comentarios (interno / cliente)
-- Filtros y búsqueda simple
+- Selector / contexto de tenant  
+- Cola (implementación + soporte)  
+- Alta de implementación con etapas  
+- Detalle: avance, fechas, comentarios  
+- Alta/gestión de soporte  
 
 ### E3 — Piloto Cap World / Power Tech
 
-- Semilla de ambos clientes + agentes de prueba
-- Flujo: crear → asignar → comentar → resolver
-- Ajustes cortos de UX
+- Semilla de tenants y usuarios  
+- Flujo implementación: crear → etapas → actualizar avance → comentario cliente  
+- Flujo soporte: crear → asignar → resolver  
 
 ### E4 — Cierre MVP
 
-- Criterios de aceptación en verde
-- Limitaciones conocidas
-- Go/no-go hacia Fase 3 (email)
+- Criterios en verde  
+- Limitaciones  
+- Go/no-go hacia Fase 3 (API de ingesta)  
 
 ---
 
-## Ciclo de vida del ticket (MVP)
+## Modelo mínimo
 
-```
-abierto → pendiente → en_proceso → resuelto → cerrado
-              ↑_________________|  (reabrir si hace falta)
-```
-
-Campos mínimos:
+### Ticket
 
 | Campo | Notas |
 |-------|--------|
-| `id` / número visible | Identificador humano único |
-| `asunto` | Obligatorio |
-| `descripción` | Texto inicial |
-| `cliente` | Cap World \| Power Tech \| … |
-| `prioridad` | baja / media / alta / crítica |
-| `estado` | ver ciclo |
-| `asignado_a` | agente opcional al crear |
-| `creado_en` / `actualizado_en` | timestamps |
-| `comentarios[]` | autor, cuerpo, fecha, `interno` \| `cliente` |
+| `id` / número | Único |
+| `tenant_id` | Obligatorio |
+| `tipo` | `implementacion` \| `soporte` |
+| `asunto` / `descripción` | Obligatorios |
+| `trabajo` (impl.) | erpsys \| erpnext \| a_medida \| otro |
+| `prioridad` / `estado` | Según tipo |
+| `asignado_a` | Opcional |
+| `avance` | % o derivado de etapas (impl.) |
+| `comentarios[]` | `interno` \| `cliente` |
+| timestamps | creado / actualizado |
+
+### Etapa (solo implementación)
+
+| Campo | Notas |
+|-------|--------|
+| `nombre` / `orden` | Obligatorios |
+| `fecha_plan_inicio` / `fecha_plan_fin` | Periodo planificado |
+| `fecha_real_inicio` / `fecha_real_fin` | Opcional |
+| `estado_etapa` | pendiente \| en_curso \| hecha \| bloqueada |
+| `avance_etapa` | Opcional |
+
+Ciclo soporte (MVP):
+
+```
+abierto → pendiente → en_proceso → resuelto → cerrado
+```
 
 ---
 
 ## Criterios de aceptación
 
-### Funcionales
+- [ ] `docker compose` levanta PocketBase + Go (sin binario en host).
+- [ ] Existen tenants Cap World y Power Tech aislados.
+- [ ] El equipo crea un ticket de **implementación** con ≥ 3 etapas y fechas.
+- [ ] Puede actualizar avance / estado de etapas y ver el progreso.
+- [ ] Puede dejar comentario interno (no visible en vista cliente) y uno visible al cliente.
+- [ ] Crea y resuelve un ticket de **soporte** en el mismo tenant.
+- [ ] Un usuario de Cap World no ve tickets de Power Tech.
+- [ ] Persistencia tras refresh / re-login.
+- [ ] Secretos fuera del repo; README de arranque local.
 
-- [ ] Stack arranca con `docker compose` (PocketBase + Go); sin binario PB/Go en host.
-- [ ] Un agente inicia sesión y ve la cola de tickets.
-- [ ] Puede crear un ticket asociado a **Cap World**.
-- [ ] Puede crear un ticket asociado a **Power Tech**.
-- [ ] Puede filtrar por cliente, estado y prioridad.
-- [ ] Puede asignarse (o asignar a otro) un ticket.
-- [ ] Puede cambiar estado hasta resuelto/cerrado.
-- [ ] Puede agregar comentario interno y comentario visible al cliente.
-- [ ] Un ticket de Cap World no se confunde con uno de Power Tech.
-- [ ] Tras refrescar / re-login, estado y comentarios persisten.
-
-### No funcionales (mínimos)
-
-- [ ] Carga de cola aceptable en uso interno (< ~3 s).
-- [ ] Errores de API visibles en UI.
-- [ ] Secretos fuera del repo.
-- [ ] Instrucciones de arranque local en README.
-
-### Definición de “MVP listo”
-
-Checks funcionales en verde con Cap World y Power Tech, más decisión documentada de pasar a **Fase 3 — Email → ticket**.
+**MVP listo:** checks en verde + decisión de pasar a **Fase 3 — API de ingesta**.
 
 ---
 
-## Referencia de producto
+## Siguiente paso
 
-**“Estilo Infile”** en el MVP:
-
-- Cola clara de incidencias  
-- Estados y prioridades visibles  
-- Asignación a responsable  
-- Historial / comentarios en el ticket  
-
-No implica paridad con Infile ni migración de datos.
-
----
-
-## Siguiente paso tras MVP
-
-[ROADMAP.md](./ROADMAP.md) — Fase 3 email→ticket, luego Fase 4 chat-on-ticket, hardening y erpsys.
+Desarrollo Fase 1 → 2 según [ROADMAP.md](./ROADMAP.md). Luego API y canales Email / WhatsApp / ERPSYS Chat.
