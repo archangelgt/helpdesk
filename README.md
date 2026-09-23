@@ -26,18 +26,14 @@ cp .env.example .env   # opcional; ajusta contraseñas
 docker compose up --build
 ```
 
-Si en tu entorno los contenedores no se ven entre sí (raro en Docker Desktop):
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.host.yml up --build
-```
-
 | URL | Qué |
 |-----|-----|
-| http://localhost:8080 | UI: categorías + tickets |
+| http://localhost:8080 | **App Helpdesk** (categorías + tickets) |
 | http://localhost:8080/categories | Crear categoría (ej. *desarrollo a medida*) |
 | http://localhost:8080/tickets | Crear ticket eligiendo esa categoría |
-| http://localhost:8090 | PocketBase admin (email/password del `.env`) |
+| http://localhost:8090/_/ | PocketBase admin (email/password del `.env`) |
+
+Ambos puertos (`8080` y `8090`) los publica el contenedor `api`; PocketBase comparte su red. La DB sigue en el volumen Docker `helpdesk_pb_data`.
 
 Flujo preliminar: **Categorías → crear “desarrollo a medida” → Tickets → elegir esa categoría → crear ticket**.
 
@@ -46,7 +42,7 @@ API JSON: `GET/POST /api/categories`, `GET/POST /api/tickets` (`category_id` al 
 Parar: `docker compose down` (el volumen `helpdesk_pb_data` **se conserva**).  
 Borrar la base: `docker compose down -v` (destruye el volumen Docker).
 
-**Base de datos:** solo dentro de Docker — volumen nombrado `helpdesk_pb_data` montado en `/pb_data` del contenedor PocketBase. No hay SQLite ni `pb_data` en el repo/host del proyecto.
+**Base de datos:** solo dentro de Docker — volumen `helpdesk_pb_data` → `/pb_data`. Sin bind al host del proyecto.
 
 
 ## Documentos
