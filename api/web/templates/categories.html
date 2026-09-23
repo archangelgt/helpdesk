@@ -11,12 +11,12 @@
   {{template "nav" .}}
   <main>
     <h1>Categorías</h1>
-    <p class="lead">Define el tipo de trabajo. Ejemplo: <strong>desarrollo a medida</strong>, implementación erpsys, soporte.</p>
+    <p class="lead">Clasifica el trabajo: desarrollo a medida, erpsys, ERPNext, soporte, etc.</p>
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
     <div class="grid grid-2">
       <div class="panel">
-        <h2 style="margin-top:0;font-size:1.1rem">Nueva categoría</h2>
+        <h2>Nueva categoría</h2>
         <form method="post" action="/categories">
           <label for="name">Nombre</label>
           <input id="name" name="name" required placeholder="desarrollo a medida" />
@@ -26,21 +26,21 @@
         </form>
       </div>
       <div class="panel">
-        <h2 style="margin-top:0;font-size:1.1rem">Listado</h2>
+        <h2>Listado</h2>
         {{if .Categories}}
         <table>
           <thead><tr><th>Nombre</th><th>Descripción</th></tr></thead>
           <tbody>
           {{range .Categories}}
             <tr>
-              <td>{{.Name}}</td>
+              <td><strong>{{.Name}}</strong></td>
               <td class="muted">{{.Description}}</td>
             </tr>
           {{end}}
           </tbody>
         </table>
         {{else}}
-        <p class="muted">Aún no hay categorías. Crea la primera a la izquierda.</p>
+        <p class="muted">Sin categorías todavía.</p>
         {{end}}
       </div>
     </div>

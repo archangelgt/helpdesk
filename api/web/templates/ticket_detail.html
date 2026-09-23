@@ -1,0 +1,188 @@
+{{define "ticket_detail.html"}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Ticket.Number}} · Helpdesk</title>
+  {{template "styles" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main>
+    <p class="muted" style="margin:0 0 .4rem"><a href="/tickets">← Cola</a></p>
+    <h1>
+      <span class="badge">{{.Ticket.Number}}</span>
+      {{.Ticket.Subject}}
+    </h1>
+    <p class="lead">
+      <span class="pill {{statusClass .Ticket.Status}}">{{labelStatus .Ticket.Status}}</span>
+      · {{labelType .Ticket.Type}}
+      · {{labelPriority .Ticket.Priority}}
+      · {{.CategoryName}}
+      {{if .Ticket.Assignee}}· Asignado: {{.Ticket.Assignee}}{{end}}
+    </p>
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="panel" style="margin-bottom:1.1rem">
+      <h2>Cambio rápido de estado</h2>
+      <div class="quick-status row">
+        {{range .Statuses}}
+        <form method="post" action="/tickets/{{$.Ticket.ID}}/status">
+          <input type="hidden" name="status" value="{{.}}" />
+          <button type="submit" class="{{if eq $.Ticket.Status .}}{{else}}secondary{{end}}">{{labelStatus .}}</button>
+        </form>
+        {{end}}
+      </div>
+    </div>
+
+    <div class="grid grid-aside">
+      <div class="grid">
+        <div class="panel">
+          <h2>Detalle</h2>
+          <form method="post" action="/tickets/{{.Ticket.ID}}/update">
+            <label>Asunto</label>
+            <input name="subject" value="{{.Ticket.Subject}}" required />
+            <label>Descripción</label>
+            <textarea name="description">{{.Ticket.Description}}</textarea>
+            <label>Categoría</label>
+            <select name="category">
+              {{range .Categories}}
+              <option value="{{.ID}}" {{selected $.Ticket.Category .ID}}>{{.Name}}</option>
+              {{end}}
+            </select>
+            <div class="grid grid-2">
+              <div>
+                <label>Estado</label>
+                <select name="status">
+                  {{range .Statuses}}<option value="{{.}}" {{selected $.Ticket.Status .}}>{{labelStatus .}}</option>{{end}}
+                </select>
+              </div>
+              <div>
+                <label>Prioridad</label>
+                <select name="priority">
+                  {{range .Priorities}}<option value="{{.}}" {{selected $.Ticket.Priority .}}>{{labelPriority .}}</option>{{end}}
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-2">
+              <div>
+                <label>Tipo</label>
+                <select name="type">
+                  {{range .Types}}<option value="{{.}}" {{selected $.Ticket.Type .}}>{{labelType .}}</option>{{end}}
+                </select>
+              </div>
+              <div>
+                <label>Asignado a</label>
+                <input name="assignee" value="{{.Ticket.Assignee}}" placeholder="agente" />
+              </div>
+            </div>
+            <button type="submit">Guardar cambios</button>
+          </form>
+        </div>
+
+        {{if eq .Ticket.Type "implementacion"}}
+        <div class="panel">
+          <h2>Etapas de implementación</h2>
+          {{if .Stages}}
+          <table>
+            <thead><tr><th>#</th><th>Etapa</th><th>Fechas</th><th>Estado</th><th>Avance</th><th></th></tr></thead>
+            <tbody>
+            {{range .Stages}}
+              <tr>
+                <td colspan="6" style="padding-top:1rem">
+                  {{$st := .}}
+                  <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}" class="grid grid-2">
+                    <div>
+                      <label>Nombre</label>
+                      <input name="name" value="{{$st.Name}}" />
+                      <label>Orden</label>
+                      <input name="orden" type="number" step="1" value="{{printf "%.0f" $st.Orden}}" />
+                      <label>Estado</label>
+                      <select name="estado">
+                        {{range $.StageStates}}<option value="{{.}}" {{selected $st.Estado .}}>{{labelStage .}}</option>{{end}}
+                      </select>
+                    </div>
+                    <div>
+                      <label>Inicio plan</label>
+                      <input name="fecha_plan_inicio" value="{{$st.FechaPlanInicio}}" placeholder="YYYY-MM-DD" />
+                      <label>Fin plan</label>
+                      <input name="fecha_plan_fin" value="{{$st.FechaPlanFin}}" placeholder="YYYY-MM-DD" />
+                      <label>Avance %</label>
+                      <input name="avance" type="number" min="0" max="100" value="{{printf "%.0f" $st.Avance}}" />
+                      <button type="submit">Actualizar etapa</button>
+                    </div>
+                  </form>
+                </td>
+              </tr>
+            {{end}}
+            </tbody>
+          </table>
+          {{else}}
+          <p class="muted">Sin etapas. Agrega discovery, desarrollo, UAT…</p>
+          {{end}}
+          <hr style="border:0;border-top:1px solid var(--line);margin:1rem 0" />
+          <h2>Nueva etapa</h2>
+          <form method="post" action="/tickets/{{.Ticket.ID}}/stages">
+            <label>Nombre</label>
+            <input name="name" required placeholder="UAT" />
+            <label>Orden</label>
+            <input name="orden" type="number" value="{{len .Stages}}" />
+            <div class="grid grid-2">
+              <div>
+                <label>Inicio plan</label>
+                <input name="fecha_plan_inicio" placeholder="YYYY-MM-DD" />
+              </div>
+              <div>
+                <label>Fin plan</label>
+                <input name="fecha_plan_fin" placeholder="YYYY-MM-DD" />
+              </div>
+            </div>
+            <label>Estado</label>
+            <select name="estado">
+              {{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}
+            </select>
+            <button type="submit">Agregar etapa</button>
+          </form>
+        </div>
+        {{end}}
+      </div>
+
+      <div class="panel">
+        <h2>Historial / comentarios</h2>
+        <div class="timeline" style="margin-bottom:1.2rem">
+          {{if .Comments}}
+            {{range .Comments}}
+            <div class="comment {{.Visibility}}">
+              <div class="meta">
+                <strong>{{labelVis .Visibility}}</strong>
+                · {{if .Author}}{{.Author}}{{else}}—{{end}}
+                · {{.Created}}
+              </div>
+              <div>{{.Body}}</div>
+            </div>
+            {{end}}
+          {{else}}
+            <p class="muted">Sin comentarios.</p>
+          {{end}}
+        </div>
+        <h2>Nuevo comentario</h2>
+        <form method="post" action="/tickets/{{.Ticket.ID}}/comments">
+          <label>Visibilidad</label>
+          <select name="visibility">
+            <option value="interno">Interno (solo equipo)</option>
+            <option value="cliente">Visible al cliente</option>
+          </select>
+          <label>Autor</label>
+          <input name="author" placeholder="tu nombre" value="agente" />
+          <label>Mensaje</label>
+          <textarea name="body" required placeholder="Actualización…"></textarea>
+          <button type="submit">Publicar</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

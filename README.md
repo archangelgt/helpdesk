@@ -66,4 +66,4 @@ Skill: `.cursor/skills/docker-pocketbase-go/SKILL.md`.
 
 ## Estado
 
-**Fase 1 (preliminar).** Compose con PocketBase + Go; categorías y tickets enlazados. Aún sin multitenancy completo, etapas de implementación ni API de canales.
+**Fase 1 (en curso).** App Docker con categorías, cola filtrable, detalle de ticket (cambio de estado/prioridad, comentarios interno/cliente, etapas de implementación). Pendiente: multitenancy completo y API de canales.

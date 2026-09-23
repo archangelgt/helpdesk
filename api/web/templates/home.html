@@ -10,20 +10,64 @@
 <body>
   {{template "nav" .}}
   <main>
-    <h1>Helpdesk preliminar</h1>
-    <p class="lead">Crea categorías (por ejemplo <em>desarrollo a medida</em>) y luego tickets asociados a esa categoría. Stack: Docker + PocketBase + Go.</p>
+    <h1>Panel</h1>
+    <p class="lead">Cola de implementación y soporte. Cambia estados, comenta y sigue etapas desde cada ticket.</p>
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-    <div class="grid grid-2">
-      <div class="panel">
-        <div class="muted">Categorías</div>
-        <div class="stat">{{.CategoryCount}}</div>
-        <p><a class="btn" href="/categories">Gestionar categorías</a></p>
-      </div>
+
+    <div class="grid grid-3" style="margin-bottom:1.25rem">
       <div class="panel">
         <div class="muted">Tickets</div>
         <div class="stat">{{.TicketCount}}</div>
-        <p><a class="btn" href="/tickets">Crear / ver tickets</a></p>
+        <a class="btn" href="/tickets">Ver cola</a>
+      </div>
+      <div class="panel">
+        <div class="muted">Categorías</div>
+        <div class="stat">{{.CategoryCount}}</div>
+        <a class="btn secondary" href="/categories">Gestionar</a>
+      </div>
+      <div class="panel">
+        <div class="muted">Por tipo</div>
+        <div class="stat" style="font-size:1rem;line-height:1.6">
+          Impl. {{index .ByType "implementacion"}} · Soporte {{index .ByType "soporte"}}
+        </div>
+        <a class="btn" href="/tickets">Crear ticket</a>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="panel">
+        <h2>Por estado</h2>
+        <table>
+          <tbody>
+          {{range .Statuses}}
+            <tr>
+              <td><span class="pill {{statusClass .}}">{{labelStatus .}}</span></td>
+              <td style="text-align:right;font-family:IBM Plex Mono,monospace">{{index $.ByStatus .}}</td>
+              <td style="text-align:right"><a href="/tickets?status={{.}}">filtrar</a></td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Recientes</h2>
+        {{if .Recent}}
+        <table>
+          <thead><tr><th>#</th><th>Asunto</th><th>Estado</th></tr></thead>
+          <tbody>
+          {{range .Recent}}
+            <tr>
+              <td><a href="/tickets/{{.ID}}"><span class="badge">{{.Number}}</span></a></td>
+              <td>{{.Subject}}</td>
+              <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <p class="muted">Aún no hay tickets.</p>
+        {{end}}
       </div>
     </div>
   </main>

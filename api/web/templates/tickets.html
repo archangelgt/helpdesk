@@ -10,70 +10,106 @@
 <body>
   {{template "nav" .}}
   <main>
-    <h1>Tickets</h1>
-    <p class="lead">Elige una categoría existente y crea el ticket de seguimiento.</p>
+    <h1>Cola de tickets</h1>
+    <p class="lead">Filtra, crea y abre un ticket para cambiar estado, comentar o gestionar etapas.</p>
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-    <div class="grid grid-2">
+
+    <div class="panel" style="margin-bottom:1.1rem">
+      <form class="filters" method="get" action="/tickets">
+        <div>
+          <label>Buscar</label>
+          <input name="q" value="{{.Filters.Q}}" placeholder="número, asunto…" />
+        </div>
+        <div>
+          <label>Estado</label>
+          <select name="status">
+            <option value="">Todos</option>
+            {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
+          </select>
+        </div>
+        <div>
+          <label>Prioridad</label>
+          <select name="priority">
+            <option value="">Todas</option>
+            {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
+          </select>
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select name="type">
+            <option value="">Todos</option>
+            {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType .}}</option>{{end}}
+          </select>
+        </div>
+        <div>
+          <label>Categoría</label>
+          <select name="category">
+            <option value="">Todas</option>
+            {{range .Categories}}<option value="{{.ID}}" {{selected $.Filters.CategoryID .ID}}>{{.Name}}</option>{{end}}
+          </select>
+        </div>
+        <div><button type="submit">Filtrar</button></div>
+      </form>
+    </div>
+
+    <div class="grid grid-aside">
       <div class="panel">
-        <h2 style="margin-top:0;font-size:1.1rem">Nuevo ticket</h2>
-        {{if .Categories}}
-        <form method="post" action="/tickets">
-          <label for="subject">Asunto</label>
-          <input id="subject" name="subject" required placeholder="Portal de pedidos — fase 1" />
-          <label for="category">Categoría</label>
-          <select id="category" name="category" required>
-            <option value="">Selecciona…</option>
-            {{range .Categories}}
-            <option value="{{.ID}}">{{.Name}}</option>
-            {{end}}
-          </select>
-          <label for="type">Tipo</label>
-          <select id="type" name="type">
-            <option value="implementacion">Implementación</option>
-            <option value="soporte">Soporte</option>
-          </select>
-          <label for="priority">Prioridad</label>
-          <select id="priority" name="priority">
-            <option value="baja">Baja</option>
-            <option value="media" selected>Media</option>
-            <option value="alta">Alta</option>
-            <option value="critica">Crítica</option>
-          </select>
-          <label for="status">Estado</label>
-          <select id="status" name="status">
-            <option value="abierto" selected>Abierto</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="en_proceso">En proceso</option>
-            <option value="resuelto">Resuelto</option>
-            <option value="cerrado">Cerrado</option>
-          </select>
-          <label for="description">Descripción</label>
-          <textarea id="description" name="description" placeholder="Alcance, cliente, notas iniciales…"></textarea>
-          <button type="submit">Crear ticket</button>
-        </form>
-        {{else}}
-        <p class="muted">Primero crea una <a href="/categories">categoría</a>.</p>
-        {{end}}
-      </div>
-      <div class="panel">
-        <h2 style="margin-top:0;font-size:1.1rem">Cola</h2>
+        <h2>Tickets ({{len .Tickets}})</h2>
         {{if .Tickets}}
         <table>
-          <thead><tr><th>#</th><th>Asunto</th><th>Categoría</th><th>Estado</th></tr></thead>
+          <thead><tr><th>#</th><th>Asunto</th><th>Cat.</th><th>Estado</th><th></th></tr></thead>
           <tbody>
           {{range .Tickets}}
             <tr>
-              <td><span class="pill">{{.Number}}</span></td>
-              <td>{{.Subject}}<div class="muted" style="font-size:.8rem">{{.Type}} · {{.Priority}}</div></td>
-              <td>{{index $.CatNames .Category}}</td>
-              <td>{{.Status}}</td>
+              <td><span class="badge">{{.Number}}</span></td>
+              <td>
+                <a href="/tickets/{{.ID}}"><strong>{{.Subject}}</strong></a>
+                <div class="muted" style="font-size:.8rem">{{labelType .Type}} · {{labelPriority .Priority}}{{if .Assignee}} · {{.Assignee}}{{end}}</div>
+              </td>
+              <td class="muted">{{index $.CatNames .Category}}</td>
+              <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
+              <td><a href="/tickets/{{.ID}}">abrir</a></td>
             </tr>
           {{end}}
           </tbody>
         </table>
         {{else}}
-        <p class="muted">Sin tickets todavía.</p>
+        <p class="muted">No hay tickets con estos filtros.</p>
+        {{end}}
+      </div>
+
+      <div class="panel">
+        <h2>Nuevo ticket</h2>
+        {{if .Categories}}
+        <form method="post" action="/tickets">
+          <label>Asunto</label>
+          <input name="subject" required placeholder="Portal de pedidos — fase 1" />
+          <label>Categoría</label>
+          <select name="category" required>
+            <option value="">Selecciona…</option>
+            {{range .Categories}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+          </select>
+          <label>Tipo</label>
+          <select name="type">
+            {{range .Types}}<option value="{{.}}">{{labelType .}}</option>{{end}}
+          </select>
+          <label>Prioridad</label>
+          <select name="priority">
+            {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>{{end}}
+          </select>
+          <label>Estado inicial</label>
+          <select name="status">
+            {{range .Statuses}}<option value="{{.}}" {{if eq . "abierto"}}selected{{end}}>{{labelStatus .}}</option>{{end}}
+          </select>
+          <label>Asignado a</label>
+          <input name="assignee" placeholder="nombre del agente" />
+          <label>Descripción</label>
+          <textarea name="description" placeholder="Alcance, cliente, notas…"></textarea>
+          <button type="submit">Crear ticket</button>
+        </form>
+        {{else}}
+        <p class="muted">Primero crea una <a href="/categories">categoría</a>.</p>
         {{end}}
       </div>
     </div>
