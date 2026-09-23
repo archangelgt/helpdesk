@@ -1,36 +1,41 @@
 # Helpdesk
 
-Sistema de soporte interno: **tickets estilo Infile**, **chat día a día** y **email → ticket**.
+Sistema de soporte: **tickets como única entrada**, con canales (email, portal, chat-on-ticket) que alimentan la misma cola. Estilo Infile en la gestión de incidencias.
 
 ## Visión
 
-Unificar la atención a clientes y el trabajo del equipo técnico en un solo lugar:
+Centralizar, organizar y dar seguimiento a las solicitudes de soporte de clientes (piloto: Cap World, Power Tech) sin hojas sueltas ni hilos perdidos.
 
 | Pilar | Qué es | Para qué |
 |-------|--------|----------|
-| **Tickets** | Cola de incidencias al estilo Infile (prioridad, estado, asignación, historial) | No perder solicitudes ni contexto |
-| **Chat** | Conversación operativa del día a día (equipo ↔ cliente / operadores) | Respuestas rápidas sin salir del flujo |
-| **Email → ticket** | Correos entrantes se convierten en tickets | Capturar soporte que llega por correo |
+| **Tickets** | Entrada y cola de incidencias (prioridad, estado, asignación, historial, comentarios) | No perder solicitudes ni contexto |
+| **Email → ticket** | Correos entrantes crean o continúan tickets | Capturar soporte que llega por correo |
+| **Chat-on-ticket** | Conversación **ligada al ticket** (no chat libre aparte de la cola) | Responder sin salir del caso |
 
-Meta: que Cap World, Power Tech y el resto de cuentas operen soporte con trazabilidad, sin hojas sueltas ni hilos perdidos.
+Catálogo completo de capacidades (SLA, métricas, KB, multicanal, etc.): [FEATURES.md](./FEATURES.md).
 
 ## Documentos
 
 | Doc | Contenido |
 |-----|-----------|
-| [ROADMAP.md](./ROADMAP.md) | Fases 0 → 6 (docs → MVP → email → chat → Docker en erpsys) |
-| [MVP.md](./MVP.md) | Alcance, etapas, criterios de aceptación, Cap World / Power Tech |
-| [BOUNDARIES.md](./BOUNDARIES.md) | Qué no mezclar (CRM, fases, clientes, Infile) |
+| [ROADMAP.md](./ROADMAP.md) | Fases 0 → 6 |
+| [MVP.md](./MVP.md) | Alcance tickets, Cap World / Power Tech |
+| [FEATURES.md](./FEATURES.md) | Características del producto y mapa a fases |
+| [BOUNDARIES.md](./BOUNDARIES.md) | Qué no mezclar (CRM, fases, canales, stack) |
 
-## Stack previsto (orientativo)
+## Stack (obligatorio)
 
-- App web (UI + API)
-- Contenedores Docker desplegados en **erpsys**
-- Integración correo (ingesta IMAP/SMTP o webhook según fase)
-- Autenticación alineada al ecosistema existente cuando aplique
+Siempre **Docker**. Nunca ejecutar PocketBase ni la API como binario suelto en el host.
 
-El detalle de implementación se define en las fases del roadmap; este repo arranca con la documentación del producto.
+| Pieza | Cómo |
+|-------|------|
+| **PocketBase** | Contenedor Docker (datos/persistencia) |
+| **API Go** | Contenedor Docker (lógica / API) |
+| **UI** | Contenedor Docker (cuando exista) |
+| **Orquestación** | `docker compose` local y, en Fase 6, en **erpsys** |
+
+Skill del agente: `.cursor/skills/docker-pocketbase-go/SKILL.md`.
 
 ## Estado
 
-**Fase 0 — Documentación.** Repo creado; visión, roadmap y MVP definidos. Sin código de producto aún.
+**Fase 0 — Documentación.** Visión, roadmap, MVP, features y boundaries en el repo. Sin código de producto aún.

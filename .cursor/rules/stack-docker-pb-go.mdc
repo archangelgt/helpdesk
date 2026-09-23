@@ -1,0 +1,11 @@
+---
+description: Stack obligatorio — solo Docker Compose con PocketBase + Go (nunca binarios)
+alwaysApply: true
+---
+
+# Stack: Docker + PocketBase + Go
+
+- Arranque y runtime: **`docker compose`** únicamente.
+- PocketBase y la API Go viven en **contenedores**. Prohibido binario PB/Go en el host como forma de correr la app.
+- Detalle y checklist: `.cursor/skills/docker-pocketbase-go/SKILL.md`.
+- PocketBase de este repo ≠ PocketBase de Cherub CRM / crmsys.

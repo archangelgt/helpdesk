@@ -1,5 +1,5 @@
 ---
-description: Límites duros — helpdesk no se mezcla con CRM ni otros productos Cherub
+description: Límites duros — helpdesk no se mezcla con CRM; tickets como entrada; Docker+PB+Go
 alwaysApply: true
 ---
 
@@ -18,14 +18,17 @@ Si hace falta algo de otro producto: **parar y preguntar**. No copiar ni “apro
 ## Dentro del producto helpdesk
 
 | Separar | Cómo |
-|---------|------|
+|---|---|
 | Fases | Seguir ROADMAP: no meter chat ni email→ticket en el MVP de tickets |
+| Entrada | Todo es **ticket**; chat solo chat-on-ticket (Fase 4), no chat libre |
 | Clientes | Cap World ≠ Power Tech: filtrar/aislar; no fusionar identidades |
 | Estilo Infile | Imitar cola/estados/prioridad; no clonar ni migrar Infile |
+| Stack | Siempre Docker: PocketBase + Go en contenedores; **nunca** binario PB/Go en host |
 | Deploy erpsys | Solo Fase 6; no acoplar infra prematura |
 
 ## Este chat
 
 - Trabajar solo bajo el root de `helpdesk`
 - No abrir ni editar archivos de `cherub/crm` u otros repos “de paso”
-- Docs de producto viven aquí (`README`, `ROADMAP`, `MVP`, `BOUNDARIES`)
+- Docs: `README`, `ROADMAP`, `MVP`, `FEATURES`, `BOUNDARIES`
+- Skill de stack: `.cursor/skills/docker-pocketbase-go/SKILL.md`
