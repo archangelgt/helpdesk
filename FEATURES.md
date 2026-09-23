@@ -97,7 +97,8 @@ Roles típicos: admin tenant, supervisor, técnico, **cliente (solo lo compartid
 | Feature | MVP | Luego |
 |---------|-----|--------|
 | Multitenancy básico (2+ empresas aisladas) | Sí | Hardening |
-| Ticket implementación + etapas + fechas + avance | Sí | Plantillas de etapas |
+| Ticket implementación + etapas + fechas + avance | Sí | — |
+| Plantillas de ticket (etapas/tiempos, clonar por cliente) | Sí | Más variables |
 | Compartir avance al cliente (vista / comentarios) | Sí (básico) | Portal cliente rico |
 | Ticket soporte (cola, prioridad, asignación) | Sí | SLA completo |
 | API ingesta (contrato + al menos un canal) | Stub / contrato | Email, WhatsApp, ERPSYS Chat |

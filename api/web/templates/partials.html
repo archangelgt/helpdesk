@@ -5,6 +5,7 @@
     <a class="{{activeNav .Nav "board"}}" href="/board">Tablero</a>
     <a class="{{activeNav .Nav "list"}}" href="/tickets">Lista</a>
     <a class="{{activeNav .Nav "new"}}" href="/tickets/new">Nuevo</a>
+    <a class="{{activeNav .Nav "templates"}}" href="/templates">Plantillas</a>
     <a class="{{activeNav .Nav "categories"}}" href="/categories">Categorías</a>
   </nav>
 </header>
@@ -209,5 +210,29 @@
   .comment.sistema { border-style: dashed; opacity: .9; }
   .comment.cliente { border-color: #c9dfd2; background: #f3faf6; }
   .meta { font-size: .75rem; color: var(--muted); margin-bottom: .35rem; }
+
+  /* Templates */
+  .tpl-pick {
+    display: grid; gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    margin-bottom: 1.25rem;
+  }
+  .tpl-card {
+    display: block; background: #fff; border: 1px solid var(--line);
+    border-radius: 16px; padding: 1rem; color: inherit; text-decoration: none;
+    box-shadow: var(--shadow); transition: transform .15s ease, border-color .15s ease;
+  }
+  .tpl-card:hover { transform: translateY(-2px); border-color: var(--accent); text-decoration: none; color: inherit; }
+  .tpl-card.is-selected { border-color: var(--ink); background: var(--panel-2); }
+  .tpl-card h3 { font-family: "Newsreader", serif; font-size: 1.1rem; margin: 0 0 .35rem; }
+  .tpl-card p { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.45; }
+  .stage-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+  .stage-list li {
+    display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: .5rem; align-items: center;
+    padding: .65rem 0; border-bottom: 1px dashed var(--line); font-size: .9rem;
+  }
+  @media (max-width: 700px) {
+    .stage-list li { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 {{end}}

@@ -1,0 +1,119 @@
+{{define "template_detail.html"}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <p class="muted" style="margin:0 0 .5rem"><a href="/templates">← Plantillas</a></p>
+    <div class="toolbar">
+      <div>
+        <h1>{{.Template.Name}}</h1>
+        <p class="lead" style="margin-bottom:0">{{labelType .Template.Type}} · {{labelPriority .Template.Priority}}</p>
+      </div>
+      <a class="btn" href="/tickets/new?template={{.Template.ID}}">Crear ticket desde esta</a>
+    </div>
+
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="grid create-layout">
+      <form class="panel" method="post" action="/templates/{{.Template.ID}}/update">
+        <h2>Datos de la plantilla</h2>
+        <label>Nombre</label>
+        <input name="name" value="{{.Template.Name}}" required />
+        <label>Descripción</label>
+        <textarea name="description">{{.Template.Description}}</textarea>
+        <div class="grid grid-2">
+          <div>
+            <label>Tipo</label>
+            <select name="type">
+              {{range .Types}}<option value="{{.}}" {{selected $.Template.Type .}}>{{labelType .}}</option>{{end}}
+            </select>
+          </div>
+          <div>
+            <label>Prioridad</label>
+            <select name="priority">
+              {{range .Priorities}}<option value="{{.}}" {{selected $.Template.Priority .}}>{{labelPriority .}}</option>{{end}}
+            </select>
+          </div>
+        </div>
+        <label>Categoría por defecto</label>
+        <select name="category">
+          <option value="">— ninguna —</option>
+          {{range .Categories}}
+          <option value="{{.ID}}" {{selected $.Template.Category .ID}}>{{.Name}}</option>
+          {{end}}
+        </select>
+        <label>Asunto ({{"{{cliente}}"}} se reemplaza al crear)</label>
+        <input name="subject_template" value="{{.Template.SubjectTemplate}}" />
+        <label>Descripción base</label>
+        <textarea name="body_template">{{.Template.BodyTemplate}}</textarea>
+        <button class="btn" type="submit">Guardar</button>
+      </form>
+
+      <div class="panel">
+        <h2>Etapas y tiempos</h2>
+        <p class="muted" style="margin-top:0;font-size:.88rem;line-height:1.45">
+          <strong style="color:var(--ink)">Día inicio</strong> = offset desde la fecha de arranque del ticket.
+          <strong style="color:var(--ink)">Duración</strong> = días hasta el fin planificado.
+        </p>
+        {{if .Stages}}
+        <ul class="stage-list">
+          {{range .Stages}}
+          <li>
+            <div>
+              <strong>{{.Name}}</strong>
+              <div class="muted" style="font-size:.78rem">orden {{printf "%.0f" .Orden}} · {{labelStage .Estado}}</div>
+            </div>
+            <div class="muted">día +{{printf "%.0f" .OffsetStartDays}}</div>
+            <div class="muted">{{printf "%.0f" .DurationDays}} d</div>
+            <form method="post" action="/templates/{{$.Template.ID}}/stages/{{.ID}}/delete" style="margin:0">
+              <button class="btn ghost" type="submit" style="padding:.35rem .7rem;font-size:.75rem">Quitar</button>
+            </form>
+          </li>
+          {{end}}
+        </ul>
+        {{else}}
+        <p class="muted">Sin etapas. Agrega el plan típico abajo (kickoff, configuración, capacitación, go-live…).</p>
+        {{end}}
+
+        <h2>Agregar etapa</h2>
+        <form method="post" action="/templates/{{.Template.ID}}/stages">
+          <label>Nombre</label>
+          <input name="name" required placeholder="Kickoff / levantamiento" />
+          <div class="grid grid-2">
+            <div>
+              <label>Orden</label>
+              <input name="orden" type="number" value="{{len .Stages}}" />
+            </div>
+            <div>
+              <label>Estado inicial</label>
+              <select name="estado">
+                {{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div>
+              <label>Offset inicio (días)</label>
+              <input name="offset_start_days" type="number" value="0" />
+            </div>
+            <div>
+              <label>Duración (días)</label>
+              <input name="duration_days" type="number" value="5" />
+            </div>
+          </div>
+          <button class="btn" type="submit">Agregar etapa</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

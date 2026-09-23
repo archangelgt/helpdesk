@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/archangelgt/helpdesk/api/internal/config"
 	"github.com/archangelgt/helpdesk/api/internal/pb"
@@ -82,6 +83,13 @@ func (s *Server) Routes() http.Handler {
 	r.Get("/board", s.handleBoard)
 	r.Get("/categories", s.handleCategoriesPage)
 	r.Post("/categories", s.handleCreateCategoryForm)
+
+	r.Get("/templates", s.handleTemplatesPage)
+	r.Post("/templates", s.handleCreateTemplateForm)
+	r.Get("/templates/{id}", s.handleTemplateDetail)
+	r.Post("/templates/{id}/update", s.handleUpdateTemplateForm)
+	r.Post("/templates/{id}/stages", s.handleAddTemplateStage)
+	r.Post("/templates/{id}/stages/{stageID}/delete", s.handleDeleteTemplateStage)
 
 	r.Get("/tickets", s.handleTicketsPage)
 	r.Get("/tickets/new", s.handleNewTicketPage)
@@ -278,18 +286,32 @@ func (s *Server) handleTicketsPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleNewTicketPage(w http.ResponseWriter, r *http.Request) {
 	cats, err := s.pb.ListCategories(r.Context())
+	templates, _ := s.pb.ListTemplates(r.Context())
+	tplID := r.URL.Query().Get("template")
+	var selected *pb.TicketTemplate
+	var tplStages []pb.TemplateStage
+	if tplID != "" {
+		if t, e := s.pb.GetTemplate(r.Context(), tplID); e == nil {
+			selected = t
+			tplStages, _ = s.pb.ListTemplateStages(r.Context(), tplID)
+		}
+	}
 	errMsg := r.URL.Query().Get("err")
 	if err != nil && errMsg == "" {
 		errMsg = err.Error()
 	}
 	s.render(w, "ticket_new.html", map[string]any{
-		"Title":      "Nuevo ticket",
-		"Nav":        "new",
-		"Categories": cats,
-		"Statuses":   statuses,
-		"Priorities": priorities,
-		"Types":      ticketTypes,
-		"Error":      errMsg,
+		"Title":          "Nuevo ticket",
+		"Nav":            "new",
+		"Categories":     cats,
+		"Templates":      templates,
+		"SelectedTpl":    selected,
+		"TemplateStages": tplStages,
+		"Statuses":       statuses,
+		"Priorities":     priorities,
+		"Types":          ticketTypes,
+		"Error":          errMsg,
+		"Today":          time.Now().Format("2006-01-02"),
 	})
 }
 
@@ -305,17 +327,153 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	priority := defaultSelect(r.FormValue("priority"), "media")
 	ticketType := defaultSelect(r.FormValue("type"), "implementacion")
 	assignee := strings.TrimSpace(r.FormValue("assignee"))
-	if subject == "" || categoryID == "" {
-		http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape("asunto y categoría requeridos"), http.StatusSeeOther)
-		return
+	templateID := strings.TrimSpace(r.FormValue("template_id"))
+	clientName := strings.TrimSpace(r.FormValue("client_name"))
+	startDate := strings.TrimSpace(r.FormValue("start_date"))
+
+	var t *pb.Ticket
+	var err error
+	if templateID != "" {
+		t, err = s.pb.CreateTicketFromTemplate(r.Context(), templateID, clientName, subject, description, categoryID, status, priority, ticketType, assignee, startDate)
+	} else {
+		if subject == "" || categoryID == "" {
+			http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape("asunto y categoría requeridos"), http.StatusSeeOther)
+			return
+		}
+		t, err = s.pb.CreateTicket(r.Context(), subject, description, categoryID, status, priority, ticketType, assignee)
 	}
-	t, err := s.pb.CreateTicket(r.Context(), subject, description, categoryID, status, priority, ticketType, assignee)
 	if err != nil {
 		s.log.Printf("create ticket: %v", err)
-		http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		q := "/tickets/new?err=" + url.QueryEscape(err.Error())
+		if templateID != "" {
+			q += "&template=" + url.QueryEscape(templateID)
+		}
+		http.Redirect(w, r, q, http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/board?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
+	http.Redirect(w, r, "/tickets/"+t.ID+"?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
+}
+
+func (s *Server) handleTemplatesPage(w http.ResponseWriter, r *http.Request) {
+	items, err := s.pb.ListTemplates(r.Context())
+	cats, _ := s.pb.ListCategories(r.Context())
+	errMsg := r.URL.Query().Get("err")
+	if err != nil && errMsg == "" {
+		errMsg = err.Error()
+	}
+	s.render(w, "templates.html", map[string]any{
+		"Title":      "Plantillas",
+		"Nav":        "templates",
+		"Templates":  items,
+		"Categories": cats,
+		"Types":      ticketTypes,
+		"Priorities": priorities,
+		"Error":      errMsg,
+		"Flash":      r.URL.Query().Get("ok"),
+	})
+}
+
+func (s *Server) handleCreateTemplateForm(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/templates?err=form", http.StatusSeeOther)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		http.Redirect(w, r, "/templates?err="+url.QueryEscape("nombre requerido"), http.StatusSeeOther)
+		return
+	}
+	tpl, err := s.pb.CreateTemplate(
+		r.Context(),
+		name,
+		r.FormValue("description"),
+		defaultSelect(r.FormValue("type"), "implementacion"),
+		r.FormValue("category"),
+		defaultSelect(r.FormValue("priority"), "media"),
+		r.FormValue("subject_template"),
+		r.FormValue("body_template"),
+	)
+	if err != nil {
+		http.Redirect(w, r, "/templates?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/templates/"+tpl.ID+"?ok="+url.QueryEscape("Plantilla creada — agrega etapas"), http.StatusSeeOther)
+}
+
+func (s *Server) handleTemplateDetail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	tpl, err := s.pb.GetTemplate(r.Context(), id)
+	if err != nil {
+		http.Error(w, "plantilla no encontrada", http.StatusNotFound)
+		return
+	}
+	stages, _ := s.pb.ListTemplateStages(r.Context(), id)
+	cats, _ := s.pb.ListCategories(r.Context())
+	s.render(w, "template_detail.html", map[string]any{
+		"Title":      tpl.Name,
+		"Nav":        "templates",
+		"Template":   tpl,
+		"Stages":     stages,
+		"Categories": cats,
+		"Types":      ticketTypes,
+		"Priorities": priorities,
+		"StageStates": stageStates,
+		"Flash":      r.URL.Query().Get("ok"),
+		"Error":      r.URL.Query().Get("err"),
+	})
+}
+
+func (s *Server) handleUpdateTemplateForm(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/templates/"+id+"?err=form", http.StatusSeeOther)
+		return
+	}
+	if _, err := s.pb.UpdateTemplate(
+		r.Context(), id,
+		r.FormValue("name"),
+		r.FormValue("description"),
+		defaultSelect(r.FormValue("type"), "implementacion"),
+		r.FormValue("category"),
+		defaultSelect(r.FormValue("priority"), "media"),
+		r.FormValue("subject_template"),
+		r.FormValue("body_template"),
+	); err != nil {
+		http.Redirect(w, r, "/templates/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/templates/"+id+"?ok="+url.QueryEscape("Plantilla actualizada"), http.StatusSeeOther)
+}
+
+func (s *Server) handleAddTemplateStage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/templates/"+id+"?err=form", http.StatusSeeOther)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	orden, _ := strconv.ParseFloat(r.FormValue("orden"), 64)
+	offset, _ := strconv.ParseFloat(r.FormValue("offset_start_days"), 64)
+	duration, _ := strconv.ParseFloat(r.FormValue("duration_days"), 64)
+	if name == "" {
+		http.Redirect(w, r, "/templates/"+id+"?err="+url.QueryEscape("nombre de etapa requerido"), http.StatusSeeOther)
+		return
+	}
+	if _, err := s.pb.CreateTemplateStage(r.Context(), id, name, orden, offset, duration, defaultSelect(r.FormValue("estado"), "pendiente")); err != nil {
+		http.Redirect(w, r, "/templates/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/templates/"+id+"?ok="+url.QueryEscape("Etapa agregada"), http.StatusSeeOther)
+}
+
+func (s *Server) handleDeleteTemplateStage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stageID := chi.URLParam(r, "stageID")
+	if err := s.pb.DeleteTemplateStage(r.Context(), stageID); err != nil {
+		http.Redirect(w, r, "/templates/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/templates/"+id+"?ok="+url.QueryEscape("Etapa eliminada"), http.StatusSeeOther)
 }
 
 func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {

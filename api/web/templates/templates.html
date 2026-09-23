@@ -1,0 +1,78 @@
+{{define "templates.html"}}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <h1>Plantillas</h1>
+    <p class="lead">Define proyectos reutilizables (p. ej. implementación erpsys) con etapas y tiempos. Al crear un ticket solo completas el cliente.</p>
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="grid create-layout">
+      <form class="panel" method="post" action="/templates">
+        <h2>Nueva plantilla</h2>
+        <label>Nombre</label>
+        <input name="name" required placeholder="Implementación erpsys" />
+        <label>Descripción</label>
+        <textarea name="description" placeholder="Qué incluye este proyecto tipo…"></textarea>
+        <div class="grid grid-2">
+          <div>
+            <label>Tipo</label>
+            <select name="type">
+              {{range .Types}}<option value="{{.}}" {{if eq . "implementacion"}}selected{{end}}>{{labelType .}}</option>{{end}}
+            </select>
+          </div>
+          <div>
+            <label>Prioridad por defecto</label>
+            <select name="priority">
+              {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>{{end}}
+            </select>
+          </div>
+        </div>
+        <label>Categoría por defecto</label>
+        <select name="category">
+          <option value="">— opcional —</option>
+          {{range .Categories}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+        </select>
+        <label>Asunto (usa {{"{{cliente}}"}})</label>
+        <input name="subject_template" placeholder="Implementación erpsys — {{"{{cliente}}"}}" />
+        <label>Descripción base</label>
+        <textarea name="body_template" placeholder="Alcance estándar para {{"{{cliente}}"}}…"></textarea>
+        <button class="btn" type="submit">Crear plantilla</button>
+      </form>
+
+      <div class="panel">
+        <h2>Listado</h2>
+        {{if .Templates}}
+        <table>
+          <thead><tr><th>Nombre</th><th>Tipo</th><th></th></tr></thead>
+          <tbody>
+          {{range .Templates}}
+            <tr>
+              <td><strong><a href="/templates/{{.ID}}">{{.Name}}</a></strong>
+                {{if .Description}}<div class="muted" style="font-size:.85rem;margin-top:.2rem">{{.Description}}</div>{{end}}
+              </td>
+              <td>{{labelType .Type}}</td>
+              <td style="text-align:right;white-space:nowrap">
+                <a href="/tickets/new?template={{.ID}}">Usar →</a>
+              </td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <p class="muted">Aún no hay plantillas. Crea una de implementación erpsys a la izquierda.</p>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

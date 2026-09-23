@@ -339,21 +339,215 @@ func (c *Client) UpdateStage(ctx context.Context, id, name, estado string, orden
 	return &out, nil
 }
 
+type TicketTemplate struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Description     string `json:"description"`
+	Type            string `json:"type"`
+	Category        string `json:"category"`
+	Priority        string `json:"priority"`
+	SubjectTemplate string `json:"subject_template"`
+	BodyTemplate    string `json:"body_template"`
+	Created         string `json:"created"`
+	Updated         string `json:"updated"`
+}
+
+type TemplateStage struct {
+	ID              string  `json:"id"`
+	Template        string  `json:"template"`
+	Name            string  `json:"name"`
+	Orden           float64 `json:"orden"`
+	OffsetStartDays float64 `json:"offset_start_days"`
+	DurationDays    float64 `json:"duration_days"`
+	Estado          string  `json:"estado"`
+	Created         string  `json:"created"`
+	Updated         string  `json:"updated"`
+}
+
+func (c *Client) ListTemplates(ctx context.Context) ([]TicketTemplate, error) {
+	var out listResponse[TicketTemplate]
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/ticket_templates/records?sort=name&perPage=200", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Items, nil
+}
+
+func (c *Client) GetTemplate(ctx context.Context, id string) (*TicketTemplate, error) {
+	var out TicketTemplate
+	path := "/api/collections/ticket_templates/records/" + url.PathEscape(id)
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) CreateTemplate(ctx context.Context, name, description, ticketType, categoryID, priority, subjectTpl, bodyTpl string) (*TicketTemplate, error) {
+	if priority == "" {
+		priority = "media"
+	}
+	if ticketType == "" {
+		ticketType = "implementacion"
+	}
+	payload := map[string]any{
+		"name":             strings.TrimSpace(name),
+		"description":      strings.TrimSpace(description),
+		"type":             ticketType,
+		"priority":         priority,
+		"subject_template": strings.TrimSpace(subjectTpl),
+		"body_template":    strings.TrimSpace(bodyTpl),
+	}
+	if strings.TrimSpace(categoryID) != "" {
+		payload["category"] = categoryID
+	}
+	var out TicketTemplate
+	if err := c.doJSON(ctx, http.MethodPost, "/api/collections/ticket_templates/records", payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) UpdateTemplate(ctx context.Context, id, name, description, ticketType, categoryID, priority, subjectTpl, bodyTpl string) (*TicketTemplate, error) {
+	payload := map[string]any{
+		"name":             strings.TrimSpace(name),
+		"description":      strings.TrimSpace(description),
+		"type":             ticketType,
+		"priority":         priority,
+		"subject_template": strings.TrimSpace(subjectTpl),
+		"body_template":    strings.TrimSpace(bodyTpl),
+	}
+	if strings.TrimSpace(categoryID) != "" {
+		payload["category"] = categoryID
+	} else {
+		payload["category"] = nil
+	}
+	var out TicketTemplate
+	path := "/api/collections/ticket_templates/records/" + url.PathEscape(id)
+	if err := c.doJSON(ctx, http.MethodPatch, path, payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) ListTemplateStages(ctx context.Context, templateID string) ([]TemplateStage, error) {
+	q := url.Values{}
+	q.Set("sort", "orden,id")
+	q.Set("perPage", "100")
+	q.Set("filter", fmt.Sprintf("template='%s'", escapeFilter(templateID)))
+	var out listResponse[TemplateStage]
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/template_stages/records?"+q.Encode(), nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Items, nil
+}
+
+func (c *Client) CreateTemplateStage(ctx context.Context, templateID, name string, orden, offsetStart, duration float64, estado string) (*TemplateStage, error) {
+	if estado == "" {
+		estado = "pendiente"
+	}
+	payload := map[string]any{
+		"template":          templateID,
+		"name":              strings.TrimSpace(name),
+		"orden":             orden,
+		"offset_start_days": offsetStart,
+		"duration_days":     duration,
+		"estado":            estado,
+	}
+	var out TemplateStage
+	if err := c.doJSON(ctx, http.MethodPost, "/api/collections/template_stages/records", payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteTemplateStage(ctx context.Context, id string) error {
+	path := "/api/collections/template_stages/records/" + url.PathEscape(id)
+	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
+}
+
+// CreateTicketFromTemplate creates a ticket and copies template stages with dates from startDate (YYYY-MM-DD) or today.
+func (c *Client) CreateTicketFromTemplate(ctx context.Context, templateID, clientName, subject, description, categoryID, status, priority, ticketType, assignee, startDate string) (*Ticket, error) {
+	tpl, err := c.GetTemplate(ctx, templateID)
+	if err != nil {
+		return nil, err
+	}
+	if subject == "" {
+		subject = tpl.SubjectTemplate
+		if clientName != "" && subject != "" {
+			subject = strings.ReplaceAll(subject, "{{cliente}}", clientName)
+		}
+		if subject == "" && clientName != "" {
+			subject = tpl.Name + " — " + clientName
+		}
+		if subject == "" {
+			subject = tpl.Name
+		}
+	} else if clientName != "" {
+		subject = strings.ReplaceAll(subject, "{{cliente}}", clientName)
+	}
+	if description == "" {
+		description = tpl.BodyTemplate
+		description = strings.ReplaceAll(description, "{{cliente}}", clientName)
+	}
+	if categoryID == "" {
+		categoryID = tpl.Category
+	}
+	if priority == "" {
+		priority = tpl.Priority
+	}
+	if ticketType == "" {
+		ticketType = tpl.Type
+	}
+	if status == "" {
+		status = "abierto"
+	}
+	if categoryID == "" {
+		return nil, fmt.Errorf("category required (set on template or form)")
+	}
+	ticket, err := c.CreateTicket(ctx, subject, description, categoryID, status, priority, ticketType, assignee)
+	if err != nil {
+		return nil, err
+	}
+	stages, err := c.ListTemplateStages(ctx, templateID)
+	if err != nil {
+		return ticket, nil
+	}
+	base := time.Now()
+	if startDate != "" {
+		if parsed, perr := time.Parse("2006-01-02", startDate); perr == nil {
+			base = parsed
+		}
+	}
+	for _, st := range stages {
+		start := base.AddDate(0, 0, int(st.OffsetStartDays))
+		dur := int(st.DurationDays)
+		if dur <= 0 {
+			dur = 1
+		}
+		end := start.AddDate(0, 0, dur)
+		estado := st.Estado
+		if estado == "" {
+			estado = "pendiente"
+		}
+		_, _ = c.CreateStage(ctx, ticket.ID, st.Name, st.Orden, start.Format("2006-01-02"), end.Format("2006-01-02"), estado, 0)
+	}
+	_, _ = c.CreateComment(ctx, ticket.ID, "Creado desde plantilla: "+tpl.Name, "sistema", "sistema")
+	return ticket, nil
+}
+
 func (c *Client) nextTicketNumber(ctx context.Context) (string, error) {
 	var out listResponse[Ticket]
-	q := "/api/collections/tickets/records?sort=-id&perPage=1&fields=number"
+	q := "/api/collections/tickets/records?sort=-id&perPage=200&fields=number"
 	if err := c.doJSON(ctx, http.MethodGet, q, nil, &out); err != nil {
 		return "", err
 	}
-	n := 1
-	if len(out.Items) > 0 && out.Items[0].Number != "" {
+	n := 0
+	for _, item := range out.Items {
 		var parsed int
-		_, scanErr := fmt.Sscanf(out.Items[0].Number, "HD-%d", &parsed)
-		if scanErr == nil {
-			n = parsed + 1
+		if _, scanErr := fmt.Sscanf(item.Number, "HD-%d", &parsed); scanErr == nil && parsed > n {
+			n = parsed
 		}
 	}
-	return fmt.Sprintf("HD-%05d", n), nil
+	return fmt.Sprintf("HD-%05d", n+1), nil
 }
 
 func escapeFilter(s string) string {
