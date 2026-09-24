@@ -68,7 +68,7 @@ func (s *Server) handlePrefsPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePrefsForm(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/prefs", http.StatusSeeOther)
+		http.Redirect(w, r, "/board", http.StatusSeeOther)
 		return
 	}
 	lang := i18n.Parse(r.FormValue("lang"))
@@ -78,7 +78,11 @@ func (s *Server) handlePrefsForm(w http.ResponseWriter, r *http.Request) {
 	}
 	setPrefCookie(w, cookieLang, lang.String())
 	setPrefCookie(w, cookieTheme, theme)
-	http.Redirect(w, r, "/prefs?ok=1", http.StatusSeeOther)
+	next := strings.TrimSpace(r.FormValue("next"))
+	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		next = "/board"
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (s *Server) handleTenantsPage(w http.ResponseWriter, r *http.Request) {

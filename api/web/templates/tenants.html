@@ -12,7 +12,6 @@
   {{template "nav" .}}
   <main class="page">
     <h1>{{call .T "tenants.title"}}</h1>
-    <p class="lead">{{call .T "tenants.lead"}}</p>
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
     <div class="panel">
       {{if .Tenants}}

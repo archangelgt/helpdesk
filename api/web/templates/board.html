@@ -14,9 +14,7 @@
     <div class="toolbar">
       <div>
         <h1>{{call .T "board.title"}}</h1>
-        <p class="lead" style="margin-bottom:0">
-          {{if eq .Group "lane"}}Atrasados · En curso · Terminados. {{call .T "lane.hint"}}{{else}}Vista por prioridad.{{end}}
-        </p>
+        {{if eq .Group "lane"}}<p class="lead" style="margin-bottom:0">{{call .T "lane.hint"}}</p>{{end}}
       </div>
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
         <div class="seg">

@@ -12,16 +12,65 @@
     {{else if and .User (eq .User.Role "cliente")}}
     <a class="{{activeNav .Nav "portal"}}" href="/portal">{{call .T "nav.portal"}}</a>
     {{end}}
-    <a class="{{activeNav .Nav "prefs"}}" href="/prefs">{{call .T "nav.settings"}}</a>
     {{if .User}}
     <form method="post" action="/logout" style="display:inline;margin:0">
-      <button type="submit" class="nav-btn">{{call .T "nav.logout"}} ({{.User.Name}})</button>
+      <button type="submit" class="nav-btn">{{call .T "nav.logout"}}</button>
     </form>
     {{else}}
     <a class="{{activeNav .Nav "login"}}" href="/login">{{call .T "nav.login"}}</a>
     {{end}}
   </nav>
+  <div class="topbar-actions">
+    <div class="settings-menu" data-settings>
+      <button type="button" class="icon-btn" data-settings-toggle aria-label="{{call .T "prefs.title"}}" title="{{call .T "prefs.title"}}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <div class="settings-panel" data-settings-panel hidden>
+        <form method="post" action="/prefs">
+          <input type="hidden" name="next" value="" data-prefs-next />
+          <label>{{call .T "prefs.lang"}}</label>
+          <select name="lang">
+            <option value="es" {{selected .Lang "es"}}>Español</option>
+            <option value="en" {{selected .Lang "en"}}>English</option>
+            <option value="pt" {{selected .Lang "pt"}}>Português</option>
+          </select>
+          <label>{{call .T "prefs.theme"}}</label>
+          <select name="theme">
+            <option value="light" {{selected .Theme "light"}}>{{call .T "prefs.light"}}</option>
+            <option value="dark" {{selected .Theme "dark"}}>{{call .T "prefs.dark"}}</option>
+            <option value="auto" {{selected .Theme "auto"}}>{{call .T "prefs.auto"}}</option>
+          </select>
+          <button class="btn" type="submit" style="width:100%;justify-content:center">{{call .T "prefs.save"}}</button>
+        </form>
+      </div>
+    </div>
+  </div>
 </header>
+<script>
+(function () {
+  var root = document.querySelector("[data-settings]");
+  if (!root) return;
+  var btn = root.querySelector("[data-settings-toggle]");
+  var panel = root.querySelector("[data-settings-panel]");
+  var next = root.querySelector("[data-prefs-next]");
+  if (next) next.value = window.location.pathname + window.location.search;
+  function close() { panel.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+  function open() { panel.hidden = false; btn.setAttribute("aria-expanded", "true"); }
+  btn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (panel.hidden) open(); else close();
+  });
+  document.addEventListener("click", function (e) {
+    if (!root.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") close();
+  });
+})();
+</script>
 {{end}}
 
 {{define "theme_boot"}}
@@ -102,7 +151,7 @@
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   .topbar {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
     padding: 1rem 1.5rem; position: sticky; top: 0; z-index: 20;
     background: var(--topbar-bg); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--line);
@@ -111,7 +160,7 @@
     font-family: "Newsreader", serif; font-weight: 600; font-size: 1.35rem;
     color: var(--ink); letter-spacing: .02em; text-decoration: none;
   }
-  nav { display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; }
+  nav { display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; flex: 1; justify-content: center; }
   nav a, .nav-btn {
     color: var(--muted); padding: .45rem .8rem; border-radius: 999px;
     font-size: .9rem; font-weight: 500; text-decoration: none;
@@ -121,6 +170,23 @@
   html[data-theme-resolved="dark"] nav a:hover,
   html[data-theme-resolved="dark"] .nav-btn:hover { background: rgba(232,239,233,.08); }
   nav a.is-active { background: var(--ink); color: var(--nav-active-fg); }
+  .topbar-actions { display: flex; align-items: center; gap: .35rem; flex-shrink: 0; }
+  .settings-menu { position: relative; }
+  .icon-btn {
+    appearance: none; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); width: 2.4rem; height: 2.4rem; border-radius: 999px;
+    display: inline-grid; place-items: center; cursor: pointer; padding: 0;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .settings-panel {
+    position: absolute; right: 0; top: calc(100% + .55rem);
+    width: min(280px, calc(100vw - 2rem));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 1rem; box-shadow: var(--shadow); z-index: 40;
+  }
+  .settings-panel label { margin-top: .15rem; }
+  .settings-panel select { margin-bottom: .75rem; }
+  .settings-panel .btn { margin-top: .25rem; }
   main.page { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 3.5rem; }
   main.board-page { max-width: none; padding: 1.25rem 1rem 2.5rem; }
   h1 {

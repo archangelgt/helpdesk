@@ -19,11 +19,10 @@
     <form class="panel" method="post" action="/login">
       <input type="hidden" name="next" value="{{.Next}}" />
       <label>{{call .T "login.email"}}</label>
-      <input name="email" type="email" required autofocus placeholder="maestro@helpdesk.local" />
+      <input name="email" type="email" required autofocus />
       <label>{{call .T "login.password"}}</label>
       <input name="password" type="password" required />
       <button class="btn" type="submit">{{call .T "login.submit"}}</button>
-      <p class="muted" style="margin:.9rem 0 0;font-size:.82rem;line-height:1.45">{{call .T "login.hint"}}</p>
     </form>
   </main>
 </body>
