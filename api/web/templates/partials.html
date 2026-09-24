@@ -560,5 +560,20 @@
   @media (max-width: 959px) {
     .ticket-workspace { grid-template-columns: 1fr; }
   }
+
+  .tenant-list { display: flex; flex-direction: column; gap: .75rem; }
+  .tenant-card {
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: .9rem 1rem; background: var(--panel-2);
+  }
+  html[data-theme-resolved="light"] .tenant-card { background: #fff; }
+  .tenant-card-top {
+    display: flex; justify-content: space-between; gap: .75rem;
+    align-items: flex-start; flex-wrap: wrap;
+  }
+  .tenant-card code {
+    font-family: "Sora", sans-serif; font-size: .85rem;
+    background: var(--panel); padding: .1rem .35rem; border-radius: 6px;
+  }
 </style>
 {{end}}

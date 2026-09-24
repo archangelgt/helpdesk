@@ -28,14 +28,24 @@ docker compose up --build
 
 | URL | Qué |
 |-----|-----|
-| http://localhost:3000/login | Entrar (maestro / cliente) |
+| http://localhost:3000/login | Entrar (maestro / cliente) — pide **seraph_id (NIT)**, correo y contraseña |
+| http://localhost:3000/register | Registrar usuario cliente (seraph_id + correo + contraseña) |
 | http://localhost:3000/board | Tablero (solo maestro) |
 | http://localhost:3000/portal | Portal cliente (sus tickets) |
 | http://localhost:3000/prefs | Idioma ES/EN/PT + tema claro/oscuro/auto |
+| http://localhost:3000/tenants | Empresas: crear/editar y NIT (= seraph_id) |
 | http://localhost:3000/tickets/new | Crear ticket |
 | http://localhost:8090/_/ | PocketBase admin |
 
-**Usuarios demo:** `maestro@helpdesk.local` / `maestro123` · `cliente.cap@helpdesk.local` / `cliente123`
+**Usuarios demo** (seraph_id = NIT de la empresa):
+
+| Rol | Seraph ID (NIT) | Correo | Contraseña |
+|-----|-----------------|--------|------------|
+| Maestro | `900123456` (Cap World) o `900654321` (Power Tech) | `maestro@helpdesk.local` | `maestro123` |
+| Cliente Cap World | `900123456` | `cliente.cap@helpdesk.local` | `cliente123` |
+| Cliente Power Tech | `900654321` | `cliente.power@helpdesk.local` | `cliente123` |
+
+El **seraph_id** es el **NIT** de la empresa. Los clientes solo entran con el NIT de su empresa; el maestro puede usar el NIT de cualquier empresa registrada.
 
 **API de ingesta** (chat u otro sistema): ver [docs/API_INGEST.md](./docs/API_INGEST.md).
 

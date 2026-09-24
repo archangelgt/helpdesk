@@ -1,0 +1,39 @@
+{{define "register.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page" style="max-width:520px">
+    <div class="hero-create">
+      <h1>{{call .T "register.title"}}</h1>
+      <p class="lead" style="margin:0">{{call .T "register.lead"}}</p>
+    </div>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <form class="panel" method="post" action="/register">
+      <label>{{call .T "login.seraph_id"}}</label>
+      <input name="seraph_id" required autofocus autocomplete="organization" placeholder="{{call .T "login.seraph_id_ph"}}" />
+      <p class="muted" style="margin:-.4rem 0 .9rem;font-size:.82rem">{{call .T "register.seraph_hint"}}</p>
+      <label>{{call .T "common.name"}}</label>
+      <input name="name" autocomplete="name" />
+      <label>{{call .T "login.email"}}</label>
+      <input name="email" type="email" required autocomplete="email" />
+      <label>{{call .T "login.password"}}</label>
+      <input name="password" type="password" required minlength="6" autocomplete="new-password" />
+      <label>{{call .T "register.password2"}}</label>
+      <input name="password2" type="password" required minlength="6" autocomplete="new-password" />
+      <button class="btn" type="submit">{{call .T "register.submit"}}</button>
+    </form>
+    <p class="muted" style="margin-top:1rem;text-align:center">
+      <a href="/login">{{call .T "register.to_login"}}</a>
+    </p>
+  </main>
+</body>
+</html>
+{{end}}

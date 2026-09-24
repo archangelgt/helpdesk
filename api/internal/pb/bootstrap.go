@@ -21,6 +21,9 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	if err := c.ensureCollection(ctx, tenantsCollection()); err != nil {
 		return fmt.Errorf("tenants collection: %w", err)
 	}
+	if err := c.ensureTenantFields(ctx); err != nil {
+		return fmt.Errorf("tenant fields: %w", err)
+	}
 	tenantColID, err := c.collectionID(ctx, "tenants")
 	if err != nil {
 		return fmt.Errorf("tenants id: %w", err)
@@ -154,11 +157,11 @@ func (c *Client) ensureTicketExtraFields(ctx context.Context, tenantColID, userC
 }
 
 func (c *Client) seedDemoData(ctx context.Context) error {
-	cap, err := c.EnsureTenant(ctx, "Cap World", "cap-world")
+	cap, err := c.EnsureTenant(ctx, "Cap World", "cap-world", "900123456")
 	if err != nil {
 		return err
 	}
-	power, err := c.EnsureTenant(ctx, "Power Tech", "power-tech")
+	power, err := c.EnsureTenant(ctx, "Power Tech", "power-tech", "900654321")
 	if err != nil {
 		return err
 	}
@@ -187,13 +190,51 @@ func tenantsCollection() map[string]any {
 		"fields": []map[string]any{
 			{"name": "name", "type": "text", "required": true, "max": 160},
 			{"name": "slug", "type": "text", "required": true, "max": 80},
+			{"name": "nit", "type": "text", "required": true, "max": 40},
 			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
 			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
 		},
 		"indexes": []string{
 			"CREATE UNIQUE INDEX idx_tenants_slug ON tenants (`slug`)",
+			"CREATE UNIQUE INDEX idx_tenants_nit ON tenants (`nit`)",
 		},
 	}
+}
+
+func (c *Client) ensureTenantFields(ctx context.Context) error {
+	var meta collectionMeta
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/tenants", nil, &meta); err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for _, f := range meta.Fields {
+		if n, ok := f["name"].(string); ok {
+			have[n] = true
+		}
+	}
+	fields := append([]map[string]any{}, meta.Fields...)
+	changed := false
+	if !have["nit"] {
+		fields = append(fields, map[string]any{"name": "nit", "type": "text", "required": false, "max": 40})
+		changed = true
+	}
+	indexes := []string{
+		"CREATE UNIQUE INDEX idx_tenants_slug ON tenants (`slug`)",
+		"CREATE UNIQUE INDEX idx_tenants_nit ON tenants (`nit`)",
+	}
+	payload := map[string]any{"indexes": indexes}
+	if changed {
+		payload["fields"] = fields
+	}
+	if err := c.doJSON(ctx, http.MethodPatch, "/api/collections/tenants", payload, nil); err != nil {
+		// Index may already exist; retry fields-only if needed.
+		if changed {
+			if err2 := c.doJSON(ctx, http.MethodPatch, "/api/collections/tenants", map[string]any{"fields": fields}, nil); err2 != nil {
+				return err2
+			}
+		}
+	}
+	return nil
 }
 
 func appUsersCollection(tenantColID string) map[string]any {

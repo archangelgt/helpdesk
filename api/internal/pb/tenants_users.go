@@ -15,6 +15,7 @@ type Tenant struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Slug    string `json:"slug"`
+	Nit     string `json:"nit"`
 	Created string `json:"created"`
 	Updated string `json:"updated"`
 }
@@ -98,8 +99,36 @@ func (c *Client) GetTenantBySlug(ctx context.Context, slug string) (*Tenant, err
 	return &out.Items[0], nil
 }
 
-func (c *Client) CreateTenant(ctx context.Context, name, slug string) (*Tenant, error) {
-	payload := map[string]any{"name": strings.TrimSpace(name), "slug": strings.TrimSpace(slug)}
+func (c *Client) GetTenantByNit(ctx context.Context, nit string) (*Tenant, error) {
+	nit = normalizeNIT(nit)
+	if nit == "" {
+		return nil, fmt.Errorf("tenant not found: empty nit")
+	}
+	q := url.Values{}
+	q.Set("filter", fmt.Sprintf("nit='%s'", escapeFilter(nit)))
+	q.Set("perPage", "1")
+	var out listResponse[Tenant]
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/tenants/records?"+q.Encode(), nil, &out); err != nil {
+		return nil, err
+	}
+	if len(out.Items) == 0 {
+		return nil, fmt.Errorf("tenant not found: %s", nit)
+	}
+	return &out.Items[0], nil
+}
+
+func normalizeNIT(nit string) string {
+	nit = strings.TrimSpace(nit)
+	nit = strings.ToUpper(nit)
+	return nit
+}
+
+func (c *Client) CreateTenant(ctx context.Context, name, slug, nit string) (*Tenant, error) {
+	payload := map[string]any{
+		"name": strings.TrimSpace(name),
+		"slug": strings.TrimSpace(slug),
+		"nit":  normalizeNIT(nit),
+	}
 	var out Tenant
 	if err := c.doJSON(ctx, http.MethodPost, "/api/collections/tenants/records", payload, &out); err != nil {
 		return nil, err
@@ -107,11 +136,33 @@ func (c *Client) CreateTenant(ctx context.Context, name, slug string) (*Tenant, 
 	return &out, nil
 }
 
-func (c *Client) EnsureTenant(ctx context.Context, name, slug string) (*Tenant, error) {
+func (c *Client) UpdateTenant(ctx context.Context, id, name, slug, nit string) (*Tenant, error) {
+	payload := map[string]any{
+		"name": strings.TrimSpace(name),
+		"slug": strings.TrimSpace(slug),
+		"nit":  normalizeNIT(nit),
+	}
+	var out Tenant
+	if err := c.doJSON(ctx, http.MethodPatch, "/api/collections/tenants/records/"+url.PathEscape(id), payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) EnsureTenant(ctx context.Context, name, slug, nit string) (*Tenant, error) {
+	nit = normalizeNIT(nit)
 	if t, err := c.GetTenantBySlug(ctx, slug); err == nil {
+		if strings.TrimSpace(t.Nit) == "" && nit != "" {
+			return c.UpdateTenant(ctx, t.ID, t.Name, t.Slug, nit)
+		}
 		return t, nil
 	}
-	return c.CreateTenant(ctx, name, slug)
+	if nit != "" {
+		if t, err := c.GetTenantByNit(ctx, nit); err == nil {
+			return t, nil
+		}
+	}
+	return c.CreateTenant(ctx, name, slug, nit)
 }
 
 func (c *Client) GetUserByEmail(ctx context.Context, email string) (*AppUser, error) {

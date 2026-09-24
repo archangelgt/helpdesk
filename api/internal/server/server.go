@@ -91,6 +91,8 @@ func (s *Server) Routes() http.Handler {
 
 	r.Get("/login", s.handleLoginPage)
 	r.Post("/login", s.handleLoginForm)
+	r.Get("/register", s.handleRegisterPage)
+	r.Post("/register", s.handleRegisterForm)
 	r.Post("/logout", s.handleLogout)
 	r.Get("/prefs", s.handlePrefsPage)
 	r.Post("/prefs", s.handlePrefsForm)
@@ -117,6 +119,8 @@ func (s *Server) Routes() http.Handler {
 		staff.Get("/categories", s.handleCategoriesPage)
 		staff.Post("/categories", s.handleCreateCategoryForm)
 		staff.Get("/tenants", s.handleTenantsPage)
+		staff.Post("/tenants", s.handleCreateTenantForm)
+		staff.Post("/tenants/update", s.handleUpdateTenantForm)
 
 		staff.Get("/templates", s.handleTemplatesPage)
 		staff.Post("/templates", s.handleCreateTemplateForm)
