@@ -502,5 +502,63 @@
   .card-progress { margin-top: .35rem; }
   .card-progress .progress-bar { height: 7px; }
   .card-progress .progress-meta { font-size: .75rem; margin-bottom: .3rem; }
+
+  /* Ticket detail workspace */
+  main.ticket-page { max-width: 1280px; }
+  .ticket-workspace {
+    display: grid; gap: 1rem; align-items: start;
+    margin-bottom: 1.25rem;
+  }
+  .ticket-aside { min-width: 0; }
+  .ticket-aside-desc { min-height: 90px; }
+  .ticket-stages {
+    min-width: 0; display: flex; flex-direction: column;
+    max-height: none;
+  }
+  .ticket-stages-head { flex-shrink: 0; margin-bottom: .75rem; }
+  .ticket-stages-head h2 { margin-bottom: .35rem; }
+  .ticket-stages-scroll {
+    overflow: visible;
+  }
+  .ticket-add-stage {
+    margin-top: 1rem; padding-top: 1rem;
+    border-top: 1px dashed var(--line);
+  }
+  .ticket-add-stage h2 { margin-top: 0; }
+  .ticket-bottom {
+    display: grid; gap: 1rem;
+  }
+  .ticket-history-scroll {
+    max-height: 22rem; overflow: auto; margin-bottom: 0;
+    padding-right: .25rem;
+  }
+  @media (min-width: 960px) {
+    .ticket-workspace {
+      grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
+    }
+    .ticket-aside {
+      position: sticky; top: 4.75rem;
+      max-height: calc(100vh - 5.5rem);
+      overflow: auto;
+      align-self: start;
+    }
+    .ticket-stages {
+      max-height: calc(100vh - 5.5rem);
+      overflow: hidden;
+    }
+    .ticket-stages-scroll {
+      flex: 1; min-height: 0;
+      overflow: auto;
+      padding-right: .35rem;
+      margin-right: -.15rem;
+    }
+    .ticket-bottom {
+      grid-template-columns: 1.1fr .9fr;
+      align-items: start;
+    }
+  }
+  @media (max-width: 959px) {
+    .ticket-workspace { grid-template-columns: 1fr; }
+  }
 </style>
 {{end}}

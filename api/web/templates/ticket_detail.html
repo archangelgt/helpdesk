@@ -10,7 +10,7 @@
 </head>
 <body>
   {{template "nav" .}}
-  <main class="page">
+  <main class="page ticket-page">
     <p class="muted" style="margin:0 0 .5rem"><a href="/board">{{call .T "ticket.back"}}</a></p>
     <div class="toolbar">
       <div>
@@ -36,98 +36,14 @@
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
-    <div class="panel" style="margin-bottom:1rem">
-      <h2>{{call .T "ticket.stages"}}</h2>
-      <p class="muted" style="margin-top:0;font-size:.88rem;line-height:1.45">
-        {{call .T "ticket.stages_lead"}}
-        {{if .Progress.HasStages}}({{.Progress.Done}} {{call .T "common.of"}} {{.Progress.Total}}){{end}}.
-      </p>
-
-      {{if .Stages}}
-      <div class="stage-track">
-        {{range $i, $st := .Stages}}
-        <div class="stage-step {{stageClass $st.Estado}}">
-          <div class="stage-rail">
-            <div class="stage-dot">{{if eq $st.Estado "hecha"}}✓{{else}}{{printf "%.0f" $st.Orden}}{{end}}</div>
-            <div class="stage-line"></div>
-          </div>
-          <div class="stage-body">
-            <div class="stage-head">
-              <h3>{{$st.Name}}</h3>
-              <span class="pill">{{labelStage $st.Estado}}</span>
-            </div>
-            <div class="stage-dates">
-              {{if $st.FechaPlanInicio}}<span>{{call $.T "common.start"}} {{$st.FechaPlanInicio}}</span>{{end}}
-              {{if $st.FechaPlanFin}}<span>{{call $.T "common.end"}} {{$st.FechaPlanFin}}</span>{{end}}
-            </div>
-            <div class="stage-actions">
-              {{range $.StageStates}}
-              <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/estado" style="margin:0">
-                <input type="hidden" name="estado" value="{{.}}" />
-                <button type="submit" class="{{if eq $st.Estado .}}is-on{{end}}">{{labelStage .}}</button>
-              </form>
-              {{end}}
-            </div>
-            <div class="stage-edit">
-              <details>
-                <summary>{{call $.T "ticket.edit_stage"}}</summary>
-                <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}" class="grid grid-2">
-                  <div>
-                    <label>{{call $.T "common.name"}}</label>
-                    <input name="name" value="{{$st.Name}}" />
-                    <label>{{call $.T "common.order"}}</label>
-                    <input name="orden" type="number" value="{{printf "%.0f" $st.Orden}}" />
-                    <input type="hidden" name="estado" value="{{$st.Estado}}" />
-                    <input type="hidden" name="avance" value="{{printf "%.0f" $st.Avance}}" />
-                  </div>
-                  <div>
-                    <label>{{call $.T "common.start"}}</label>
-                    <input name="fecha_plan_inicio" value="{{$st.FechaPlanInicio}}" placeholder="YYYY-MM-DD" />
-                    <label>{{call $.T "common.end"}}</label>
-                    <input name="fecha_plan_fin" value="{{$st.FechaPlanFin}}" placeholder="YYYY-MM-DD" />
-                    <button class="btn ghost" type="submit">{{call $.T "ticket.save_stage"}}</button>
-                  </div>
-                </form>
-              </details>
-            </div>
-          </div>
-        </div>
-        {{end}}
-      </div>
-      {{else}}
-      <p class="muted">{{call .T "ticket.no_stages"}}</p>
-      {{end}}
-
-      <h2>{{call .T "ticket.add_stage"}}</h2>
-      <form method="post" action="/tickets/{{.Ticket.ID}}/stages">
-        <label>{{call .T "common.name"}}</label>
-        <input name="name" required />
-        <div class="grid grid-2">
-          <div>
-            <label>{{call .T "common.order"}}</label>
-            <input name="orden" type="number" value="{{len .Stages}}" />
-          </div>
-          <div>
-            <label>{{call .T "ticket.initial_state"}}</label>
-            <select name="estado">{{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}</select>
-          </div>
-        </div>
-        <div class="grid grid-2">
-          <div><label>{{call .T "common.start"}}</label><input name="fecha_plan_inicio" placeholder="YYYY-MM-DD" /></div>
-          <div><label>{{call .T "common.end"}}</label><input name="fecha_plan_fin" placeholder="YYYY-MM-DD" /></div>
-        </div>
-        <button class="btn" type="submit">{{call .T "ticket.add_stage"}}</button>
-      </form>
-    </div>
-
-    <div class="grid create-layout">
-      <div class="panel">
+    <div class="ticket-workspace">
+      <aside class="panel ticket-aside">
         <h2>{{call .T "ticket.details"}}</h2>
         <form method="post" action="/tickets/{{.Ticket.ID}}/update">
           <label>{{call .T "common.subject"}}</label>
           <input name="subject" value="{{.Ticket.Subject}}" required />
           <label>{{call .T "common.description"}}</label>
-          <textarea name="description">{{.Ticket.Description}}</textarea>
+          <textarea name="description" class="ticket-aside-desc">{{.Ticket.Description}}</textarea>
           <label>{{call .T "common.category"}}</label>
           <select name="category">
             {{range .Categories}}
@@ -158,11 +74,103 @@
           <input name="assignee" value="{{.Ticket.Assignee}}" />
           <button class="btn" type="submit">{{call .T "common.save"}}</button>
         </form>
-      </div>
+      </aside>
 
+      <section class="panel ticket-stages">
+        <div class="ticket-stages-head">
+          <h2>{{call .T "ticket.stages"}}</h2>
+          <p class="muted" style="margin:0;font-size:.88rem;line-height:1.45">
+            {{call .T "ticket.stages_lead"}}
+            {{if .Progress.HasStages}}({{.Progress.Done}} {{call .T "common.of"}} {{.Progress.Total}}){{end}}.
+          </p>
+        </div>
+
+        <div class="ticket-stages-scroll">
+          {{if .Stages}}
+          <div class="stage-track">
+            {{range $i, $st := .Stages}}
+            <div class="stage-step {{stageClass $st.Estado}}">
+              <div class="stage-rail">
+                <div class="stage-dot">{{if eq $st.Estado "hecha"}}✓{{else}}{{printf "%.0f" $st.Orden}}{{end}}</div>
+                <div class="stage-line"></div>
+              </div>
+              <div class="stage-body">
+                <div class="stage-head">
+                  <h3>{{$st.Name}}</h3>
+                  <span class="pill">{{labelStage $st.Estado}}</span>
+                </div>
+                <div class="stage-dates">
+                  {{if $st.FechaPlanInicio}}<span>{{call $.T "common.start"}} {{$st.FechaPlanInicio}}</span>{{end}}
+                  {{if $st.FechaPlanFin}}<span>{{call $.T "common.end"}} {{$st.FechaPlanFin}}</span>{{end}}
+                </div>
+                <div class="stage-actions">
+                  {{range $.StageStates}}
+                  <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/estado" style="margin:0">
+                    <input type="hidden" name="estado" value="{{.}}" />
+                    <button type="submit" class="{{if eq $st.Estado .}}is-on{{end}}">{{labelStage .}}</button>
+                  </form>
+                  {{end}}
+                </div>
+                <div class="stage-edit">
+                  <details>
+                    <summary>{{call $.T "ticket.edit_stage"}}</summary>
+                    <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}" class="grid grid-2">
+                      <div>
+                        <label>{{call $.T "common.name"}}</label>
+                        <input name="name" value="{{$st.Name}}" />
+                        <label>{{call $.T "common.order"}}</label>
+                        <input name="orden" type="number" value="{{printf "%.0f" $st.Orden}}" />
+                        <input type="hidden" name="estado" value="{{$st.Estado}}" />
+                        <input type="hidden" name="avance" value="{{printf "%.0f" $st.Avance}}" />
+                      </div>
+                      <div>
+                        <label>{{call $.T "common.start"}}</label>
+                        <input name="fecha_plan_inicio" value="{{$st.FechaPlanInicio}}" placeholder="YYYY-MM-DD" />
+                        <label>{{call $.T "common.end"}}</label>
+                        <input name="fecha_plan_fin" value="{{$st.FechaPlanFin}}" placeholder="YYYY-MM-DD" />
+                        <button class="btn ghost" type="submit">{{call $.T "ticket.save_stage"}}</button>
+                      </div>
+                    </form>
+                  </details>
+                </div>
+              </div>
+            </div>
+            {{end}}
+          </div>
+          {{else}}
+          <p class="muted">{{call .T "ticket.no_stages"}}</p>
+          {{end}}
+
+          <div class="ticket-add-stage">
+            <h2>{{call .T "ticket.add_stage"}}</h2>
+            <form method="post" action="/tickets/{{.Ticket.ID}}/stages">
+              <label>{{call .T "common.name"}}</label>
+              <input name="name" required />
+              <div class="grid grid-2">
+                <div>
+                  <label>{{call .T "common.order"}}</label>
+                  <input name="orden" type="number" value="{{len .Stages}}" />
+                </div>
+                <div>
+                  <label>{{call .T "ticket.initial_state"}}</label>
+                  <select name="estado">{{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}</select>
+                </div>
+              </div>
+              <div class="grid grid-2">
+                <div><label>{{call .T "common.start"}}</label><input name="fecha_plan_inicio" placeholder="YYYY-MM-DD" /></div>
+                <div><label>{{call .T "common.end"}}</label><input name="fecha_plan_fin" placeholder="YYYY-MM-DD" /></div>
+              </div>
+              <button class="btn" type="submit">{{call .T "ticket.add_stage"}}</button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="ticket-bottom">
       <div class="panel">
         <h2>{{call .T "ticket.history"}}</h2>
-        <div class="timeline" style="margin-bottom:1rem">
+        <div class="timeline ticket-history-scroll">
           {{if .Comments}}
             {{range .Comments}}
             <div class="comment {{.Visibility}}">
@@ -174,6 +182,8 @@
             <p class="muted">{{call .T "ticket.no_comments"}}</p>
           {{end}}
         </div>
+      </div>
+      <div class="panel">
         <h2>{{call .T "ticket.comment"}}</h2>
         <form method="post" action="/tickets/{{.Ticket.ID}}/comments">
           <label>{{call .T "ticket.visibility"}}</label>
