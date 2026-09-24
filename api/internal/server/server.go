@@ -40,6 +40,7 @@ type boardCard struct {
 	Ticket       pb.Ticket
 	CategoryName string
 	NextStatuses []string
+	Progress     TicketProgress
 }
 
 func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
@@ -57,6 +58,7 @@ func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 		},
 		"statusClass":   statusClass,
 		"priorityClass": priorityClass,
+		"stageClass":    stageClass,
 		"activeNav": func(cur, want string) string {
 			if cur == want {
 				return "is-active"
@@ -132,6 +134,7 @@ func (s *Server) Routes() http.Handler {
 		staff.Post("/tickets/{id}/comments", s.handleAddComment)
 		staff.Post("/tickets/{id}/stages", s.handleAddStage)
 		staff.Post("/tickets/{id}/stages/{stageID}", s.handleUpdateStage)
+		staff.Post("/tickets/{id}/stages/{stageID}/estado", s.handleStageEstado)
 
 		staff.Route("/api", func(api chi.Router) {
 			api.Get("/categories", s.apiListCategories)
@@ -153,7 +156,7 @@ func (s *Server) Routes() http.Handler {
 func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	group := r.URL.Query().Get("group")
 	if group == "" {
-		group = "status"
+		group = "priority"
 	}
 	f := pb.TicketFilters{
 		Type:       r.URL.Query().Get("type"),
@@ -177,7 +180,12 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	for _, c := range cats {
 		catNames[c.ID] = c.Name
 	}
-	columns := buildBoardColumns(group, tickets, catNames)
+	progressByTicket := map[string]TicketProgress{}
+	for _, tk := range tickets {
+		stages, _ := s.pb.ListStages(r.Context(), tk.ID)
+		progressByTicket[tk.ID] = computeProgress(stages)
+	}
+	columns := buildBoardColumns(group, tickets, catNames, progressByTicket)
 	errMsg := ""
 	if err != nil {
 		errMsg = err.Error()
@@ -198,19 +206,19 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	}))
 }
 
-func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]string) []boardColumn {
-	keys := statuses
-	if group == "priority" {
-		keys = priorities
+func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]string, progressByTicket map[string]TicketProgress) []boardColumn {
+	keys := priorities
+	if group == "status" {
+		keys = statuses
 	}
 	buckets := map[string][]boardCard{}
 	for _, k := range keys {
 		buckets[k] = nil
 	}
 	for _, t := range tickets {
-		key := t.Status
-		if group == "priority" {
-			key = t.Priority
+		key := t.Priority
+		if group == "status" {
+			key = t.Status
 		}
 		if _, ok := buckets[key]; !ok {
 			continue
@@ -223,13 +231,14 @@ func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]st
 			Ticket:       t,
 			CategoryName: name,
 			NextStatuses: nextStatuses(t.Status),
+			Progress:     progressByTicket[t.ID],
 		})
 	}
 	out := make([]boardColumn, 0, len(keys))
 	for _, k := range keys {
-		label := labelStatus(k)
-		if group == "priority" {
-			label = labelPriority(k)
+		label := labelPriority(k)
+		if group == "status" {
+			label = labelStatus(k)
 		}
 		out = append(out, boardColumn{Key: k, Label: label, Tickets: buckets[k]})
 	}
@@ -399,6 +408,7 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 		http.Redirect(w, r, q, http.StatusSeeOther)
 		return
 	}
+	_ = s.syncTicketFromStages(r, t.ID)
 	http.Redirect(w, r, "/tickets/"+t.ID+"?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
 }
 
@@ -546,11 +556,11 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 		"Categories":   cats,
 		"Comments":     comments,
 		"Stages":       stages,
+		"Progress":     computeProgress(stages),
 		"Statuses":     statuses,
 		"Priorities":   priorities,
 		"Types":        ticketTypes,
 		"StageStates":  stageStates,
-		"NextStatuses": nextStatuses(ticket.Status),
 		"Flash":        r.URL.Query().Get("ok"),
 		"Error":        r.URL.Query().Get("err"),
 	}))
@@ -565,7 +575,6 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 	subject := r.FormValue("subject")
 	description := r.FormValue("description")
 	category := r.FormValue("category")
-	status := r.FormValue("status")
 	priority := r.FormValue("priority")
 	ticketType := r.FormValue("type")
 	assignee := r.FormValue("assignee")
@@ -573,10 +582,16 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 		Subject:     &subject,
 		Description: &description,
 		CategoryID:  &category,
-		Status:      &status,
 		Priority:    &priority,
 		Type:        &ticketType,
 		Assignee:    &assignee,
+	}
+	stagesCheck, _ := s.pb.ListStages(r.Context(), id)
+	if len(stagesCheck) == 0 {
+		st := r.FormValue("status")
+		if st != "" {
+			upd.Status = &st
+		}
 	}
 	if _, err := s.pb.UpdateTicket(r.Context(), id, upd); err != nil {
 		s.log.Printf("update ticket: %v", err)
@@ -646,10 +661,12 @@ func (s *Server) handleAddStage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape("nombre de etapa requerido"), http.StatusSeeOther)
 		return
 	}
-	if _, err := s.pb.CreateStage(r.Context(), id, name, orden, r.FormValue("fecha_plan_inicio"), r.FormValue("fecha_plan_fin"), r.FormValue("estado"), 0); err != nil {
+	estado := defaultSelect(r.FormValue("estado"), "pendiente")
+	if _, err := s.pb.CreateStage(r.Context(), id, name, orden, r.FormValue("fecha_plan_inicio"), r.FormValue("fecha_plan_fin"), estado, avanceForEstado(estado, 0)); err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
+	_ = s.syncTicketFromStages(r, id)
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Etapa agregada"), http.StatusSeeOther)
 }
 
@@ -662,11 +679,60 @@ func (s *Server) handleUpdateStage(w http.ResponseWriter, r *http.Request) {
 	}
 	orden, _ := strconv.ParseFloat(r.FormValue("orden"), 64)
 	avance, _ := strconv.ParseFloat(r.FormValue("avance"), 64)
-	if _, err := s.pb.UpdateStage(r.Context(), stageID, r.FormValue("name"), r.FormValue("estado"), orden, avance, r.FormValue("fecha_plan_inicio"), r.FormValue("fecha_plan_fin")); err != nil {
+	estado := defaultSelect(r.FormValue("estado"), "pendiente")
+	avance = avanceForEstado(estado, avance)
+	if _, err := s.pb.UpdateStage(r.Context(), stageID, r.FormValue("name"), estado, orden, avance, r.FormValue("fecha_plan_inicio"), r.FormValue("fecha_plan_fin")); err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
+	_ = s.syncTicketFromStages(r, id)
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Etapa actualizada"), http.StatusSeeOther)
+}
+
+func (s *Server) handleStageEstado(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stageID := chi.URLParam(r, "stageID")
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/tickets/"+id+"?err=form", http.StatusSeeOther)
+		return
+	}
+	estado := defaultSelect(r.FormValue("estado"), "pendiente")
+	stages, err := s.pb.ListStages(r.Context(), id)
+	if err != nil {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	var cur *pb.Stage
+	for i := range stages {
+		if stages[i].ID == stageID {
+			cur = &stages[i]
+			break
+		}
+	}
+	if cur == nil {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape("etapa no encontrada"), http.StatusSeeOther)
+		return
+	}
+	if _, err := s.pb.UpdateStage(r.Context(), stageID, cur.Name, estado, cur.Orden, avanceForEstado(estado, cur.Avance), cur.FechaPlanInicio, cur.FechaPlanFin); err != nil {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	_ = s.syncTicketFromStages(r, id)
+	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Etapa → "+estado), http.StatusSeeOther)
+}
+
+func (s *Server) syncTicketFromStages(r *http.Request, ticketID string) error {
+	stages, err := s.pb.ListStages(r.Context(), ticketID)
+	if err != nil {
+		return err
+	}
+	st := statusFromStages(stages)
+	if st == "" {
+		return nil
+	}
+	upd := pb.TicketUpdate{Status: &st}
+	_, err = s.pb.UpdateTicket(r.Context(), ticketID, upd)
+	return err
 }
 
 func (s *Server) apiListCategories(w http.ResponseWriter, r *http.Request) {
@@ -872,6 +938,7 @@ func (s *Server) render(w http.ResponseWriter, name string, data any) {
 		"labelType":     func(code string) string { return i18n.T(lang, "type."+code) },
 		"labelVis":      func(code string) string { return i18n.T(lang, "vis."+code) },
 		"labelStage":    func(code string) string { return i18n.T(lang, "stage."+code) },
+		"stageClass":    stageClass,
 	})
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
 		s.log.Printf("template %s: %v", name, err)

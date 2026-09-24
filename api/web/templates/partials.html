@@ -309,5 +309,108 @@
   @media (max-width: 700px) {
     .stage-list li { grid-template-columns: 1fr 1fr; }
   }
+
+  /* Progress from stages */
+  .progress-block { margin: .75rem 0 0; }
+  .progress-meta {
+    display: flex; justify-content: space-between; gap: .75rem; flex-wrap: wrap;
+    font-size: .85rem; color: var(--muted); margin-bottom: .4rem;
+  }
+  .progress-meta strong { color: var(--ink); }
+  .progress-bar {
+    height: 10px; border-radius: 999px; background: var(--panel-2);
+    border: 1px solid var(--line); overflow: hidden;
+  }
+  .progress-bar > span {
+    display: block; height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--ok), #4a9a6e);
+    transition: width .25s ease;
+  }
+  .progress-bar.is-done > span { background: linear-gradient(90deg, #2f6b4f, #6fbf93); }
+
+  /* Stage track */
+  .stage-track {
+    display: flex; flex-direction: column; gap: 0; margin: .5rem 0 1.25rem;
+    position: relative;
+  }
+  .stage-step {
+    display: grid; grid-template-columns: 44px 1fr; gap: .85rem;
+    position: relative; padding-bottom: 1.1rem;
+  }
+  .stage-step:last-child { padding-bottom: 0; }
+  .stage-rail {
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .stage-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; font-size: .85rem;
+    border: 2px solid var(--line); background: var(--panel-2); color: var(--muted);
+    position: relative; z-index: 1; flex-shrink: 0;
+  }
+  .stage-line {
+    flex: 1; width: 3px; min-height: 1.2rem; margin-top: .35rem;
+    background: var(--line); border-radius: 2px;
+  }
+  .stage-step:last-child .stage-line { display: none; }
+  .stage-body {
+    border: 1px solid var(--line); border-radius: 16px; padding: .95rem 1rem;
+    background: var(--panel-2); box-shadow: var(--shadow);
+  }
+  html[data-theme-resolved="light"] .stage-body { background: #fff; }
+  .stage-head {
+    display: flex; justify-content: space-between; gap: .75rem; align-items: flex-start;
+    flex-wrap: wrap; margin-bottom: .55rem;
+  }
+  .stage-head h3 {
+    font-family: "Newsreader", serif; font-size: 1.15rem; margin: 0; font-weight: 600;
+  }
+  .stage-dates {
+    display: flex; flex-wrap: wrap; gap: .5rem .85rem;
+    font-size: .82rem; color: var(--muted); margin-bottom: .75rem;
+  }
+  .stage-actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .65rem; }
+  .stage-actions button {
+    appearance: none; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); border-radius: 999px; padding: .35rem .7rem;
+    font: inherit; font-size: .72rem; font-weight: 600; cursor: pointer;
+  }
+  .stage-actions button:hover { border-color: var(--accent); color: var(--accent); }
+  .stage-actions button.is-on {
+    background: var(--ink); color: var(--nav-active-fg); border-color: var(--ink);
+  }
+  .stage-edit details summary {
+    cursor: pointer; font-size: .8rem; color: var(--muted); font-weight: 600;
+    list-style: none;
+  }
+  .stage-edit details summary::-webkit-details-marker { display: none; }
+  .stage-edit details[open] summary { margin-bottom: .65rem; color: var(--ink); }
+
+  .stage-todo .stage-dot { border-color: #9aa89f; }
+  .stage-active .stage-dot {
+    background: var(--info); color: #fff; border-color: var(--info);
+    box-shadow: 0 0 0 4px rgba(42,95,120,.18);
+  }
+  .stage-active .stage-body {
+    border-color: var(--info);
+    background: color-mix(in srgb, var(--info) 8%, var(--panel-2));
+  }
+  .stage-active .stage-line { background: var(--info); }
+  .stage-done .stage-dot {
+    background: var(--ok); color: #fff; border-color: var(--ok);
+  }
+  .stage-done .stage-body {
+    border-color: color-mix(in srgb, var(--ok) 45%, var(--line));
+    opacity: .92;
+  }
+  .stage-done .stage-line { background: var(--ok); }
+  .stage-done .stage-head h3 { text-decoration: line-through; text-decoration-thickness: 1px; }
+  .stage-blocked .stage-dot {
+    background: var(--warn); color: #fff; border-color: var(--warn);
+  }
+  .stage-blocked .stage-body { border-color: var(--warn); }
+
+  .card-progress { margin-top: .35rem; }
+  .card-progress .progress-bar { height: 7px; }
+  .card-progress .progress-meta { font-size: .75rem; margin-bottom: .3rem; }
 </style>
 {{end}}

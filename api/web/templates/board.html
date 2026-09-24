@@ -14,12 +14,12 @@
     <div class="toolbar">
       <div>
         <h1>{{call .T "board.title"}}</h1>
-        <p class="lead" style="margin-bottom:0">Cards por {{if eq .Group "priority"}}prioridad{{else}}estado{{end}}. Cambia el estado desde cada tarjeta.</p>
+        <p class="lead" style="margin-bottom:0">El avance sale de las etapas hechas. Agrupa por prioridad (o filtro legado por estado).</p>
       </div>
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
         <div class="seg">
-          <a class="{{if eq .Group "status"}}is-on{{end}}" href="/board?group=status">{{call .T "board.by_status"}}</a>
           <a class="{{if eq .Group "priority"}}is-on{{end}}" href="/board?group=priority">{{call .T "board.by_priority"}}</a>
+          <a class="{{if eq .Group "status"}}is-on{{end}}" href="/board?group=status">{{call .T "board.by_status"}}</a>
         </div>
         <a class="btn" href="/tickets/new">{{call .T "board.new"}}</a>
       </div>
@@ -55,20 +55,20 @@
           {{range .Tenants}}<option value="{{.ID}}" {{selected $.Filters.TenantID .ID}}>{{.Name}}</option>{{end}}
         </select>
       </div>
-      {{if eq .Group "status"}}
+      {{if eq .Group "priority"}}
+      <div>
+        <label>Estado (derivado)</label>
+        <select name="status">
+          <option value="">Todos</option>
+          {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
+        </select>
+      </div>
+      {{else}}
       <div>
         <label>Prioridad</label>
         <select name="priority">
           <option value="">Todas</option>
           {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
-        </select>
-      </div>
-      {{else}}
-      <div>
-        <label>Estado</label>
-        <select name="status">
-          <option value="">Todos</option>
-          {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
         </select>
       </div>
       {{end}}
@@ -92,20 +92,22 @@
             </div>
             <h3><a href="/tickets/{{$card.Ticket.ID}}">{{$card.Ticket.Subject}}</a></h3>
             <div class="card-meta">
-              <span class="pill {{statusClass $card.Ticket.Status}}">{{labelStatus $card.Ticket.Status}}</span>
               <span class="pill">{{labelType $card.Ticket.Type}}</span>
               <span class="pill">{{$card.CategoryName}}</span>
               {{if $card.Ticket.Assignee}}<span class="pill">{{$card.Ticket.Assignee}}</span>{{end}}
             </div>
-            <div class="move">
-              {{range $card.NextStatuses}}
-              <form method="post" action="/tickets/{{$card.Ticket.ID}}/status">
-                <input type="hidden" name="status" value="{{.}}" />
-                <input type="hidden" name="return_to" value="board" />
-                <button type="submit" title="Mover a {{labelStatus .}}">→ {{labelStatus .}}</button>
-              </form>
-              {{end}}
+            {{if $card.Progress.HasStages}}
+            <div class="card-progress">
+              <div class="progress-meta">
+                <span>{{$card.Progress.Label}} etapas</span>
+                <span>{{$card.Progress.Percent}}%</span>
+              </div>
+              <div class="progress-bar {{if eq $card.Progress.Percent 100}}is-done{{end}}"><span style="width:{{$card.Progress.Percent}}%"></span></div>
+              {{if $card.Progress.Current}}<div class="muted" style="font-size:.72rem;margin-top:.35rem">Ahora: {{$card.Progress.Current}}</div>{{end}}
             </div>
+            {{else}}
+            <p class="muted" style="font-size:.78rem;margin:.35rem 0 0">Sin etapas</p>
+            {{end}}
           </article>
           {{end}}
         {{else}}

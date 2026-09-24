@@ -102,14 +102,11 @@
             </select>
           </div>
           <div>
-            <label>Estado inicial</label>
-            <select name="status">
-              {{range .Statuses}}<option value="{{.}}" {{if eq . "abierto"}}selected{{end}}>{{labelStatus .}}</option>{{end}}
-            </select>
+            <label>Asignado a</label>
+            <input name="assignee" placeholder="Nombre del responsable" />
           </div>
         </div>
-        <label>Asignado a</label>
-        <input name="assignee" placeholder="Nombre del responsable" />
+        <input type="hidden" name="status" value="abierto" />
 
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.4rem">
           <button class="btn" type="submit">{{if .SelectedTpl}}Crear desde plantilla{{else}}Crear y ir al detalle{{end}}</button>

@@ -63,6 +63,7 @@ func (s *Server) handlePortalTicket(w http.ResponseWriter, r *http.Request) {
 		"Ticket":   t,
 		"Comments": visible,
 		"Stages":   stages,
+		"Progress": computeProgress(stages),
 		"Flash":    r.URL.Query().Get("ok"),
 		"Error":    r.URL.Query().Get("err"),
 	}))
