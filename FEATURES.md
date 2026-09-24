@@ -101,7 +101,9 @@ Roles típicos: admin tenant, supervisor, técnico, **cliente (solo lo compartid
 | Plantillas de ticket (etapas/tiempos, clonar por cliente) | Sí | Más variables |
 | Compartir avance al cliente (vista / comentarios) | Sí (básico) | Portal cliente rico |
 | Ticket soporte (cola, prioridad, asignación) | Sí | SLA completo |
-| API ingesta (contrato + al menos un canal) | Stub / contrato | Email, WhatsApp, ERPSYS Chat |
+| API ingesta (contrato + al menos un canal) | Sí (API key + chat/genérico) | Email, WhatsApp adapters |
+| Portal cliente (ver avance + comentar) | Sí (básico) | Portal rico |
+| i18n ES / EN / PT + tema claro/oscuro/auto | Sí | Más cadenas |
 | Email / WhatsApp / ERPSYS Chat en producción | No | Fases de canales |
 | SLA / automations / KB avanzados | No | Hardening+ |
 

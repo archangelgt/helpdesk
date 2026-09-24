@@ -3,11 +3,12 @@ package config
 import "os"
 
 type Config struct {
-	HTTPAddr       string
-	PocketBaseURL  string
-	PBAdminEmail   string
+	HTTPAddr        string
+	PocketBaseURL   string
+	PBAdminEmail    string
 	PBAdminPassword string
-	WebDir         string
+	WebDir          string
+	SessionSecret   string
 }
 
 func FromEnv() Config {
@@ -17,6 +18,7 @@ func FromEnv() Config {
 		PBAdminEmail:    getenv("PB_ADMIN_EMAIL", "admin@helpdesk.local"),
 		PBAdminPassword: getenv("PB_ADMIN_PASSWORD", "helpdesk-admin-change-me"),
 		WebDir:          getenv("WEB_DIR", "web"),
+		SessionSecret:   getenv("SESSION_SECRET", "helpdesk-dev-session-secret-change-me"),
 	}
 }
 

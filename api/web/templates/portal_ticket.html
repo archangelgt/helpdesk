@@ -1,0 +1,74 @@
+{{define "portal_ticket.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Ticket.Number}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <p class="muted" style="margin:0 0 .5rem"><a href="/portal">{{call .T "portal.back"}}</a></p>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.35rem">
+      <span class="badge">{{.Ticket.Number}}</span>
+      <span class="pill {{statusClass .Ticket.Status}}">{{labelStatus .Ticket.Status}}</span>
+      <span class="pill {{priorityClass .Ticket.Priority}}">{{labelPriority .Ticket.Priority}}</span>
+    </div>
+    <h1>{{.Ticket.Subject}}</h1>
+    <p class="lead">{{labelType .Ticket.Type}}</p>
+    {{if .Flash}}<div class="flash">OK</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    {{if .Ticket.Description}}
+    <div class="panel" style="margin-bottom:1rem">
+      <p style="margin:0;white-space:pre-wrap">{{.Ticket.Description}}</p>
+    </div>
+    {{end}}
+
+    <div class="grid create-layout">
+      <div class="panel">
+        <h2>{{call .T "portal.stages"}}</h2>
+        {{if .Stages}}
+        <ul class="stage-list">
+          {{range .Stages}}
+          <li style="grid-template-columns:2fr 1fr 1fr">
+            <div>
+              <strong>{{.Name}}</strong>
+              <div class="muted" style="font-size:.78rem">{{labelStage .Estado}} · {{printf "%.0f" .Avance}}%</div>
+            </div>
+            <div class="muted">{{.FechaPlanInicio}}</div>
+            <div class="muted">{{.FechaPlanFin}}</div>
+          </li>
+          {{end}}
+        </ul>
+        {{else}}
+        <p class="muted">—</p>
+        {{end}}
+      </div>
+      <div class="panel">
+        <h2>{{call .T "portal.comments"}}</h2>
+        <p class="muted" style="font-size:.85rem;margin-top:0">{{call .T "portal.only_client"}}</p>
+        <div class="timeline" style="margin-bottom:1rem">
+          {{range .Comments}}
+          <div class="comment {{.Visibility}}">
+            <div class="meta">{{.Author}} · {{labelVis .Visibility}}</div>
+            <div>{{.Body}}</div>
+          </div>
+          {{else}}
+          <p class="muted">—</p>
+          {{end}}
+        </div>
+        <form method="post" action="/portal/tickets/{{.Ticket.ID}}/comments">
+          <label>{{call .T "portal.comment"}}</label>
+          <textarea name="body" required placeholder="{{call .T "portal.comment.placeholder"}}"></textarea>
+          <button class="btn" type="submit">{{call .T "portal.comment"}}</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

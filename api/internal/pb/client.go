@@ -64,17 +64,22 @@ type Category struct {
 }
 
 type Ticket struct {
-	ID          string `json:"id"`
-	Number      string `json:"number"`
-	Subject     string `json:"subject"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
-	Status      string `json:"status"`
-	Priority    string `json:"priority"`
-	Type        string `json:"type"`
-	Assignee    string `json:"assignee"`
-	Created     string `json:"created"`
-	Updated     string `json:"updated"`
+	ID             string `json:"id"`
+	Number         string `json:"number"`
+	Subject        string `json:"subject"`
+	Description    string `json:"description"`
+	Category       string `json:"category"`
+	Status         string `json:"status"`
+	Priority       string `json:"priority"`
+	Type           string `json:"type"`
+	Assignee       string `json:"assignee"`
+	Tenant         string `json:"tenant"`
+	Requester      string `json:"requester"`
+	RequesterEmail string `json:"requester_email"`
+	Source         string `json:"source"`
+	ExternalID     string `json:"external_id"`
+	Created        string `json:"created"`
+	Updated        string `json:"updated"`
 }
 
 type Comment struct {
@@ -101,11 +106,14 @@ type Stage struct {
 }
 
 type TicketFilters struct {
-	Status     string
-	Priority   string
-	Type       string
-	CategoryID string
-	Q          string
+	Status         string
+	Priority       string
+	Type           string
+	CategoryID     string
+	TenantID       string
+	RequesterID    string
+	RequesterEmail string
+	Q              string
 }
 
 type listResponse[T any] struct {
@@ -158,6 +166,15 @@ func (c *Client) ListTickets(ctx context.Context, f TicketFilters) ([]Ticket, er
 	if f.CategoryID != "" {
 		filters = append(filters, fmt.Sprintf("category='%s'", escapeFilter(f.CategoryID)))
 	}
+	if f.TenantID != "" {
+		filters = append(filters, fmt.Sprintf("tenant='%s'", escapeFilter(f.TenantID)))
+	}
+	if f.RequesterID != "" {
+		filters = append(filters, fmt.Sprintf("requester='%s'", escapeFilter(f.RequesterID)))
+	}
+	if f.RequesterEmail != "" {
+		filters = append(filters, fmt.Sprintf("requester_email='%s'", escapeFilter(strings.ToLower(f.RequesterEmail))))
+	}
 	if f.Q != "" {
 		qq := escapeFilter(f.Q)
 		filters = append(filters, fmt.Sprintf("(subject~'%s' || number~'%s' || description~'%s')", qq, qq, qq))
@@ -182,19 +199,67 @@ func (c *Client) GetTicket(ctx context.Context, id string) (*Ticket, error) {
 }
 
 func (c *Client) CreateTicket(ctx context.Context, subject, description, categoryID, status, priority, ticketType, assignee string) (*Ticket, error) {
+	return c.CreateTicketFull(ctx, TicketCreate{
+		Subject: subject, Description: description, CategoryID: categoryID,
+		Status: status, Priority: priority, Type: ticketType, Assignee: assignee,
+		Source: "ui",
+	})
+}
+
+type TicketCreate struct {
+	Subject        string
+	Description    string
+	CategoryID     string
+	Status         string
+	Priority       string
+	Type           string
+	Assignee       string
+	TenantID       string
+	RequesterID    string
+	RequesterEmail string
+	Source         string
+	ExternalID     string
+}
+
+func (c *Client) CreateTicketFull(ctx context.Context, in TicketCreate) (*Ticket, error) {
 	number, err := c.nextTicketNumber(ctx)
 	if err != nil {
 		return nil, err
 	}
+	if in.Status == "" {
+		in.Status = "abierto"
+	}
+	if in.Priority == "" {
+		in.Priority = "media"
+	}
+	if in.Type == "" {
+		in.Type = "soporte"
+	}
+	if in.Source == "" {
+		in.Source = "ui"
+	}
 	payload := map[string]any{
 		"number":      number,
-		"subject":     strings.TrimSpace(subject),
-		"description": strings.TrimSpace(description),
-		"category":    categoryID,
-		"status":      status,
-		"priority":    priority,
-		"type":        ticketType,
-		"assignee":    strings.TrimSpace(assignee),
+		"subject":     strings.TrimSpace(in.Subject),
+		"description": strings.TrimSpace(in.Description),
+		"category":    in.CategoryID,
+		"status":      in.Status,
+		"priority":    in.Priority,
+		"type":        in.Type,
+		"assignee":    strings.TrimSpace(in.Assignee),
+		"source":      in.Source,
+	}
+	if in.TenantID != "" {
+		payload["tenant"] = in.TenantID
+	}
+	if in.RequesterID != "" {
+		payload["requester"] = in.RequesterID
+	}
+	if in.RequesterEmail != "" {
+		payload["requester_email"] = strings.ToLower(strings.TrimSpace(in.RequesterEmail))
+	}
+	if in.ExternalID != "" {
+		payload["external_id"] = strings.TrimSpace(in.ExternalID)
 	}
 	var out Ticket
 	if err := c.doJSON(ctx, http.MethodPost, "/api/collections/tickets/records", payload, &out); err != nil {
@@ -466,10 +531,41 @@ func (c *Client) DeleteTemplateStage(ctx context.Context, id string) error {
 
 // CreateTicketFromTemplate creates a ticket and copies template stages with dates from startDate (YYYY-MM-DD) or today.
 func (c *Client) CreateTicketFromTemplate(ctx context.Context, templateID, clientName, subject, description, categoryID, status, priority, ticketType, assignee, startDate string) (*Ticket, error) {
-	tpl, err := c.GetTemplate(ctx, templateID)
+	return c.CreateTicketFromTemplateOpts(ctx, TemplateTicketOpts{
+		TemplateID: templateID, ClientName: clientName, Subject: subject, Description: description,
+		CategoryID: categoryID, Status: status, Priority: priority, Type: ticketType,
+		Assignee: assignee, StartDate: startDate,
+	})
+}
+
+type TemplateTicketOpts struct {
+	TemplateID     string
+	ClientName     string
+	Subject        string
+	Description    string
+	CategoryID     string
+	Status         string
+	Priority       string
+	Type           string
+	Assignee       string
+	StartDate      string
+	TenantID       string
+	RequesterID    string
+	RequesterEmail string
+}
+
+func (c *Client) CreateTicketFromTemplateOpts(ctx context.Context, opts TemplateTicketOpts) (*Ticket, error) {
+	tpl, err := c.GetTemplate(ctx, opts.TemplateID)
 	if err != nil {
 		return nil, err
 	}
+	subject := opts.Subject
+	clientName := opts.ClientName
+	description := opts.Description
+	categoryID := opts.CategoryID
+	priority := opts.Priority
+	ticketType := opts.Type
+	status := opts.Status
 	if subject == "" {
 		subject = tpl.SubjectTemplate
 		if clientName != "" && subject != "" {
@@ -503,17 +599,26 @@ func (c *Client) CreateTicketFromTemplate(ctx context.Context, templateID, clien
 	if categoryID == "" {
 		return nil, fmt.Errorf("category required (set on template or form)")
 	}
-	ticket, err := c.CreateTicket(ctx, subject, description, categoryID, status, priority, ticketType, assignee)
+	reqEmail := opts.RequesterEmail
+	if reqEmail == "" && clientName != "" {
+		reqEmail = ""
+	}
+	ticket, err := c.CreateTicketFull(ctx, TicketCreate{
+		Subject: subject, Description: description, CategoryID: categoryID,
+		Status: status, Priority: priority, Type: ticketType, Assignee: opts.Assignee,
+		TenantID: opts.TenantID, RequesterID: opts.RequesterID, RequesterEmail: reqEmail,
+		Source: "ui",
+	})
 	if err != nil {
 		return nil, err
 	}
-	stages, err := c.ListTemplateStages(ctx, templateID)
+	stages, err := c.ListTemplateStages(ctx, opts.TemplateID)
 	if err != nil {
 		return ticket, nil
 	}
 	base := time.Now()
-	if startDate != "" {
-		if parsed, perr := time.Parse("2006-01-02", startDate); perr == nil {
+	if opts.StartDate != "" {
+		if parsed, perr := time.Parse("2006-01-02", opts.StartDate); perr == nil {
 			base = parsed
 		}
 	}

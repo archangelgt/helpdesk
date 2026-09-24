@@ -1,11 +1,12 @@
 {{define "ticket_detail.html"}}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Ticket.Number}} · Helpdesk</title>
   {{template "styles" .}}
+  {{template "theme_boot" .}}
 </head>
 <body>
   {{template "nav" .}}

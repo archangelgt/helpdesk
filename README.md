@@ -28,17 +28,20 @@ docker compose up --build
 
 | URL | Qué |
 |-----|-----|
-| http://localhost:3000 | **Tablero** (cards por estado / prioridad) |
+| http://localhost:3000/login | Entrar (maestro / cliente) |
+| http://localhost:3000/board | Tablero (solo maestro) |
+| http://localhost:3000/portal | Portal cliente (sus tickets) |
+| http://localhost:3000/prefs | Idioma ES/EN/PT + tema claro/oscuro/auto |
 | http://localhost:3000/tickets/new | Crear ticket |
-| http://localhost:3000/tickets | Lista compacta |
-| http://localhost:3000/categories | Categorías |
 | http://localhost:8090/_/ | PocketBase admin |
 
-La app usa el puerto host **3000**. En el tablero puedes mover el estado desde cada card.
+**Usuarios demo:** `maestro@helpdesk.local` / `maestro123` · `cliente.cap@helpdesk.local` / `cliente123`
 
-Flujo preliminar: **Categorías → crear “desarrollo a medida” → Tickets → elegir esa categoría → crear ticket**.
+**API de ingesta** (chat u otro sistema): ver [docs/API_INGEST.md](./docs/API_INGEST.md).
 
-API JSON: `GET/POST /api/categories`, `GET/POST /api/tickets` (`category_id` al crear).
+La app usa el puerto host **3000**. Preferencias: idioma y tema (claro / oscuro / automático por hora).
+
+Flujo: login maestro → Empresas / plantillas / tablero. Login cliente → portal (estado, avance, comentarios).
 
 Parar: `docker compose down` (el volumen `helpdesk_pb_data` **se conserva**).  
 Borrar la base: `docker compose down -v` (destruye el volumen Docker).
@@ -54,6 +57,7 @@ Borrar la base: `docker compose down -v` (destruye el volumen Docker).
 | [MVP.md](./MVP.md) | Alcance MVP |
 | [FEATURES.md](./FEATURES.md) | Capacidades |
 | [BOUNDARIES.md](./BOUNDARIES.md) | Qué no mezclar |
+| [docs/API_INGEST.md](./docs/API_INGEST.md) | Contrato API canales |
 
 ## Stack (obligatorio)
 
@@ -67,4 +71,4 @@ Skill: `.cursor/skills/docker-pocketbase-go/SKILL.md`.
 
 ## Estado
 
-**Fase 1 (en curso).** App Docker con categorías, cola filtrable, detalle de ticket (cambio de estado/prioridad, comentarios interno/cliente, etapas de implementación). Pendiente: multitenancy completo y API de canales.
+**Fases 1–3 (en curso).** UI + login por roles (maestro/cliente), tenants Cap World / Power Tech, plantillas, portal cliente, i18n ES/EN/PT, tema claro/oscuro/auto, API de ingesta con API key.

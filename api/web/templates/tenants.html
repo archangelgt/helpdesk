@@ -1,0 +1,38 @@
+{{define "tenants.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <h1>{{call .T "tenants.title"}}</h1>
+    <p class="lead">{{call .T "tenants.lead"}}</p>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <div class="panel">
+      {{if .Tenants}}
+      <table>
+        <thead><tr><th>Nombre</th><th>Slug</th><th></th></tr></thead>
+        <tbody>
+        {{range .Tenants}}
+          <tr>
+            <td><strong>{{.Name}}</strong></td>
+            <td class="muted">{{.Slug}}</td>
+            <td><a href="/board?tenant={{.ID}}">{{call $.T "nav.board"}} →</a></td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      {{else}}
+      <p class="muted">—</p>
+      {{end}}
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

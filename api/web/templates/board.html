@@ -1,26 +1,27 @@
 {{define "board.html"}}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Title}} · Helpdesk</title>
   {{template "styles" .}}
+  {{template "theme_boot" .}}
 </head>
 <body>
   {{template "nav" .}}
   <main class="board-page">
     <div class="toolbar">
       <div>
-        <h1>Tablero</h1>
+        <h1>{{call .T "board.title"}}</h1>
         <p class="lead" style="margin-bottom:0">Cards por {{if eq .Group "priority"}}prioridad{{else}}estado{{end}}. Cambia el estado desde cada tarjeta.</p>
       </div>
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
         <div class="seg">
-          <a class="{{if eq .Group "status"}}is-on{{end}}" href="/board?group=status">Por estado</a>
-          <a class="{{if eq .Group "priority"}}is-on{{end}}" href="/board?group=priority">Por prioridad</a>
+          <a class="{{if eq .Group "status"}}is-on{{end}}" href="/board?group=status">{{call .T "board.by_status"}}</a>
+          <a class="{{if eq .Group "priority"}}is-on{{end}}" href="/board?group=priority">{{call .T "board.by_priority"}}</a>
         </div>
-        <a class="btn" href="/tickets/new">+ Nuevo ticket</a>
+        <a class="btn" href="/tickets/new">{{call .T "board.new"}}</a>
       </div>
     </div>
 
@@ -45,6 +46,13 @@
         <select name="category">
           <option value="">Todas</option>
           {{range .Categories}}<option value="{{.ID}}" {{selected $.Filters.CategoryID .ID}}>{{.Name}}</option>{{end}}
+        </select>
+      </div>
+      <div>
+        <label>Empresa</label>
+        <select name="tenant">
+          <option value="">Todas</option>
+          {{range .Tenants}}<option value="{{.ID}}" {{selected $.Filters.TenantID .ID}}>{{.Name}}</option>{{end}}
         </select>
       </div>
       {{if eq .Group "status"}}

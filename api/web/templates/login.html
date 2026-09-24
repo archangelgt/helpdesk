@@ -1,0 +1,31 @@
+{{define "login.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page" style="max-width:520px">
+    <div class="hero-create">
+      <h1>{{call .T "login.title"}}</h1>
+      <p class="lead" style="margin:0">{{call .T "login.lead"}}</p>
+    </div>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <form class="panel" method="post" action="/login">
+      <input type="hidden" name="next" value="{{.Next}}" />
+      <label>{{call .T "login.email"}}</label>
+      <input name="email" type="email" required autofocus placeholder="maestro@helpdesk.local" />
+      <label>{{call .T "login.password"}}</label>
+      <input name="password" type="password" required />
+      <button class="btn" type="submit">{{call .T "login.submit"}}</button>
+      <p class="muted" style="margin:.9rem 0 0;font-size:.82rem;line-height:1.45">{{call .T "login.hint"}}</p>
+    </form>
+  </main>
+</body>
+</html>
+{{end}}

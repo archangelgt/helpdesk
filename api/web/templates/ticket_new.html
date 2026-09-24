@@ -1,11 +1,12 @@
 {{define "ticket_new.html"}}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Title}} · Helpdesk</title>
   {{template "styles" .}}
+  {{template "theme_boot" .}}
 </head>
 <body>
   {{template "nav" .}}
@@ -59,6 +60,19 @@
         {{end}}
 
         <h2>{{if .SelectedTpl}}Ajustes{{else}}2 · Clasificación{{end}}</h2>
+        <div class="grid grid-2">
+          <div>
+            <label>Empresa (tenant)</label>
+            <select name="tenant">
+              <option value="">—</option>
+              {{range .Tenants}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+            </select>
+          </div>
+          <div>
+            <label>Correo del solicitante</label>
+            <input name="requester_email" type="email" placeholder="cliente.cap@helpdesk.local" />
+          </div>
+        </div>
         <div class="grid grid-2">
           <div>
             <label>Categoría</label>

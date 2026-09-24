@@ -17,10 +17,17 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("categories id: %w", err)
 	}
+	if err := c.ensureCollection(ctx, tenantsCollection()); err != nil {
+		return fmt.Errorf("tenants collection: %w", err)
+	}
+	tenantColID, err := c.collectionID(ctx, "tenants")
+	if err != nil {
+		return fmt.Errorf("tenants id: %w", err)
+	}
 	if err := c.ensureCollection(ctx, ticketsCollection(catID)); err != nil {
 		return fmt.Errorf("tickets collection: %w", err)
 	}
-	if err := c.ensureTicketExtraFields(ctx); err != nil {
+	if err := c.ensureTicketExtraFields(ctx, tenantColID, ""); err != nil {
 		return fmt.Errorf("ticket fields: %w", err)
 	}
 	ticketID, err := c.collectionID(ctx, "tickets")
@@ -49,6 +56,22 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	if err := c.ensureNumberOrdenOptional(ctx, "template_stages"); err != nil {
 		return fmt.Errorf("template_stages fields: %w", err)
 	}
+	if err := c.ensureCollection(ctx, appUsersCollection(tenantColID)); err != nil {
+		return fmt.Errorf("app_users collection: %w", err)
+	}
+	userColID, err := c.collectionID(ctx, "app_users")
+	if err != nil {
+		return fmt.Errorf("app_users id: %w", err)
+	}
+	if err := c.ensureTicketExtraFields(ctx, tenantColID, userColID); err != nil {
+		return fmt.Errorf("ticket requester field: %w", err)
+	}
+	if err := c.ensureCollection(ctx, apiKeysCollection(tenantColID)); err != nil {
+		return fmt.Errorf("api_keys collection: %w", err)
+	}
+	if err := c.seedDemoData(ctx); err != nil {
+		return fmt.Errorf("seed: %w", err)
+	}
 	return nil
 }
 
@@ -70,7 +93,7 @@ func (c *Client) collectionID(ctx context.Context, name string) (string, error) 
 	return meta.ID, nil
 }
 
-func (c *Client) ensureTicketExtraFields(ctx context.Context) error {
+func (c *Client) ensureTicketExtraFields(ctx context.Context, tenantColID, userColID string) error {
 	var meta collectionMeta
 	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/tickets", nil, &meta); err != nil {
 		return err
@@ -83,23 +106,142 @@ func (c *Client) ensureTicketExtraFields(ctx context.Context) error {
 	}
 	fields := append([]map[string]any{}, meta.Fields...)
 	changed := false
-	if !have["assignee"] {
-		fields = append(fields, map[string]any{"name": "assignee", "type": "text", "required": false, "max": 120})
+	add := func(f map[string]any) {
+		fields = append(fields, f)
 		changed = true
+	}
+	if !have["assignee"] {
+		add(map[string]any{"name": "assignee", "type": "text", "required": false, "max": 120})
 	}
 	if !have["created"] {
-		fields = append(fields, map[string]any{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false})
-		changed = true
+		add(map[string]any{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false})
 	}
 	if !have["updated"] {
-		fields = append(fields, map[string]any{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true})
-		changed = true
+		add(map[string]any{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true})
+	}
+	if !have["requester_email"] {
+		add(map[string]any{"name": "requester_email", "type": "text", "required": false, "max": 200})
+	}
+	if !have["source"] {
+		add(map[string]any{
+			"name": "source", "type": "select", "required": false, "maxSelect": 1,
+			"values": []string{"ui", "api", "email", "whatsapp", "chat"},
+		})
+	}
+	if !have["external_id"] {
+		add(map[string]any{"name": "external_id", "type": "text", "required": false, "max": 200})
+	}
+	if tenantColID != "" && !have["tenant"] {
+		add(map[string]any{
+			"name": "tenant", "type": "relation", "required": false,
+			"collectionId": tenantColID, "maxSelect": 1, "cascadeDelete": false,
+		})
+	}
+	if userColID != "" && !have["requester"] {
+		add(map[string]any{
+			"name": "requester", "type": "relation", "required": false,
+			"collectionId": userColID, "maxSelect": 1, "cascadeDelete": false,
+		})
 	}
 	if !changed {
 		return nil
 	}
-	payload := map[string]any{"fields": fields}
-	return c.doJSON(ctx, http.MethodPatch, "/api/collections/tickets", payload, nil)
+	return c.doJSON(ctx, http.MethodPatch, "/api/collections/tickets", map[string]any{"fields": fields}, nil)
+}
+
+func (c *Client) seedDemoData(ctx context.Context) error {
+	cap, err := c.EnsureTenant(ctx, "Cap World", "cap-world")
+	if err != nil {
+		return err
+	}
+	power, err := c.EnsureTenant(ctx, "Power Tech", "power-tech")
+	if err != nil {
+		return err
+	}
+	if _, err := c.EnsureUser(ctx, "maestro@helpdesk.local", "Maestro Helpdesk", "maestro123", "maestro", ""); err != nil {
+		return err
+	}
+	if _, err := c.EnsureUser(ctx, "cliente.cap@helpdesk.local", "Cliente Cap World", "cliente123", "cliente", cap.ID); err != nil {
+		return err
+	}
+	if _, err := c.EnsureUser(ctx, "cliente.power@helpdesk.local", "Cliente Power Tech", "cliente123", "cliente", power.ID); err != nil {
+		return err
+	}
+	if err := c.EnsureAPIKey(ctx, "Cap World chat/API", "hd_cap_demo_key_change_me", cap.ID, "chat"); err != nil {
+		return err
+	}
+	if err := c.EnsureAPIKey(ctx, "Power Tech chat/API", "hd_power_demo_key_change_me", power.ID, "chat"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func tenantsCollection() map[string]any {
+	return map[string]any{
+		"name": "tenants", "type": "base",
+		"listRule": nil, "viewRule": nil, "createRule": nil, "updateRule": nil, "deleteRule": nil,
+		"fields": []map[string]any{
+			{"name": "name", "type": "text", "required": true, "max": 160},
+			{"name": "slug", "type": "text", "required": true, "max": 80},
+			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
+			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
+		},
+		"indexes": []string{
+			"CREATE UNIQUE INDEX idx_tenants_slug ON tenants (`slug`)",
+		},
+	}
+}
+
+func appUsersCollection(tenantColID string) map[string]any {
+	return map[string]any{
+		"name": "app_users", "type": "base",
+		"listRule": nil, "viewRule": nil, "createRule": nil, "updateRule": nil, "deleteRule": nil,
+		"fields": []map[string]any{
+			{"name": "email", "type": "text", "required": true, "max": 200},
+			{"name": "name", "type": "text", "required": true, "max": 160},
+			{"name": "password_hash", "type": "text", "required": true, "max": 200},
+			{
+				"name": "role", "type": "select", "required": true, "maxSelect": 1,
+				"values": []string{"maestro", "cliente"},
+			},
+			{
+				"name": "tenant", "type": "relation", "required": false,
+				"collectionId": tenantColID, "maxSelect": 1, "cascadeDelete": false,
+			},
+			{"name": "active", "type": "bool", "required": false},
+			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
+			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
+		},
+		"indexes": []string{
+			"CREATE UNIQUE INDEX idx_app_users_email ON app_users (`email`)",
+		},
+	}
+}
+
+func apiKeysCollection(tenantColID string) map[string]any {
+	return map[string]any{
+		"name": "api_keys", "type": "base",
+		"listRule": nil, "viewRule": nil, "createRule": nil, "updateRule": nil, "deleteRule": nil,
+		"fields": []map[string]any{
+			{"name": "name", "type": "text", "required": true, "max": 120},
+			{"name": "key_hash", "type": "text", "required": true, "max": 128},
+			{"name": "key_prefix", "type": "text", "required": false, "max": 32},
+			{
+				"name": "tenant", "type": "relation", "required": true,
+				"collectionId": tenantColID, "maxSelect": 1, "cascadeDelete": true,
+			},
+			{
+				"name": "channel", "type": "select", "required": true, "maxSelect": 1,
+				"values": []string{"generic", "chat", "email", "whatsapp"},
+			},
+			{"name": "active", "type": "bool", "required": false},
+			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
+			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
+		},
+		"indexes": []string{
+			"CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys (`key_hash`)",
+		},
+	}
 }
 
 // PocketBase treats numeric 0 as blank when required=true; orden must allow 0.

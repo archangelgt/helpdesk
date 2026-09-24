@@ -1,0 +1,40 @@
+{{define "portal.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <h1>{{call .T "portal.title"}}</h1>
+    <p class="lead">{{call .T "portal.lead"}}</p>
+    {{if .Tickets}}
+    <div class="panel">
+      <table>
+        <thead>
+          <tr><th>#</th><th></th><th></th><th></th></tr>
+        </thead>
+        <tbody>
+        {{range .Tickets}}
+          <tr>
+            <td><a href="/portal/tickets/{{.ID}}"><strong>{{.Number}}</strong></a></td>
+            <td>{{.Subject}}</td>
+            <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
+            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority .Priority}}</span></td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="panel"><p class="muted">{{call .T "portal.empty"}}</p></div>
+    {{end}}
+  </main>
+</body>
+</html>
+{{end}}
