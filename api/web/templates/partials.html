@@ -590,6 +590,13 @@
     border: 1px solid var(--line); background: var(--panel-2);
   }
   html[data-theme-resolved="light"] .support-problem { background: #fff; }
+  .support-resolve {
+    margin-top: 1.1rem; padding: .95rem 1rem; border-radius: 14px;
+    border: 1px dashed var(--line); background: color-mix(in srgb, var(--ok) 8%, var(--panel));
+  }
+  .support-resolve-actions {
+    display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+  }
   .stage-complete { margin: .55rem 0 .35rem; }
   .stage-complete summary {
     cursor: pointer; font-size: .8rem; font-weight: 600; color: var(--ok);

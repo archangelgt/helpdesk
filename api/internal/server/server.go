@@ -623,7 +623,14 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 		Assignee:    &assignee,
 	}
 	stagesCheck, _ := s.pb.ListStages(r.Context(), id)
-	if len(stagesCheck) == 0 {
+	isSupport := ticketType == "soporte"
+	if !isSupport {
+		if cat, err := s.pb.GetCategory(r.Context(), category); err == nil && cat.Workflow == "soporte" {
+			isSupport = true
+		}
+	}
+	// Soporte (o tickets sin etapas) puede cambiar estado desde el formulario.
+	if isSupport || len(stagesCheck) == 0 {
 		st := r.FormValue("status")
 		if st != "" {
 			upd.Status = &st
@@ -662,7 +669,15 @@ func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+i18n.T(langFromRequest(r), "status."+status)), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Estado cambiado a "+status), http.StatusSeeOther)
+	msg := i18n.T(langFromRequest(r), "status."+status)
+	if status == "resuelto" {
+		msg = i18n.T(langFromRequest(r), "flash.ticket_resolved")
+	} else if status == "cerrado" {
+		msg = i18n.T(langFromRequest(r), "flash.ticket_closed")
+	} else if status == "en_proceso" || status == "abierto" {
+		msg = i18n.T(langFromRequest(r), "flash.ticket_reopened")
+	}
+	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape(msg), http.StatusSeeOther)
 }
 
 func (s *Server) handleAddComment(w http.ResponseWriter, r *http.Request) {

@@ -16,6 +16,7 @@
       <div>
         <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.35rem">
           <span class="badge">{{.Ticket.Number}}</span>
+          <span class="pill {{statusClass .Ticket.Status}}">{{labelStatus .Ticket.Status}}</span>
           <span class="pill {{priorityClass .Ticket.Priority}}">{{labelPriority .Ticket.Priority}}</span>
           <span class="pill">{{labelType .Ticket.Type}}</span>
         </div>
@@ -89,6 +90,33 @@
             <p style="margin:0;white-space:pre-wrap;line-height:1.5">{{.Ticket.Description}}</p>
             {{else}}
             <p class="muted" style="margin:0">{{call .T "ticket.no_description"}}</p>
+            {{end}}
+          </div>
+
+          <div class="support-resolve">
+            <h3 style="margin:0 0 .45rem;font-size:1rem">{{call .T "ticket.resolve_title"}}</h3>
+            <p class="muted" style="margin:0 0 .75rem;font-size:.88rem">{{call .T "ticket.resolve_lead"}}</p>
+            {{if or (eq .Ticket.Status "resuelto") (eq .Ticket.Status "cerrado")}}
+            <div class="flash" style="margin-bottom:.75rem">{{call .T "ticket.already_done"}} · {{labelStatus .Ticket.Status}}</div>
+            <form method="post" action="/tickets/{{.Ticket.ID}}/status" style="display:inline">
+              <input type="hidden" name="status" value="en_proceso" />
+              <button class="btn ghost" type="submit">{{call .T "ticket.reopen"}}</button>
+            </form>
+            {{else}}
+            <div class="support-resolve-actions">
+              <form method="post" action="/tickets/{{.Ticket.ID}}/status">
+                <input type="hidden" name="status" value="en_proceso" />
+                <button class="btn ghost" type="submit">{{call .T "status.en_proceso"}}</button>
+              </form>
+              <form method="post" action="/tickets/{{.Ticket.ID}}/status">
+                <input type="hidden" name="status" value="resuelto" />
+                <button class="btn" type="submit">{{call .T "ticket.mark_resolved"}}</button>
+              </form>
+              <form method="post" action="/tickets/{{.Ticket.ID}}/status">
+                <input type="hidden" name="status" value="cerrado" />
+                <button class="btn ghost" type="submit">{{call .T "ticket.mark_closed"}}</button>
+              </form>
+            </div>
             {{end}}
           </div>
 
