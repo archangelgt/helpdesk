@@ -1,141 +1,303 @@
 {{define "ticket_detail.html"}}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Ticket.Number}} · Helpdesk</title>
   {{template "styles" .}}
+  {{template "theme_boot" .}}
 </head>
 <body>
   {{template "nav" .}}
-  <main class="page">
-    <p class="muted" style="margin:0 0 .5rem"><a href="/board">← Tablero</a></p>
+  <main class="page ticket-page">
+    <p class="muted" style="margin:0 0 .5rem"><a href="/board">{{call .T "ticket.back"}}</a></p>
     <div class="toolbar">
       <div>
         <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.35rem">
           <span class="badge">{{.Ticket.Number}}</span>
           <span class="pill {{statusClass .Ticket.Status}}">{{labelStatus .Ticket.Status}}</span>
           <span class="pill {{priorityClass .Ticket.Priority}}">{{labelPriority .Ticket.Priority}}</span>
+          <span class="pill">{{labelType .Ticket.Type}}</span>
         </div>
         <h1>{{.Ticket.Subject}}</h1>
-        <p class="lead" style="margin-bottom:0">{{labelType .Ticket.Type}} · {{.CategoryName}}{{if .Ticket.Assignee}} · {{.Ticket.Assignee}}{{end}}</p>
+        <p class="lead" style="margin-bottom:0">{{if .TenantName}}{{.TenantName}}{{end}}{{if and .TenantName .Ticket.Assignee}} · {{end}}{{if .Ticket.Assignee}}{{.Ticket.Assignee}}{{end}}</p>
+        {{if and (not .IsSupport) .Progress.HasStages}}
+        <div class="progress-block" style="max-width:28rem">
+          <div class="progress-meta">
+            <span>{{call .T "ticket.progress"}} · <strong>{{.Progress.Label}}</strong> {{call .T "table.stages"}}</span>
+            <span><strong>{{.Progress.Percent}}%</strong>{{if .Progress.Current}} · {{.Progress.Current}}{{end}}</span>
+          </div>
+          <div class="progress-bar {{if eq .Progress.Percent 100}}is-done{{end}}"><span style="width:{{.Progress.Percent}}%"></span></div>
+        </div>
+        {{end}}
       </div>
     </div>
 
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
-    <div class="panel" style="margin-bottom:1rem">
-      <h2>Cambiar estado</h2>
-      <div class="status-rail">
-        {{range .Statuses}}
-        <form method="post" action="/tickets/{{$.Ticket.ID}}/status">
-          <input type="hidden" name="status" value="{{.}}" />
-          <button type="submit" class="{{if eq $.Ticket.Status .}}current{{end}}">{{labelStatus .}}</button>
+    <div class="ticket-workspace">
+      <aside class="panel ticket-aside">
+        <h2>{{call .T "ticket.details"}}</h2>
+        <form method="post" action="/tickets/{{.Ticket.ID}}/update">
+          <label>{{call .T "common.subject"}}</label>
+          <input name="subject" value="{{.Ticket.Subject}}" required />
+          <label>{{if .IsSupport}}{{call .T "ticket.problem"}}{{else}}{{call .T "common.description"}}{{end}}</label>
+          <textarea name="description" class="ticket-aside-desc">{{.Ticket.Description}}</textarea>
+          <label>{{call .T "ticket.new.classification"}}</label>
+          <select name="tenant">
+            <option value="">{{call .T "common.select"}}</option>
+            {{range .Tenants}}
+            <option value="{{.ID}}" {{selected $.Ticket.Tenant .ID}}>{{.Name}}</option>
+            {{end}}
+          </select>
+          <div class="grid grid-2">
+            <div>
+              <label>{{call .T "filter.priority"}}</label>
+              <select name="priority">
+                {{range .Priorities}}<option value="{{.}}" {{selected $.Ticket.Priority .}}>{{labelPriority .}}</option>{{end}}
+              </select>
+            </div>
+            <div>
+              <label>{{call .T "filter.type"}}</label>
+              <select name="type">
+                {{range .Types}}<option value="{{.}}" {{selected $.Ticket.Type .}}>{{labelType .}}</option>{{end}}
+              </select>
+            </div>
+          </div>
+          {{if or .IsSupport (not .Progress.HasStages)}}
+          <label>{{call .T "filter.status"}}</label>
+          <select name="status">
+            {{range .Statuses}}<option value="{{.}}" {{selected $.Ticket.Status .}}>{{labelStatus .}}</option>{{end}}
+          </select>
+          {{end}}
+          <label>{{call .T "common.assignee"}}</label>
+          <input name="assignee" value="{{.Ticket.Assignee}}" />
+          <button class="btn" type="submit">{{call .T "common.save"}}</button>
         </form>
-        {{end}}
-      </div>
-      <p class="muted" style="margin:0;font-size:.85rem">El cambio queda en el historial como nota de sistema.</p>
+      </aside>
+
+      {{if .IsSupport}}
+      <section class="panel ticket-stages">
+        <div class="ticket-stages-head">
+          <h2>{{call .T "ticket.support_case"}}</h2>
+          <p class="muted" style="margin:0;font-size:.88rem;line-height:1.45">{{call .T "ticket.support_lead"}}</p>
+        </div>
+        <div class="ticket-stages-scroll">
+          <div class="support-problem">
+            <h3 style="margin:0 0 .5rem;font-size:1rem">{{call .T "ticket.problem"}}</h3>
+            {{if .Ticket.Description}}
+            <p style="margin:0;white-space:pre-wrap;line-height:1.5">{{.Ticket.Description}}</p>
+            {{else}}
+            <p class="muted" style="margin:0">{{call .T "ticket.no_description"}}</p>
+            {{end}}
+          </div>
+
+          <div class="support-resolve">
+            <h3 style="margin:0 0 .45rem;font-size:1rem">{{call .T "ticket.resolve_title"}}</h3>
+            <p class="muted" style="margin:0 0 .75rem;font-size:.88rem">{{call .T "ticket.resolve_lead"}}</p>
+            {{if or (eq .Ticket.Status "resuelto") (eq .Ticket.Status "cerrado")}}
+            <div class="flash" style="margin-bottom:.75rem">{{call .T "ticket.already_done"}} · {{labelStatus .Ticket.Status}}</div>
+            <form method="post" action="/tickets/{{.Ticket.ID}}/status" style="display:inline">
+              <input type="hidden" name="status" value="en_proceso" />
+              <button class="btn ghost" type="submit">{{call .T "ticket.reopen"}}</button>
+            </form>
+            {{else}}
+            <div class="support-resolve-actions">
+              <form method="post" action="/tickets/{{.Ticket.ID}}/status">
+                <input type="hidden" name="status" value="en_proceso" />
+                <button class="btn ghost" type="submit">{{call .T "status.en_proceso"}}</button>
+              </form>
+              <form method="post" action="/tickets/{{.Ticket.ID}}/status">
+                <input type="hidden" name="status" value="resuelto" />
+                <button class="btn" type="submit">{{call .T "ticket.mark_resolved"}}</button>
+              </form>
+              <form method="post" action="/tickets/{{.Ticket.ID}}/status">
+                <input type="hidden" name="status" value="cerrado" />
+                <button class="btn ghost" type="submit">{{call .T "ticket.mark_closed"}}</button>
+              </form>
+            </div>
+            {{end}}
+          </div>
+
+          <div class="ticket-files-block">
+            <h3 style="margin:1.1rem 0 .55rem;font-size:1rem">{{call .T "ticket.files"}}</h3>
+            {{if .TicketFiles}}
+            <ul class="file-list">
+              {{range .TicketFiles}}
+              <li>
+                <a href="/tickets/{{$.Ticket.ID}}/attachments/{{.ID}}/file" target="_blank" rel="noopener">{{.File}}</a>
+                {{if .Note}}<span class="muted">· {{.Note}}</span>{{end}}
+                <span class="muted" style="font-size:.75rem">· {{.Author}}</span>
+              </li>
+              {{end}}
+            </ul>
+            {{else}}
+            <p class="muted">{{call .T "ticket.no_files"}}</p>
+            {{end}}
+            <form method="post" action="/tickets/{{.Ticket.ID}}/attachments" enctype="multipart/form-data" class="upload-form">
+              <label>{{call .T "ticket.add_file"}}</label>
+              <input type="file" name="file" required accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+              <label>{{call .T "ticket.file_note"}}</label>
+              <input name="note" placeholder="{{call .T "ticket.file_note_ph"}}" />
+              <button class="btn" type="submit">{{call .T "ticket.upload"}}</button>
+            </form>
+          </div>
+        </div>
+      </section>
+      {{else}}
+      <section class="panel ticket-stages">
+        <div class="ticket-stages-head">
+          <h2>{{call .T "ticket.stages"}}</h2>
+          <p class="muted" style="margin:0;font-size:.88rem;line-height:1.45">
+            {{call .T "ticket.stages_lead"}}
+            {{if .Progress.HasStages}}({{.Progress.Done}} {{call .T "common.of"}} {{.Progress.Total}}){{end}}.
+          </p>
+        </div>
+
+        <div class="ticket-stages-scroll">
+          {{if .Stages}}
+          <div class="stage-track">
+            {{range $i, $st := .Stages}}
+            <div class="stage-step {{stageClass $st.Estado}}">
+              <div class="stage-rail">
+                <div class="stage-dot">{{if eq $st.Estado "hecha"}}✓{{else}}{{printf "%.0f" $st.Orden}}{{end}}</div>
+                <div class="stage-line"></div>
+              </div>
+              <div class="stage-body">
+                <div class="stage-head">
+                  <h3>{{$st.Name}}</h3>
+                  <span class="pill">{{labelStage $st.Estado}}</span>
+                </div>
+                <div class="stage-dates">
+                  {{if $st.FechaPlanInicio}}<span>{{call $.T "common.start"}} {{$st.FechaPlanInicio}}</span>{{end}}
+                  {{if $st.FechaPlanFin}}<span>{{call $.T "common.end"}} {{$st.FechaPlanFin}}</span>{{end}}
+                </div>
+                <div class="stage-actions">
+                  {{range $.StageStates}}
+                    {{if eq . "hecha"}}
+                    {{else}}
+                    <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/estado" style="margin:0">
+                      <input type="hidden" name="estado" value="{{.}}" />
+                      <button type="submit" class="{{if eq $st.Estado .}}is-on{{end}}">{{labelStage .}}</button>
+                    </form>
+                    {{end}}
+                  {{end}}
+                </div>
+
+                {{$ev := index $.EvidenceByStage $st.ID}}
+                {{if $ev}}
+                <div class="stage-evidence">
+                  <div class="muted" style="font-size:.78rem;font-weight:600;margin-bottom:.35rem">{{call $.T "ticket.evidence"}}</div>
+                  <ul class="file-list">
+                    {{range $ev}}
+                    <li><a href="/tickets/{{$.Ticket.ID}}/attachments/{{.ID}}/file" target="_blank" rel="noopener">{{.File}}</a></li>
+                    {{end}}
+                  </ul>
+                </div>
+                {{end}}
+
+                {{if ne $st.Estado "hecha"}}
+                <details class="stage-complete" {{if eq $.Error (call $.T "err.evidence_required")}}open{{end}}>
+                  <summary>{{call $.T "ticket.mark_done"}}</summary>
+                  <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/complete" enctype="multipart/form-data">
+                    <p class="muted" style="font-size:.82rem;margin:.35rem 0 .65rem">{{call $.T "ticket.evidence_hint"}}</p>
+                    <label>{{call $.T "ticket.evidence_files"}}</label>
+                    <input type="file" name="file" required multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+                    <label>{{call $.T "ticket.file_note"}}</label>
+                    <input name="note" />
+                    <button class="btn" type="submit">{{call $.T "ticket.complete_with_evidence"}}</button>
+                  </form>
+                </details>
+                {{end}}
+
+                <div class="stage-edit">
+                  <details>
+                    <summary>{{call $.T "ticket.edit_stage"}}</summary>
+                    <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}" class="grid grid-2">
+                      <div>
+                        <label>{{call $.T "common.name"}}</label>
+                        <input name="name" value="{{$st.Name}}" />
+                        <label>{{call $.T "common.order"}}</label>
+                        <input name="orden" type="number" value="{{printf "%.0f" $st.Orden}}" />
+                        <input type="hidden" name="estado" value="{{$st.Estado}}" />
+                        <input type="hidden" name="avance" value="{{printf "%.0f" $st.Avance}}" />
+                      </div>
+                      <div>
+                        <label>{{call $.T "common.start"}}</label>
+                        <input name="fecha_plan_inicio" value="{{$st.FechaPlanInicio}}" placeholder="YYYY-MM-DD" />
+                        <label>{{call $.T "common.end"}}</label>
+                        <input name="fecha_plan_fin" value="{{$st.FechaPlanFin}}" placeholder="YYYY-MM-DD" />
+                        <button class="btn ghost" type="submit">{{call $.T "ticket.save_stage"}}</button>
+                      </div>
+                    </form>
+                  </details>
+                </div>
+              </div>
+            </div>
+            {{end}}
+          </div>
+          {{else}}
+          <p class="muted">{{call .T "ticket.no_stages"}}</p>
+          {{end}}
+
+          <div class="ticket-add-stage">
+            <h2>{{call .T "ticket.add_stage"}}</h2>
+            <form method="post" action="/tickets/{{.Ticket.ID}}/stages">
+              <label>{{call .T "common.name"}}</label>
+              <input name="name" required />
+              <div class="grid grid-2">
+                <div>
+                  <label>{{call .T "common.order"}}</label>
+                  <input name="orden" type="number" value="{{len .Stages}}" />
+                </div>
+                <div>
+                  <label>{{call .T "ticket.initial_state"}}</label>
+                  <select name="estado">
+                    {{range .StageStates}}{{if ne . "hecha"}}<option value="{{.}}">{{labelStage .}}</option>{{end}}{{end}}
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-2">
+                <div><label>{{call .T "common.start"}}</label><input name="fecha_plan_inicio" placeholder="YYYY-MM-DD" /></div>
+                <div><label>{{call .T "common.end"}}</label><input name="fecha_plan_fin" placeholder="YYYY-MM-DD" /></div>
+              </div>
+              <button class="btn" type="submit">{{call .T "ticket.add_stage"}}</button>
+            </form>
+          </div>
+
+          <div class="ticket-files-block" style="margin-top:1.25rem;padding-top:1rem;border-top:1px dashed var(--line)">
+            <h3 style="margin:0 0 .55rem;font-size:1rem">{{call .T "ticket.files"}}</h3>
+            {{if .TicketFiles}}
+            <ul class="file-list">
+              {{range .TicketFiles}}
+              <li>
+                <a href="/tickets/{{$.Ticket.ID}}/attachments/{{.ID}}/file" target="_blank" rel="noopener">{{.File}}</a>
+                {{if .Note}}<span class="muted">· {{.Note}}</span>{{end}}
+              </li>
+              {{end}}
+            </ul>
+            {{else}}
+            <p class="muted">{{call .T "ticket.no_files"}}</p>
+            {{end}}
+            <form method="post" action="/tickets/{{.Ticket.ID}}/attachments" enctype="multipart/form-data" class="upload-form">
+              <label>{{call .T "ticket.add_file"}}</label>
+              <input type="file" name="file" required accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+              <label>{{call .T "ticket.file_note"}}</label>
+              <input name="note" />
+              <button class="btn ghost" type="submit">{{call .T "ticket.upload"}}</button>
+            </form>
+          </div>
+        </div>
+      </section>
+      {{end}}
     </div>
 
-    <div class="grid create-layout">
-      <div class="grid">
-        <div class="panel">
-          <h2>Editar ticket</h2>
-          <form method="post" action="/tickets/{{.Ticket.ID}}/update">
-            <label>Asunto</label>
-            <input name="subject" value="{{.Ticket.Subject}}" required />
-            <label>Descripción</label>
-            <textarea name="description">{{.Ticket.Description}}</textarea>
-            <label>Categoría</label>
-            <select name="category">
-              {{range .Categories}}
-              <option value="{{.ID}}" {{selected $.Ticket.Category .ID}}>{{.Name}}</option>
-              {{end}}
-            </select>
-            <div class="grid grid-2">
-              <div>
-                <label>Estado</label>
-                <select name="status">
-                  {{range .Statuses}}<option value="{{.}}" {{selected $.Ticket.Status .}}>{{labelStatus .}}</option>{{end}}
-                </select>
-              </div>
-              <div>
-                <label>Prioridad</label>
-                <select name="priority">
-                  {{range .Priorities}}<option value="{{.}}" {{selected $.Ticket.Priority .}}>{{labelPriority .}}</option>{{end}}
-                </select>
-              </div>
-            </div>
-            <div class="grid grid-2">
-              <div>
-                <label>Tipo</label>
-                <select name="type">
-                  {{range .Types}}<option value="{{.}}" {{selected $.Ticket.Type .}}>{{labelType .}}</option>{{end}}
-                </select>
-              </div>
-              <div>
-                <label>Asignado a</label>
-                <input name="assignee" value="{{.Ticket.Assignee}}" />
-              </div>
-            </div>
-            <button class="btn" type="submit">Guardar</button>
-          </form>
-        </div>
-
-        {{if eq .Ticket.Type "implementacion"}}
-        <div class="panel">
-          <h2>Etapas</h2>
-          {{if .Stages}}
-            {{range .Stages}}
-            {{$st := .}}
-            <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}" class="grid grid-2" style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px dashed var(--line)">
-              <div>
-                <label>Nombre</label>
-                <input name="name" value="{{$st.Name}}" />
-                <label>Orden</label>
-                <input name="orden" type="number" value="{{printf "%.0f" $st.Orden}}" />
-                <label>Estado</label>
-                <select name="estado">
-                  {{range $.StageStates}}<option value="{{.}}" {{selected $st.Estado .}}>{{labelStage .}}</option>{{end}}
-                </select>
-              </div>
-              <div>
-                <label>Inicio</label>
-                <input name="fecha_plan_inicio" value="{{$st.FechaPlanInicio}}" placeholder="YYYY-MM-DD" />
-                <label>Fin</label>
-                <input name="fecha_plan_fin" value="{{$st.FechaPlanFin}}" placeholder="YYYY-MM-DD" />
-                <label>Avance %</label>
-                <input name="avance" type="number" min="0" max="100" value="{{printf "%.0f" $st.Avance}}" />
-                <button class="btn ghost" type="submit">Actualizar etapa</button>
-              </div>
-            </form>
-            {{end}}
-          {{else}}
-          <p class="muted">Sin etapas todavía.</p>
-          {{end}}
-          <h2>Agregar etapa</h2>
-          <form method="post" action="/tickets/{{.Ticket.ID}}/stages">
-            <label>Nombre</label>
-            <input name="name" required placeholder="UAT" />
-            <label>Orden</label>
-            <input name="orden" type="number" value="{{len .Stages}}" />
-            <div class="grid grid-2">
-              <div><label>Inicio</label><input name="fecha_plan_inicio" placeholder="YYYY-MM-DD" /></div>
-              <div><label>Fin</label><input name="fecha_plan_fin" placeholder="YYYY-MM-DD" /></div>
-            </div>
-            <label>Estado</label>
-            <select name="estado">{{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}</select>
-            <button class="btn" type="submit">Agregar</button>
-          </form>
-        </div>
-        {{end}}
-      </div>
-
+    <div class="ticket-bottom">
       <div class="panel">
-        <h2>Historial</h2>
-        <div class="timeline" style="margin-bottom:1rem">
+        <h2>{{call .T "ticket.history"}}</h2>
+        <div class="timeline ticket-history-scroll">
           {{if .Comments}}
             {{range .Comments}}
             <div class="comment {{.Visibility}}">
@@ -144,21 +306,23 @@
             </div>
             {{end}}
           {{else}}
-            <p class="muted">Sin comentarios.</p>
+            <p class="muted">{{call .T "ticket.no_comments"}}</p>
           {{end}}
         </div>
-        <h2>Comentar</h2>
+      </div>
+      <div class="panel">
+        <h2>{{call .T "ticket.comment"}}</h2>
         <form method="post" action="/tickets/{{.Ticket.ID}}/comments">
-          <label>Visibilidad</label>
+          <label>{{call .T "ticket.visibility"}}</label>
           <select name="visibility">
-            <option value="interno">Interno</option>
-            <option value="cliente">Cliente</option>
+            <option value="interno">{{call .T "vis.interno"}}</option>
+            <option value="cliente">{{call .T "vis.cliente"}}</option>
           </select>
-          <label>Autor</label>
+          <label>{{call .T "ticket.author"}}</label>
           <input name="author" value="agente" />
-          <label>Mensaje</label>
+          <label>{{call .T "ticket.message"}}</label>
           <textarea name="body" required></textarea>
-          <button class="btn" type="submit">Publicar</button>
+          <button class="btn" type="submit">{{call .T "ticket.publish"}}</button>
         </form>
       </div>
     </div>

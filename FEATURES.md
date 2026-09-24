@@ -22,7 +22,7 @@ El equipo ve todo (notas internas, retrasos, riesgos). Al cliente se le puede **
 
 ### 2. Tickets de soporte
 
-Misma plataforma, otro tipo (o categoría) de ticket: incidencias, prioridad, asignación, resolución — estilo cola de help desk.
+Misma plataforma, otro tipo de ticket (plantilla soporte): incidencias, prioridad, asignación, resolución — estilo cola de help desk.
 
 ### 3. Multitenancy
 
@@ -57,7 +57,7 @@ Comentarios:
 
 - Tipos: `implementacion` | `soporte` (nombres ajustables)
 - Número único, asunto, descripción
-- Prioridad, estado, asignación, categorías
+- Prioridad, estado, asignación, plantillas (soporte / implementación)
 - Historial de cambios; adjuntos
 - En implementación: **etapas**, fechas, avance
 
@@ -97,10 +97,13 @@ Roles típicos: admin tenant, supervisor, técnico, **cliente (solo lo compartid
 | Feature | MVP | Luego |
 |---------|-----|--------|
 | Multitenancy básico (2+ empresas aisladas) | Sí | Hardening |
-| Ticket implementación + etapas + fechas + avance | Sí | Plantillas de etapas |
+| Ticket implementación + etapas + fechas + avance | Sí | — |
+| Plantillas de ticket (etapas/tiempos, clonar por cliente) | Sí | Más variables |
 | Compartir avance al cliente (vista / comentarios) | Sí (básico) | Portal cliente rico |
 | Ticket soporte (cola, prioridad, asignación) | Sí | SLA completo |
-| API ingesta (contrato + al menos un canal) | Stub / contrato | Email, WhatsApp, ERPSYS Chat |
+| API ingesta (contrato + al menos un canal) | Sí (API key + chat/genérico) | Email, WhatsApp adapters |
+| Portal cliente (ver avance + comentar) | Sí (básico) | Portal rico |
+| i18n ES / EN / PT + tema claro/oscuro/auto | Sí | Más cadenas |
 | Email / WhatsApp / ERPSYS Chat en producción | No | Fases de canales |
 | SLA / automations / KB avanzados | No | Hardening+ |
 

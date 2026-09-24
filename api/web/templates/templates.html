@@ -1,0 +1,74 @@
+{{define "templates.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <h1>{{call .T "templates.title"}}</h1>
+    <p class="lead">{{call .T "templates.lead"}}</p>
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="grid create-layout">
+      <form class="panel" method="post" action="/templates">
+        <h2>{{call .T "templates.new"}}</h2>
+        <label>{{call .T "common.name"}}</label>
+        <input name="name" required placeholder="Implementación erpsys" />
+        <label>{{call .T "table.description"}}</label>
+        <textarea name="description"></textarea>
+        <div class="grid grid-2">
+          <div>
+            <label>{{call .T "filter.type"}}</label>
+            <select name="type">
+              {{range .Types}}<option value="{{.}}" {{if eq . "implementacion"}}selected{{end}}>{{labelType .}}</option>{{end}}
+            </select>
+          </div>
+          <div>
+            <label>{{call .T "templates.default_priority"}}</label>
+            <select name="priority">
+              {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>{{end}}
+            </select>
+          </div>
+        </div>
+        <label>{{call .T "templates.subject_hint"}}</label>
+        <input name="subject_template" />
+        <label>{{call .T "templates.body"}}</label>
+        <textarea name="body_template"></textarea>
+        <button class="btn" type="submit">{{call .T "templates.create"}}</button>
+      </form>
+
+      <div class="panel">
+        <h2>{{call .T "table.list"}}</h2>
+        {{if .Templates}}
+        <table>
+          <thead><tr><th>{{call .T "table.name"}}</th><th>{{call .T "table.type"}}</th><th></th></tr></thead>
+          <tbody>
+          {{range .Templates}}
+            <tr>
+              <td><strong><a href="/templates/{{.ID}}">{{.Name}}</a></strong>
+                {{if .Description}}<div class="muted" style="font-size:.85rem;margin-top:.2rem">{{.Description}}</div>{{end}}
+              </td>
+              <td>{{labelType .Type}}</td>
+              <td style="text-align:right;white-space:nowrap">
+                <a href="/tickets/new?template={{.ID}}">{{call $.T "templates.use"}} →</a>
+              </td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <p class="muted">{{call .T "templates.empty"}}</p>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

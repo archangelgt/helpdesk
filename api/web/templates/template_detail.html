@@ -1,0 +1,110 @@
+{{define "template_detail.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <p class="muted" style="margin:0 0 .5rem"><a href="/templates">{{call .T "templates.back"}}</a></p>
+    <div class="toolbar">
+      <div>
+        <h1>{{.Template.Name}}</h1>
+        <p class="lead" style="margin-bottom:0">{{labelType .Template.Type}} · {{labelPriority .Template.Priority}}</p>
+      </div>
+      <a class="btn" href="/tickets/new?template={{.Template.ID}}">{{call .T "templates.create_ticket"}}</a>
+    </div>
+
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="grid create-layout">
+      <form class="panel" method="post" action="/templates/{{.Template.ID}}/update">
+        <h2>{{call .T "templates.data"}}</h2>
+        <label>{{call .T "common.name"}}</label>
+        <input name="name" value="{{.Template.Name}}" required />
+        <label>{{call .T "table.description"}}</label>
+        <textarea name="description">{{.Template.Description}}</textarea>
+        <div class="grid grid-2">
+          <div>
+            <label>{{call .T "filter.type"}}</label>
+            <select name="type">
+              {{range .Types}}<option value="{{.}}" {{selected $.Template.Type .}}>{{labelType .}}</option>{{end}}
+            </select>
+          </div>
+          <div>
+            <label>{{call .T "filter.priority"}}</label>
+            <select name="priority">
+              {{range .Priorities}}<option value="{{.}}" {{selected $.Template.Priority .}}>{{labelPriority .}}</option>{{end}}
+            </select>
+          </div>
+        </div>
+        <label>{{call .T "templates.subject_hint"}}</label>
+        <input name="subject_template" value="{{.Template.SubjectTemplate}}" />
+        <label>{{call .T "templates.body"}}</label>
+        <textarea name="body_template">{{.Template.BodyTemplate}}</textarea>
+        <button class="btn" type="submit">{{call .T "common.save"}}</button>
+      </form>
+
+      <div class="panel">
+        <h2>{{call .T "templates.stages_times"}}</h2>
+        <p class="muted" style="margin-top:0;font-size:.88rem;line-height:1.45">{{call .T "templates.stages_hint"}}</p>
+        {{if .Stages}}
+        <ul class="stage-list">
+          {{range .Stages}}
+          <li>
+            <div>
+              <strong>{{.Name}}</strong>
+              <div class="muted" style="font-size:.78rem">{{call $.T "common.order"}} {{printf "%.0f" .Orden}} · {{labelStage .Estado}}</div>
+            </div>
+            <div class="muted">+{{printf "%.0f" .OffsetStartDays}} d</div>
+            <div class="muted">{{printf "%.0f" .DurationDays}} d</div>
+            <form method="post" action="/templates/{{$.Template.ID}}/stages/{{.ID}}/delete" style="margin:0">
+              <button class="btn ghost" type="submit" style="padding:.35rem .7rem;font-size:.75rem">{{call $.T "templates.remove"}}</button>
+            </form>
+          </li>
+          {{end}}
+        </ul>
+        {{else}}
+        <p class="muted">{{call .T "templates.no_stages"}}</p>
+        {{end}}
+
+        <h2>{{call .T "templates.add_stage"}}</h2>
+        <form method="post" action="/templates/{{.Template.ID}}/stages">
+          <label>{{call .T "common.name"}}</label>
+          <input name="name" required />
+          <div class="grid grid-2">
+            <div>
+              <label>{{call .T "common.order"}}</label>
+              <input name="orden" type="number" value="{{len .Stages}}" />
+            </div>
+            <div>
+              <label>{{call .T "templates.initial_state"}}</label>
+              <select name="estado">
+                {{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div>
+              <label>{{call .T "templates.offset_start"}}</label>
+              <input name="offset_start_days" type="number" value="0" />
+            </div>
+            <div>
+              <label>{{call .T "templates.duration"}}</label>
+              <input name="duration_days" type="number" value="5" />
+            </div>
+          </div>
+          <button class="btn" type="submit">{{call .T "templates.add_stage"}}</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}

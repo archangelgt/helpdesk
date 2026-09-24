@@ -40,10 +40,12 @@ Catálogo: [FEATURES.md](./FEATURES.md).
 
 **Objetivo:** el equipo crea y sigue implementaciones con etapas; también tickets de soporte; Cap World / Power Tech como tenants piloto.
 
-- Ticket **implementación**: etapas, periodos, avance; notas internas; compartir vista/comentarios al cliente
-- Ticket **soporte**: estados, prioridad, asignación, comentarios
-- Filtros por tenant, tipo, estado
-- Semilla Cap World / Power Tech
+- [x] Ticket **implementación**: etapas, periodos, avance; notas internas; compartir vista/comentarios al cliente
+- [x] Ticket **soporte**: estados, prioridad, asignación, comentarios
+- [x] Filtros por tenant, tipo, estado
+- [x] Semilla Cap World / Power Tech
+- [x] Roles básicos: maestro (todas las empresas) / cliente (solo sus tickets en portal)
+- [x] i18n ES/EN/PT; tema claro / oscuro / automático
 
 Detalle: [MVP.md](./MVP.md).
 
@@ -55,12 +57,12 @@ Detalle: [MVP.md](./MVP.md).
 
 **Objetivo:** API estable para que un canal externo cree/actualice tickets.
 
-- Endpoints autenticados (API key / token por tenant o canal)
-- Payload mínimo: tenant, canal, asunto/cuerpo, metadatos, idempotencia
-- Mapeo a ticket soporte (o extensión documentada)
-- Logs / errores visibles
+- [x] Endpoints autenticados (API key por tenant)
+- [x] Payload mínimo: tenant (vía key), canal, asunto/cuerpo, metadatos, idempotencia
+- [x] Mapeo a ticket soporte
+- [ ] Logs / errores visibles (mejorar)
 
-**Salida:** un cliente HTTP de prueba puede abrir un ticket vía API.
+**Salida:** un cliente HTTP de prueba puede abrir un ticket vía API. Ver [docs/API_INGEST.md](./docs/API_INGEST.md).
 
 ---
 

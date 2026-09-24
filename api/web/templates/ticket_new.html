@@ -1,78 +1,156 @@
 {{define "ticket_new.html"}}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Title}} · Helpdesk</title>
   {{template "styles" .}}
+  {{template "theme_boot" .}}
 </head>
 <body>
   {{template "nav" .}}
   <main class="page">
     <div class="hero-create">
-      <h1>Nuevo ticket</h1>
-      <p class="lead" style="margin:0">Define categoría, tipo y prioridad. Luego lo mueves por el tablero con los botones de estado.</p>
+      <h1>{{call .T "ticket.new.title"}}</h1>
+      <p class="lead" style="margin:0">{{call .T "ticket.new.lead"}}</p>
     </div>
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
-    {{if .Categories}}
-    <div class="grid create-layout">
-      <form class="panel" method="post" action="/tickets">
-        <h2>1 · Qué se atiende</h2>
-        <label>Asunto</label>
-        <input name="subject" required autofocus placeholder="Ej. Implementación Cap World — fase go-live" />
-        <label>Descripción</label>
-        <textarea name="description" placeholder="Alcance, cliente, riesgos, links…"></textarea>
+    <h2 style="margin-bottom:.65rem">{{call .T "ticket.new.start_tpl"}}</h2>
+    <div class="tpl-pick">
+      <a class="tpl-card {{if eq .Flow "blank"}}is-selected{{end}}" href="/tickets/new">
+        <h3>{{call .T "ticket.new.blank"}}</h3>
+        <p>{{call .T "ticket.new.blank_lead"}}</p>
+      </a>
+      {{range .Templates}}
+      <a class="tpl-card {{if and $.SelectedTpl (eq $.SelectedTpl.ID .ID)}}is-selected{{end}}" href="/tickets/new?template={{.ID}}">
+        <h3>{{.Name}}</h3>
+        <p>{{if .Description}}{{.Description}}{{else}}{{labelType .Type}} · {{labelPriority .Priority}}{{end}}</p>
+      </a>
+      {{else}}
+      {{end}}
+    </div>
+    {{if not .Templates}}
+    <p class="muted" style="margin:-.5rem 0 1.25rem">
+      {{call .T "ticket.new.no_tpl"}}{{if .IsAdmin}} <a href="/templates">{{call .T "ticket.new.create_one"}}</a>{{end}}
+    </p>
+    {{end}}
 
-        <h2>2 · Clasificación</h2>
+    <div class="grid create-layout">
+      <form class="panel" method="post" action="/tickets" enctype="multipart/form-data">
+        {{if .SelectedTpl}}
+        <input type="hidden" name="template_id" value="{{.SelectedTpl.ID}}" />
+        <input type="hidden" name="type" value="{{.SelectedTpl.Type}}" />
+        <h2>{{call .T "ticket.new.from_prefix"}} {{.SelectedTpl.Name}}</h2>
+        {{else}}
+        <h2>{{call .T "ticket.new.section_what"}}</h2>
+        {{end}}
+
+        {{if eq .Flow "implementacion"}}
+        <label>{{call .T "ticket.new.client"}}</label>
+        <input name="client_name" required autofocus />
+        <label>{{call .T "ticket.new.start_date"}}</label>
+        <input name="start_date" type="date" value="{{.Today}}" />
+        <label>{{call .T "common.subject"}} <span class="muted" style="text-transform:none;font-weight:500">{{call .T "ticket.new.subject_opt"}}</span></label>
+        <input name="subject" placeholder="{{.SelectedTpl.SubjectTemplate}}" />
+        <label>{{call .T "common.description"}} <span class="muted" style="text-transform:none;font-weight:500">{{call .T "ticket.new.subject_opt"}}</span></label>
+        <textarea name="description" placeholder="{{.SelectedTpl.BodyTemplate}}"></textarea>
+        {{else}}
+        <label>{{call .T "common.subject"}}</label>
+        <input name="subject" required autofocus />
+        <label>{{call .T "common.description"}}</label>
+        <textarea name="description" {{if eq .Flow "soporte"}}placeholder="{{call .T "ticket.new.desc_ph_support"}}"{{end}}></textarea>
+        {{if or (eq .Flow "soporte") (eq .Flow "blank")}}
+        <label>{{call .T "ticket.new.files"}}</label>
+        <input name="files" type="file" multiple accept="image/*,.pdf,.png,.jpg,.jpeg,.webp,.gif" />
+        <p class="muted" style="margin:-.35rem 0 .9rem;font-size:.82rem">{{call .T "ticket.new.files_hint"}}</p>
+        {{end}}
+        {{end}}
+
+        <h2>{{call .T "ticket.new.section_class"}}</h2>
+        {{if .IsAdmin}}
         <div class="grid grid-2">
           <div>
-            <label>Categoría</label>
-            <select name="category" required>
-              <option value="">Selecciona…</option>
-              {{range .Categories}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+            <label>{{call .T "ticket.new.classification"}}</label>
+            <select name="tenant">
+              <option value="">{{call .T "common.select"}}</option>
+              {{range .Tenants}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
             </select>
           </div>
           <div>
-            <label>Tipo</label>
-            <select name="type">
-              {{range .Types}}<option value="{{.}}">{{labelType .}}</option>{{end}}
-            </select>
+            <label>{{call .T "ticket.new.requester"}}</label>
+            <input name="requester_email" type="email" value="{{if .User}}{{.User.Email}}{{end}}" />
           </div>
         </div>
+        {{else}}
+        <div class="class-auto">
+          <label>{{call .T "ticket.new.classification"}}</label>
+          <input type="hidden" name="tenant" value="{{if .UserTenant}}{{.UserTenant.ID}}{{end}}" />
+          <div class="class-auto-box">
+            <strong>{{if .UserTenant}}{{.UserTenant.Name}}{{else}}—{{end}}</strong>
+            <span class="muted">{{if .User}}{{.User.Email}}{{end}}</span>
+          </div>
+          <p class="muted" style="margin:.35rem 0 .9rem;font-size:.82rem">{{call .T "ticket.new.class_auto_hint"}}</p>
+        </div>
+        {{end}}
+
         <div class="grid grid-2">
           <div>
-            <label>Prioridad</label>
+            <label>{{call .T "filter.priority"}}</label>
             <select name="priority">
-              {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>{{end}}
+              {{range .Priorities}}
+              <option value="{{.}}" {{if $.SelectedTpl}}{{selected $.SelectedTpl.Priority .}}{{else if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>
+              {{end}}
             </select>
           </div>
+          {{if and .IsAdmin (eq .Flow "blank")}}
           <div>
-            <label>Estado inicial</label>
-            <select name="status">
-              {{range .Statuses}}<option value="{{.}}" {{if eq . "abierto"}}selected{{end}}>{{labelStatus .}}</option>{{end}}
+            <label>{{call .T "filter.type"}}</label>
+            <select name="type">
+              {{range .Types}}
+              <option value="{{.}}" {{if eq . "soporte"}}selected{{end}}>{{labelType .}}</option>
+              {{end}}
             </select>
           </div>
+          {{else if and .IsAdmin (eq .Flow "implementacion")}}
+          <div>
+            <label>{{call .T "common.assignee"}}</label>
+            <input name="assignee" />
+          </div>
+          {{else}}
+          <div></div>
+          {{end}}
         </div>
-        <label>Asignado a</label>
-        <input name="assignee" placeholder="Nombre del responsable" />
+        <input type="hidden" name="status" value="abierto" />
 
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.4rem">
-          <button class="btn" type="submit">Crear y ir al tablero</button>
-          <a class="btn ghost" href="/board">Cancelar</a>
+          <button class="btn" type="submit">{{if .SelectedTpl}}{{call .T "ticket.new.create_tpl"}}{{else}}{{call .T "ticket.new.create_blank"}}{{end}}</button>
+          <a class="btn ghost" href="{{if .IsAdmin}}/board{{else}}/portal{{end}}">{{call .T "common.cancel"}}</a>
         </div>
       </form>
+
       <aside class="hint-box">
-        <strong style="color:var(--ink);display:block;margin-bottom:.4rem">Flujo sugerido</strong>
-        Crea el ticket → ábrelo en el tablero → mueve estados (Abierto → En proceso → Resuelto) → agrega comentarios y etapas en el detalle.
+        {{if eq .Flow "implementacion"}}
+        <strong style="color:var(--ink);display:block;margin-bottom:.4rem">{{call .T "ticket.new.stages_copy"}}</strong>
+        {{if .TemplateStages}}
+        <ol style="margin:.4rem 0 0;padding-left:1.2rem;line-height:1.55">
+          {{range .TemplateStages}}
+          <li>{{.Name}} <span class="muted">(día +{{printf "%.0f" .OffsetStartDays}}, {{printf "%.0f" .DurationDays}} d)</span></li>
+          {{end}}
+        </ol>
+        {{else}}
+        <p style="margin:.4rem 0 0">{{call .T "ticket.new.empty_tpl_stages"}}{{if .IsAdmin}} <a href="/templates/{{.SelectedTpl.ID}}">{{call .T "templates.add_stage"}}</a>{{end}}</p>
+        {{end}}
+        {{else if eq .Flow "soporte"}}
+        <strong style="color:var(--ink);display:block;margin-bottom:.4rem">{{call .T "ticket.new.support_hint_title"}}</strong>
+        {{call .T "ticket.new.support_hint"}}
+        {{else}}
+        <strong style="color:var(--ink);display:block;margin-bottom:.4rem">{{call .T "ticket.new.flow_title"}}</strong>
+        {{call .T "ticket.new.flow"}}
+        {{end}}
       </aside>
     </div>
-    {{else}}
-    <div class="panel">
-      <p>Antes crea una <a href="/categories">categoría</a> (por ejemplo <em>desarrollo a medida</em>).</p>
-    </div>
-    {{end}}
   </main>
 </body>
 </html>

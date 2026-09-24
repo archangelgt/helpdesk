@@ -1,0 +1,78 @@
+{{define "tenants.html"}}
+<!DOCTYPE html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · Helpdesk</title>
+  {{template "styles" .}}
+  {{template "theme_boot" .}}
+</head>
+<body>
+  {{template "nav" .}}
+  <main class="page">
+    <h1>{{call .T "tenants.title"}}</h1>
+    <p class="lead">{{call .T "tenants.lead"}}</p>
+    {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+    <div class="grid create-layout">
+      <form class="panel" method="post" action="/tenants">
+        <h2>{{call .T "tenants.new"}}</h2>
+        <label>{{call .T "table.name"}}</label>
+        <input name="name" required />
+        <label>{{call .T "tenants.nit"}}</label>
+        <input name="nit" required placeholder="{{call .T "login.seraph_id_ph"}}" />
+        <p class="muted" style="margin:-.4rem 0 .9rem;font-size:.82rem">{{call .T "tenants.nit_hint"}}</p>
+        <label>{{call .T "table.slug"}}</label>
+        <input name="slug" placeholder="cap-world" />
+        <button class="btn" type="submit">{{call .T "tenants.create"}}</button>
+      </form>
+
+      <div class="panel">
+        <h2>{{call .T "table.list"}}</h2>
+        {{if .Tenants}}
+        <div class="tenant-list">
+          {{range .Tenants}}
+          <article class="tenant-card">
+            {{if eq $.EditID .ID}}
+            <form method="post" action="/tenants/update">
+              <input type="hidden" name="id" value="{{.ID}}" />
+              <label>{{call $.T "table.name"}}</label>
+              <input name="name" value="{{.Name}}" required />
+              <label>{{call $.T "tenants.nit"}}</label>
+              <input name="nit" value="{{.Nit}}" required />
+              <label>{{call $.T "table.slug"}}</label>
+              <input name="slug" value="{{.Slug}}" required />
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button class="btn" type="submit">{{call $.T "common.save"}}</button>
+                <a class="btn ghost" href="/tenants">{{call $.T "common.cancel"}}</a>
+              </div>
+            </form>
+            {{else}}
+            <div class="tenant-card-top">
+              <div>
+                <strong>{{.Name}}</strong>
+                <div class="muted" style="font-size:.85rem;margin-top:.2rem">
+                  {{call $.T "tenants.nit"}}: <code>{{.Nit}}</code>
+                  · {{.Slug}}
+                </div>
+              </div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <a class="btn ghost" style="padding:.35rem .75rem;font-size:.8rem" href="/tenants?edit={{.ID}}">{{call $.T "common.edit"}}</a>
+                <a href="/board?tenant={{.ID}}">{{call $.T "nav.board"}} →</a>
+              </div>
+            </div>
+            {{end}}
+          </article>
+          {{end}}
+        </div>
+        {{else}}
+        <p class="muted">—</p>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+{{end}}
