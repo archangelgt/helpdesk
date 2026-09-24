@@ -27,7 +27,7 @@
       {{range .Templates}}
       <a class="tpl-card {{if and $.SelectedTpl (eq $.SelectedTpl.ID .ID)}}is-selected{{end}}" href="/tickets/new?template={{.ID}}">
         <h3>{{.Name}}</h3>
-        <p>{{if .Description}}{{.Description}}{{else}}{{labelType $.Lang .Type}} · {{labelPriority $.Lang .Priority}}{{end}}</p>
+        <p>{{if .Description}}{{.Description}}{{else}}{{labelType .Type}} · {{labelPriority .Priority}}{{end}}</p>
       </a>
       {{end}}
     </div>
@@ -87,7 +87,7 @@
             <label>{{call .T "filter.type"}}</label>
             <select name="type">
               {{range .Types}}
-              <option value="{{.}}" {{if $.SelectedTpl}}{{selected $.SelectedTpl.Type .}}{{else if eq . "implementacion"}}selected{{end}}>{{labelType $.Lang .}}</option>
+              <option value="{{.}}" {{if $.SelectedTpl}}{{selected $.SelectedTpl.Type .}}{{else if eq . "implementacion"}}selected{{end}}>{{labelType .}}</option>
               {{end}}
             </select>
           </div>
@@ -97,7 +97,7 @@
             <label>{{call .T "filter.priority"}}</label>
             <select name="priority">
               {{range .Priorities}}
-              <option value="{{.}}" {{if $.SelectedTpl}}{{selected $.SelectedTpl.Priority .}}{{else if eq . "media"}}selected{{end}}>{{labelPriority $.Lang .}}</option>
+              <option value="{{.}}" {{if $.SelectedTpl}}{{selected $.SelectedTpl.Priority .}}{{else if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>
               {{end}}
             </select>
           </div>

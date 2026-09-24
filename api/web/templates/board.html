@@ -38,7 +38,7 @@
         <label>{{call .T "filter.type"}}</label>
         <select name="type">
           <option value="">{{call .T "filter.all"}}</option>
-          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType $.Lang .}}</option>{{end}}
+          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType .}}</option>{{end}}
         </select>
       </div>
       <div>
@@ -60,7 +60,7 @@
         <label>{{call .T "filter.priority"}}</label>
         <select name="priority">
           <option value="">{{call .T "filter.all_f"}}</option>
-          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority $.Lang .}}</option>{{end}}
+          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
         </select>
       </div>
       {{end}}
@@ -85,7 +85,7 @@
             </div>
             <h3><a href="/tickets/{{$card.Ticket.ID}}">{{$card.Ticket.Subject}}</a></h3>
             <div class="card-meta">
-              <span class="pill">{{labelType $.Lang $card.Ticket.Type}}</span>
+              <span class="pill">{{labelType $card.Ticket.Type}}</span>
               <span class="pill">{{$card.CategoryName}}</span>
               {{if $card.Ticket.Assignee}}<span class="pill">{{$card.Ticket.Assignee}}</span>{{end}}
             </div>

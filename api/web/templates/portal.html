@@ -29,8 +29,8 @@
           <tr>
             <td><a href="/portal/tickets/{{.ID}}"><strong>{{.Number}}</strong></a></td>
             <td>{{.Subject}}</td>
-            <td><span class="pill {{statusClass .Status}}">{{labelStatus $.Lang .Status}}</span></td>
-            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority $.Lang .Priority}}</span></td>
+            <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
+            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority .Priority}}</span></td>
           </tr>
         {{end}}
         </tbody>

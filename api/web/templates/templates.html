@@ -27,13 +27,13 @@
           <div>
             <label>{{call .T "filter.type"}}</label>
             <select name="type">
-              {{range .Types}}<option value="{{.}}" {{if eq . "implementacion"}}selected{{end}}>{{labelType $.Lang .}}</option>{{end}}
+              {{range .Types}}<option value="{{.}}" {{if eq . "implementacion"}}selected{{end}}>{{labelType .}}</option>{{end}}
             </select>
           </div>
           <div>
             <label>{{call .T "templates.default_priority"}}</label>
             <select name="priority">
-              {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority $.Lang .}}</option>{{end}}
+              {{range .Priorities}}<option value="{{.}}" {{if eq . "media"}}selected{{end}}>{{labelPriority .}}</option>{{end}}
             </select>
           </div>
         </div>
@@ -60,7 +60,7 @@
               <td><strong><a href="/templates/{{.ID}}">{{.Name}}</a></strong>
                 {{if .Description}}<div class="muted" style="font-size:.85rem;margin-top:.2rem">{{.Description}}</div>{{end}}
               </td>
-              <td>{{labelType $.Lang .Type}}</td>
+              <td>{{labelType .Type}}</td>
               <td style="text-align:right;white-space:nowrap">
                 <a href="/tickets/new?template={{.ID}}">{{call $.T "templates.use"}} →</a>
               </td>

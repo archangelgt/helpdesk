@@ -16,8 +16,8 @@
       <div>
         <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.35rem">
           <span class="badge">{{.Ticket.Number}}</span>
-          <span class="pill {{priorityClass .Ticket.Priority}}">{{labelPriority .Lang .Ticket.Priority}}</span>
-          <span class="pill">{{labelType .Lang .Ticket.Type}}</span>
+          <span class="pill {{priorityClass .Ticket.Priority}}">{{labelPriority .Ticket.Priority}}</span>
+          <span class="pill">{{labelType .Ticket.Type}}</span>
         </div>
         <h1>{{.Ticket.Subject}}</h1>
         <p class="lead" style="margin-bottom:0">{{.CategoryName}}{{if .Ticket.Assignee}} · {{.Ticket.Assignee}}{{end}}</p>
@@ -54,7 +54,7 @@
           <div class="stage-body">
             <div class="stage-head">
               <h3>{{$st.Name}}</h3>
-              <span class="pill">{{labelStage $.Lang $st.Estado}}</span>
+              <span class="pill">{{labelStage $st.Estado}}</span>
             </div>
             <div class="stage-dates">
               {{if $st.FechaPlanInicio}}<span>{{call $.T "common.start"}} {{$st.FechaPlanInicio}}</span>{{end}}
@@ -64,7 +64,7 @@
               {{range $.StageStates}}
               <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/estado" style="margin:0">
                 <input type="hidden" name="estado" value="{{.}}" />
-                <button type="submit" class="{{if eq $st.Estado .}}is-on{{end}}">{{labelStage $.Lang .}}</button>
+                <button type="submit" class="{{if eq $st.Estado .}}is-on{{end}}">{{labelStage .}}</button>
               </form>
               {{end}}
             </div>
@@ -109,7 +109,7 @@
           </div>
           <div>
             <label>{{call .T "ticket.initial_state"}}</label>
-            <select name="estado">{{range .StageStates}}<option value="{{.}}">{{labelStage $.Lang .}}</option>{{end}}</select>
+            <select name="estado">{{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}</select>
           </div>
         </div>
         <div class="grid grid-2">
@@ -138,20 +138,20 @@
             <div>
               <label>{{call .T "filter.priority"}}</label>
               <select name="priority">
-                {{range .Priorities}}<option value="{{.}}" {{selected $.Ticket.Priority .}}>{{labelPriority $.Lang .}}</option>{{end}}
+                {{range .Priorities}}<option value="{{.}}" {{selected $.Ticket.Priority .}}>{{labelPriority .}}</option>{{end}}
               </select>
             </div>
             <div>
               <label>{{call .T "filter.type"}}</label>
               <select name="type">
-                {{range .Types}}<option value="{{.}}" {{selected $.Ticket.Type .}}>{{labelType $.Lang .}}</option>{{end}}
+                {{range .Types}}<option value="{{.}}" {{selected $.Ticket.Type .}}>{{labelType .}}</option>{{end}}
               </select>
             </div>
           </div>
           {{if not .Progress.HasStages}}
           <label>{{call .T "ticket.status_no_stages"}}</label>
           <select name="status">
-            {{range .Statuses}}<option value="{{.}}" {{selected $.Ticket.Status .}}>{{labelStatus $.Lang .}}</option>{{end}}
+            {{range .Statuses}}<option value="{{.}}" {{selected $.Ticket.Status .}}>{{labelStatus .}}</option>{{end}}
           </select>
           {{end}}
           <label>{{call .T "common.assignee"}}</label>
@@ -166,7 +166,7 @@
           {{if .Comments}}
             {{range .Comments}}
             <div class="comment {{.Visibility}}">
-              <div class="meta"><strong>{{labelVis $.Lang .Visibility}}</strong> · {{.Author}} · {{.Created}}</div>
+              <div class="meta"><strong>{{labelVis .Visibility}}</strong> · {{.Author}} · {{.Created}}</div>
               <div>{{.Body}}</div>
             </div>
             {{end}}

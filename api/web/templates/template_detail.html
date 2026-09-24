@@ -15,7 +15,7 @@
     <div class="toolbar">
       <div>
         <h1>{{.Template.Name}}</h1>
-        <p class="lead" style="margin-bottom:0">{{labelType .Lang .Template.Type}} · {{labelPriority .Lang .Template.Priority}}</p>
+        <p class="lead" style="margin-bottom:0">{{labelType .Template.Type}} · {{labelPriority .Template.Priority}}</p>
       </div>
       <a class="btn" href="/tickets/new?template={{.Template.ID}}">{{call .T "templates.create_ticket"}}</a>
     </div>
@@ -34,13 +34,13 @@
           <div>
             <label>{{call .T "filter.type"}}</label>
             <select name="type">
-              {{range .Types}}<option value="{{.}}" {{selected $.Template.Type .}}>{{labelType $.Lang .}}</option>{{end}}
+              {{range .Types}}<option value="{{.}}" {{selected $.Template.Type .}}>{{labelType .}}</option>{{end}}
             </select>
           </div>
           <div>
             <label>{{call .T "filter.priority"}}</label>
             <select name="priority">
-              {{range .Priorities}}<option value="{{.}}" {{selected $.Template.Priority .}}>{{labelPriority $.Lang .}}</option>{{end}}
+              {{range .Priorities}}<option value="{{.}}" {{selected $.Template.Priority .}}>{{labelPriority .}}</option>{{end}}
             </select>
           </div>
         </div>
@@ -67,7 +67,7 @@
           <li>
             <div>
               <strong>{{.Name}}</strong>
-              <div class="muted" style="font-size:.78rem">{{call $.T "common.order"}} {{printf "%.0f" .Orden}} · {{labelStage $.Lang .Estado}}</div>
+              <div class="muted" style="font-size:.78rem">{{call $.T "common.order"}} {{printf "%.0f" .Orden}} · {{labelStage .Estado}}</div>
             </div>
             <div class="muted">+{{printf "%.0f" .OffsetStartDays}} d</div>
             <div class="muted">{{printf "%.0f" .DurationDays}} d</div>
@@ -93,7 +93,7 @@
             <div>
               <label>{{call .T "templates.initial_state"}}</label>
               <select name="estado">
-                {{range .StageStates}}<option value="{{.}}">{{labelStage $.Lang .}}</option>{{end}}
+                {{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}
               </select>
             </div>
           </div>

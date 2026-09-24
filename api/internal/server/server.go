@@ -45,11 +45,11 @@ type boardCard struct {
 
 func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 	funcs := template.FuncMap{
-		"labelStatus":   labelStatus,
-		"labelPriority": labelPriority,
-		"labelType":     labelType,
-		"labelVis":      labelVis,
-		"labelStage":    labelStage,
+		"labelStatus":   func(code string) string { return i18n.T(i18n.ES, "status."+code) },
+		"labelPriority": func(code string) string { return i18n.T(i18n.ES, "priority."+code) },
+		"labelType":     func(code string) string { return i18n.T(i18n.ES, "type."+code) },
+		"labelVis":      func(code string) string { return i18n.T(i18n.ES, "vis."+code) },
+		"labelStage":    func(code string) string { return i18n.T(i18n.ES, "stage."+code) },
 		"selected": func(a, b string) template.HTMLAttr {
 			if a == b {
 				return "selected"
@@ -623,7 +623,7 @@ func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if returnTo == "board" {
-		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+labelStatus(langFromRequest(r).String(), status)), http.StatusSeeOther)
+		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+i18n.T(langFromRequest(r), "status."+status)), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Estado cambiado a "+status), http.StatusSeeOther)
@@ -916,15 +916,10 @@ func (s *Server) apiAddStage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) render(w http.ResponseWriter, name string, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	lang := i18n.ES
-	theme := "light"
 	if m, ok := data.(map[string]any); ok {
 		if v, ok := m["Lang"].(string); ok {
 			lang = i18n.Parse(v)
 		}
-		if v, ok := m["Theme"].(string); ok {
-			theme = v
-		}
-		_ = theme
 	}
 	tmpl, err := s.tmpl.Clone()
 	if err != nil {
@@ -932,6 +927,7 @@ func (s *Server) render(w http.ResponseWriter, name string, data any) {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
+	// Request-scoped label helpers (language from page data).
 	tmpl.Funcs(template.FuncMap{
 		"labelStatus":   func(code string) string { return i18n.T(lang, "status."+code) },
 		"labelPriority": func(code string) string { return i18n.T(lang, "priority."+code) },
@@ -969,27 +965,6 @@ func firstN(items []pb.Ticket, n int) []pb.Ticket {
 		return items
 	}
 	return items[:n]
-}
-
-// label helpers: pass Lang as first arg from templates ({{labelStatus $.Lang .}}).
-func labelStatus(lang, s string) string {
-	return i18n.T(i18n.Parse(lang), "status."+s)
-}
-
-func labelPriority(lang, s string) string {
-	return i18n.T(i18n.Parse(lang), "priority."+s)
-}
-
-func labelType(lang, s string) string {
-	return i18n.T(i18n.Parse(lang), "type."+s)
-}
-
-func labelVis(lang, s string) string {
-	return i18n.T(i18n.Parse(lang), "vis."+s)
-}
-
-func labelStage(lang, s string) string {
-	return i18n.T(i18n.Parse(lang), "stage."+s)
 }
 
 func statusClass(s string) string {
