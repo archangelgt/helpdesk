@@ -21,7 +21,7 @@
         </div>
         <h1>{{.Ticket.Subject}}</h1>
         <p class="lead" style="margin-bottom:0">{{.CategoryName}}{{if .Ticket.Assignee}} · {{.Ticket.Assignee}}{{end}}</p>
-        {{if .Progress.HasStages}}
+        {{if and (not .IsSupport) .Progress.HasStages}}
         <div class="progress-block" style="max-width:28rem">
           <div class="progress-meta">
             <span>{{call .T "ticket.progress"}} · <strong>{{.Progress.Label}}</strong> {{call .T "table.stages"}}</span>
@@ -42,7 +42,7 @@
         <form method="post" action="/tickets/{{.Ticket.ID}}/update">
           <label>{{call .T "common.subject"}}</label>
           <input name="subject" value="{{.Ticket.Subject}}" required />
-          <label>{{call .T "common.description"}}</label>
+          <label>{{if .IsSupport}}{{call .T "ticket.problem"}}{{else}}{{call .T "common.description"}}{{end}}</label>
           <textarea name="description" class="ticket-aside-desc">{{.Ticket.Description}}</textarea>
           <label>{{call .T "common.category"}}</label>
           <select name="category">
@@ -64,8 +64,8 @@
               </select>
             </div>
           </div>
-          {{if not .Progress.HasStages}}
-          <label>{{call .T "ticket.status_no_stages"}}</label>
+          {{if or .IsSupport (not .Progress.HasStages)}}
+          <label>{{call .T "filter.status"}}</label>
           <select name="status">
             {{range .Statuses}}<option value="{{.}}" {{selected $.Ticket.Status .}}>{{labelStatus .}}</option>{{end}}
           </select>
@@ -76,6 +76,48 @@
         </form>
       </aside>
 
+      {{if .IsSupport}}
+      <section class="panel ticket-stages">
+        <div class="ticket-stages-head">
+          <h2>{{call .T "ticket.support_case"}}</h2>
+          <p class="muted" style="margin:0;font-size:.88rem;line-height:1.45">{{call .T "ticket.support_lead"}}</p>
+        </div>
+        <div class="ticket-stages-scroll">
+          <div class="support-problem">
+            <h3 style="margin:0 0 .5rem;font-size:1rem">{{call .T "ticket.problem"}}</h3>
+            {{if .Ticket.Description}}
+            <p style="margin:0;white-space:pre-wrap;line-height:1.5">{{.Ticket.Description}}</p>
+            {{else}}
+            <p class="muted" style="margin:0">{{call .T "ticket.no_description"}}</p>
+            {{end}}
+          </div>
+
+          <div class="ticket-files-block">
+            <h3 style="margin:1.1rem 0 .55rem;font-size:1rem">{{call .T "ticket.files"}}</h3>
+            {{if .TicketFiles}}
+            <ul class="file-list">
+              {{range .TicketFiles}}
+              <li>
+                <a href="/tickets/{{$.Ticket.ID}}/attachments/{{.ID}}/file" target="_blank" rel="noopener">{{.File}}</a>
+                {{if .Note}}<span class="muted">· {{.Note}}</span>{{end}}
+                <span class="muted" style="font-size:.75rem">· {{.Author}}</span>
+              </li>
+              {{end}}
+            </ul>
+            {{else}}
+            <p class="muted">{{call .T "ticket.no_files"}}</p>
+            {{end}}
+            <form method="post" action="/tickets/{{.Ticket.ID}}/attachments" enctype="multipart/form-data" class="upload-form">
+              <label>{{call .T "ticket.add_file"}}</label>
+              <input type="file" name="file" required accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+              <label>{{call .T "ticket.file_note"}}</label>
+              <input name="note" placeholder="{{call .T "ticket.file_note_ph"}}" />
+              <button class="btn" type="submit">{{call .T "ticket.upload"}}</button>
+            </form>
+          </div>
+        </div>
+      </section>
+      {{else}}
       <section class="panel ticket-stages">
         <div class="ticket-stages-head">
           <h2>{{call .T "ticket.stages"}}</h2>
@@ -105,12 +147,42 @@
                 </div>
                 <div class="stage-actions">
                   {{range $.StageStates}}
-                  <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/estado" style="margin:0">
-                    <input type="hidden" name="estado" value="{{.}}" />
-                    <button type="submit" class="{{if eq $st.Estado .}}is-on{{end}}">{{labelStage .}}</button>
-                  </form>
+                    {{if eq . "hecha"}}
+                    {{else}}
+                    <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/estado" style="margin:0">
+                      <input type="hidden" name="estado" value="{{.}}" />
+                      <button type="submit" class="{{if eq $st.Estado .}}is-on{{end}}">{{labelStage .}}</button>
+                    </form>
+                    {{end}}
                   {{end}}
                 </div>
+
+                {{$ev := index $.EvidenceByStage $st.ID}}
+                {{if $ev}}
+                <div class="stage-evidence">
+                  <div class="muted" style="font-size:.78rem;font-weight:600;margin-bottom:.35rem">{{call $.T "ticket.evidence"}}</div>
+                  <ul class="file-list">
+                    {{range $ev}}
+                    <li><a href="/tickets/{{$.Ticket.ID}}/attachments/{{.ID}}/file" target="_blank" rel="noopener">{{.File}}</a></li>
+                    {{end}}
+                  </ul>
+                </div>
+                {{end}}
+
+                {{if ne $st.Estado "hecha"}}
+                <details class="stage-complete" {{if eq $.Error (call $.T "err.evidence_required")}}open{{end}}>
+                  <summary>{{call $.T "ticket.mark_done"}}</summary>
+                  <form method="post" action="/tickets/{{$.Ticket.ID}}/stages/{{$st.ID}}/complete" enctype="multipart/form-data">
+                    <p class="muted" style="font-size:.82rem;margin:.35rem 0 .65rem">{{call $.T "ticket.evidence_hint"}}</p>
+                    <label>{{call $.T "ticket.evidence_files"}}</label>
+                    <input type="file" name="file" required multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+                    <label>{{call $.T "ticket.file_note"}}</label>
+                    <input name="note" />
+                    <button class="btn" type="submit">{{call $.T "ticket.complete_with_evidence"}}</button>
+                  </form>
+                </details>
+                {{end}}
+
                 <div class="stage-edit">
                   <details>
                     <summary>{{call $.T "ticket.edit_stage"}}</summary>
@@ -153,7 +225,9 @@
                 </div>
                 <div>
                   <label>{{call .T "ticket.initial_state"}}</label>
-                  <select name="estado">{{range .StageStates}}<option value="{{.}}">{{labelStage .}}</option>{{end}}</select>
+                  <select name="estado">
+                    {{range .StageStates}}{{if ne . "hecha"}}<option value="{{.}}">{{labelStage .}}</option>{{end}}{{end}}
+                  </select>
                 </div>
               </div>
               <div class="grid grid-2">
@@ -163,8 +237,32 @@
               <button class="btn" type="submit">{{call .T "ticket.add_stage"}}</button>
             </form>
           </div>
+
+          <div class="ticket-files-block" style="margin-top:1.25rem;padding-top:1rem;border-top:1px dashed var(--line)">
+            <h3 style="margin:0 0 .55rem;font-size:1rem">{{call .T "ticket.files"}}</h3>
+            {{if .TicketFiles}}
+            <ul class="file-list">
+              {{range .TicketFiles}}
+              <li>
+                <a href="/tickets/{{$.Ticket.ID}}/attachments/{{.ID}}/file" target="_blank" rel="noopener">{{.File}}</a>
+                {{if .Note}}<span class="muted">· {{.Note}}</span>{{end}}
+              </li>
+              {{end}}
+            </ul>
+            {{else}}
+            <p class="muted">{{call .T "ticket.no_files"}}</p>
+            {{end}}
+            <form method="post" action="/tickets/{{.Ticket.ID}}/attachments" enctype="multipart/form-data" class="upload-form">
+              <label>{{call .T "ticket.add_file"}}</label>
+              <input type="file" name="file" required accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+              <label>{{call .T "ticket.file_note"}}</label>
+              <input name="note" />
+              <button class="btn ghost" type="submit">{{call .T "ticket.upload"}}</button>
+            </form>
+          </div>
         </div>
       </section>
+      {{end}}
     </div>
 
     <div class="ticket-bottom">

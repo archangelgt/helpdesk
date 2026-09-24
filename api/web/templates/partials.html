@@ -575,5 +575,25 @@
     font-family: "Sora", sans-serif; font-size: .85rem;
     background: var(--panel); padding: .1rem .35rem; border-radius: 6px;
   }
+
+  .file-list {
+    list-style: none; margin: 0 0 .85rem; padding: 0;
+    display: flex; flex-direction: column; gap: .4rem;
+  }
+  .file-list li {
+    font-size: .88rem; padding: .45rem .65rem;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+  }
+  .upload-form { margin-top: .5rem; }
+  .support-problem {
+    padding: .85rem 1rem; border-radius: 14px;
+    border: 1px solid var(--line); background: var(--panel-2);
+  }
+  html[data-theme-resolved="light"] .support-problem { background: #fff; }
+  .stage-complete { margin: .55rem 0 .35rem; }
+  .stage-complete summary {
+    cursor: pointer; font-size: .8rem; font-weight: 600; color: var(--ok);
+  }
+  .stage-evidence { margin: .35rem 0 .55rem; }
 </style>
 {{end}}

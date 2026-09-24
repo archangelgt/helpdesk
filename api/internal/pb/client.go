@@ -59,6 +59,7 @@ type Category struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Workflow    string `json:"workflow"` // implementacion | soporte
 	Created     string `json:"created"`
 	Updated     string `json:"updated"`
 }
@@ -128,10 +129,15 @@ func (c *Client) ListCategories(ctx context.Context) ([]Category, error) {
 	return out.Items, nil
 }
 
-func (c *Client) CreateCategory(ctx context.Context, name, description string) (*Category, error) {
+func (c *Client) CreateCategory(ctx context.Context, name, description, workflow string) (*Category, error) {
+	workflow = strings.TrimSpace(workflow)
+	if workflow != "soporte" {
+		workflow = "implementacion"
+	}
 	payload := map[string]any{
 		"name":        strings.TrimSpace(name),
 		"description": strings.TrimSpace(description),
+		"workflow":    workflow,
 	}
 	var out Category
 	if err := c.doJSON(ctx, http.MethodPost, "/api/collections/categories/records", payload, &out); err != nil {

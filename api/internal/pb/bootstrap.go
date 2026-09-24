@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 func (c *Client) Bootstrap(ctx context.Context) error {
@@ -13,6 +14,9 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	}
 	if err := c.ensureCollection(ctx, categoriesCollection()); err != nil {
 		return fmt.Errorf("categories collection: %w", err)
+	}
+	if err := c.ensureCategoryFields(ctx); err != nil {
+		return fmt.Errorf("category fields: %w", err)
 	}
 	catID, err := c.collectionID(ctx, "categories")
 	if err != nil {
@@ -46,6 +50,13 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	}
 	if err := c.ensureNumberOrdenOptional(ctx, "stages"); err != nil {
 		return fmt.Errorf("stages fields: %w", err)
+	}
+	stageColID, err := c.collectionID(ctx, "stages")
+	if err != nil {
+		return fmt.Errorf("stages id: %w", err)
+	}
+	if err := c.ensureCollection(ctx, attachmentsCollection(ticketID, stageColID)); err != nil {
+		return fmt.Errorf("ticket_attachments collection: %w", err)
 	}
 	if err := c.ensureCollection(ctx, ticketTemplatesCollection(catID)); err != nil {
 		return fmt.Errorf("ticket_templates collection: %w", err)
@@ -180,7 +191,85 @@ func (c *Client) seedDemoData(ctx context.Context) error {
 	if err := c.EnsureAPIKey(ctx, "Power Tech chat/API", "hd_power_demo_key_change_me", power.ID, "chat"); err != nil {
 		return err
 	}
+	_ = c.ensureDemoCategories(ctx)
 	return nil
+}
+
+func (c *Client) ensureDemoCategories(ctx context.Context) error {
+	cats, err := c.ListCategories(ctx)
+	if err != nil {
+		return err
+	}
+	byName := map[string]Category{}
+	for _, cat := range cats {
+		byName[strings.ToLower(cat.Name)] = cat
+		if cat.Workflow == "" {
+			wf := "implementacion"
+			lname := strings.ToLower(cat.Name)
+			if strings.Contains(lname, "soporte") || strings.Contains(lname, "support") {
+				wf = "soporte"
+			}
+			_ = c.doJSON(ctx, http.MethodPatch, "/api/collections/categories/records/"+cat.ID, map[string]any{"workflow": wf}, nil)
+		}
+	}
+	if _, ok := byName["erpsys"]; !ok {
+		if _, err := c.CreateCategory(ctx, "ERPSYS", "Implementaciones erpsys / ERPNext", "implementacion"); err != nil {
+			return err
+		}
+	}
+	if _, ok := byName["soporte chat"]; !ok {
+		if _, err := c.CreateCategory(ctx, "Soporte Chat", "Incidencias operativas sin etapas", "soporte"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func categoriesCollection() map[string]any {
+	return map[string]any{
+		"name":       "categories",
+		"type":       "base",
+		"listRule":   nil,
+		"viewRule":   nil,
+		"createRule": nil,
+		"updateRule": nil,
+		"deleteRule": nil,
+		"fields": []map[string]any{
+			{"name": "name", "type": "text", "required": true, "max": 120},
+			{"name": "description", "type": "text", "required": false, "max": 500},
+			{
+				"name": "workflow", "type": "select", "required": true, "maxSelect": 1,
+				"values": []string{"implementacion", "soporte"},
+			},
+			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
+			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
+		},
+		"indexes": []string{
+			"CREATE UNIQUE INDEX idx_categories_name ON categories (`name`)",
+		},
+	}
+}
+
+func (c *Client) ensureCategoryFields(ctx context.Context) error {
+	var meta collectionMeta
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/categories", nil, &meta); err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for _, f := range meta.Fields {
+		if n, ok := f["name"].(string); ok {
+			have[n] = true
+		}
+	}
+	if have["workflow"] {
+		return nil
+	}
+	fields := append([]map[string]any{}, meta.Fields...)
+	fields = append(fields, map[string]any{
+		"name": "workflow", "type": "select", "required": false, "maxSelect": 1,
+		"values": []string{"implementacion", "soporte"},
+	})
+	return c.doJSON(ctx, http.MethodPatch, "/api/collections/categories", map[string]any{"fields": fields}, nil)
 }
 
 func tenantsCollection() map[string]any {
@@ -355,27 +444,6 @@ func (c *Client) setSelectValues(ctx context.Context, collection, field string, 
 		return nil
 	}
 	return c.doJSON(ctx, http.MethodPatch, "/api/collections/"+collection, map[string]any{"fields": fields}, nil)
-}
-
-func categoriesCollection() map[string]any {
-	return map[string]any{
-		"name":       "categories",
-		"type":       "base",
-		"listRule":   nil,
-		"viewRule":   nil,
-		"createRule": nil,
-		"updateRule": nil,
-		"deleteRule": nil,
-		"fields": []map[string]any{
-			{"name": "name", "type": "text", "required": true, "max": 120},
-			{"name": "description", "type": "text", "required": false, "max": 500},
-			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
-			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
-		},
-		"indexes": []string{
-			"CREATE UNIQUE INDEX idx_categories_name ON categories (`name`)",
-		},
-	}
 }
 
 func ticketsCollection(categoryCollectionID string) map[string]any {

@@ -76,22 +76,34 @@
         <div class="grid grid-2">
           <div>
             <label>{{call .T "common.category"}}</label>
-            <select name="category" {{if not .SelectedTpl}}required{{end}}>
+            <select name="category" id="ticket-category" {{if not .SelectedTpl}}required{{end}}>
               <option value="">{{if .SelectedTpl}}{{call .T "ticket.new.use_tpl_cat"}}{{else}}{{call .T "common.select"}}{{end}}</option>
               {{range .Categories}}
-              <option value="{{.ID}}" {{if and $.SelectedTpl (eq $.SelectedTpl.Category .ID)}}selected{{end}}>{{.Name}}</option>
+              <option value="{{.ID}}" data-workflow="{{if .Workflow}}{{.Workflow}}{{else}}implementacion{{end}}" {{if and $.SelectedTpl (eq $.SelectedTpl.Category .ID)}}selected{{end}}>{{.Name}}</option>
               {{end}}
             </select>
           </div>
           <div>
             <label>{{call .T "filter.type"}}</label>
-            <select name="type">
+            <select name="type" id="ticket-type">
               {{range .Types}}
               <option value="{{.}}" {{if $.SelectedTpl}}{{selected $.SelectedTpl.Type .}}{{else if eq . "implementacion"}}selected{{end}}>{{labelType .}}</option>
               {{end}}
             </select>
           </div>
         </div>
+        <script>
+        (function () {
+          var cat = document.getElementById("ticket-category");
+          var typ = document.getElementById("ticket-type");
+          if (!cat || !typ) return;
+          cat.addEventListener("change", function () {
+            var opt = cat.options[cat.selectedIndex];
+            var wf = opt && opt.getAttribute("data-workflow");
+            if (wf) typ.value = wf;
+          });
+        })();
+        </script>
         <div class="grid grid-2">
           <div>
             <label>{{call .T "filter.priority"}}</label>

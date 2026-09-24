@@ -136,9 +136,12 @@ func (s *Server) Routes() http.Handler {
 		staff.Post("/tickets/{id}/update", s.handleTicketUpdate)
 		staff.Post("/tickets/{id}/status", s.handleTicketStatus)
 		staff.Post("/tickets/{id}/comments", s.handleAddComment)
+		staff.Post("/tickets/{id}/attachments", s.handleUploadTicketAttachment)
+		staff.Get("/tickets/{id}/attachments/{attID}/file", s.handleDownloadAttachment)
 		staff.Post("/tickets/{id}/stages", s.handleAddStage)
 		staff.Post("/tickets/{id}/stages/{stageID}", s.handleUpdateStage)
 		staff.Post("/tickets/{id}/stages/{stageID}/estado", s.handleStageEstado)
+		staff.Post("/tickets/{id}/stages/{stageID}/complete", s.handleCompleteStage)
 
 		staff.Route("/api", func(api chi.Router) {
 			api.Get("/categories", s.apiListCategories)
@@ -285,11 +288,12 @@ func (s *Server) handleCreateCategoryForm(w http.ResponseWriter, r *http.Request
 	}
 	name := strings.TrimSpace(r.FormValue("name"))
 	desc := strings.TrimSpace(r.FormValue("description"))
+	workflow := defaultSelect(r.FormValue("workflow"), "implementacion")
 	if name == "" {
 		http.Redirect(w, r, "/categories?err="+url.QueryEscape("nombre requerido"), http.StatusSeeOther)
 		return
 	}
-	if _, err := s.pb.CreateCategory(r.Context(), name, desc); err != nil {
+	if _, err := s.pb.CreateCategory(r.Context(), name, desc, workflow); err != nil {
 		s.log.Printf("create category: %v", err)
 		http.Redirect(w, r, "/categories?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -383,6 +387,16 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	startDate := strings.TrimSpace(r.FormValue("start_date"))
 	tenantID := strings.TrimSpace(r.FormValue("tenant"))
 	requesterEmail := strings.TrimSpace(r.FormValue("requester_email"))
+
+	if categoryID != "" {
+		if cat, err := s.pb.GetCategory(r.Context(), categoryID); err == nil && cat.Workflow != "" {
+			ticketType = cat.Workflow
+		}
+	}
+	isSupport := ticketType == "soporte"
+	if isSupport {
+		templateID = "" // soporte no usa plantillas con etapas
+	}
 
 	var t *pb.Ticket
 	var err error
@@ -548,25 +562,43 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 	cats, _ := s.pb.ListCategories(r.Context())
 	comments, _ := s.pb.ListComments(r.Context(), id)
 	stages, _ := s.pb.ListStages(r.Context(), id)
+	atts, _ := s.pb.ListAttachments(r.Context(), id)
 	catName := ticket.Category
+	catWorkflow := ticket.Type
 	if c, err := s.pb.GetCategory(r.Context(), ticket.Category); err == nil {
 		catName = c.Name
+		if c.Workflow != "" {
+			catWorkflow = c.Workflow
+		}
+	}
+	isSupport := ticket.Type == "soporte" || catWorkflow == "soporte"
+	evidenceByStage := map[string][]pb.Attachment{}
+	ticketFiles := make([]pb.Attachment, 0)
+	for _, a := range atts {
+		if a.Kind == "evidence" && a.Stage != "" {
+			evidenceByStage[a.Stage] = append(evidenceByStage[a.Stage], a)
+		} else {
+			ticketFiles = append(ticketFiles, a)
+		}
 	}
 	s.render(w, "ticket_detail.html", s.pageBase(r, map[string]any{
-		"Title":        ticket.Number,
-		"Nav":          "board",
-		"Ticket":       ticket,
-		"CategoryName": catName,
-		"Categories":   cats,
-		"Comments":     comments,
-		"Stages":       stages,
-		"Progress":     computeProgress(stages),
-		"Statuses":     statuses,
-		"Priorities":   priorities,
-		"Types":        ticketTypes,
-		"StageStates":  stageStates,
-		"Flash":        r.URL.Query().Get("ok"),
-		"Error":        r.URL.Query().Get("err"),
+		"Title":            ticket.Number,
+		"Nav":              "board",
+		"Ticket":           ticket,
+		"CategoryName":     catName,
+		"Categories":       cats,
+		"Comments":         comments,
+		"Stages":           stages,
+		"Progress":         computeProgress(stages),
+		"IsSupport":        isSupport,
+		"TicketFiles":      ticketFiles,
+		"EvidenceByStage":  evidenceByStage,
+		"Statuses":         statuses,
+		"Priorities":       priorities,
+		"Types":            ticketTypes,
+		"StageStates":      stageStates,
+		"Flash":            r.URL.Query().Get("ok"),
+		"Error":            r.URL.Query().Get("err"),
 	}))
 }
 
@@ -666,6 +698,9 @@ func (s *Server) handleAddStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	estado := defaultSelect(r.FormValue("estado"), "pendiente")
+	if estado == "hecha" {
+		estado = "pendiente"
+	}
 	if _, err := s.pb.CreateStage(r.Context(), id, name, orden, r.FormValue("fecha_plan_inicio"), r.FormValue("fecha_plan_fin"), estado, avanceForEstado(estado, 0)); err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -684,6 +719,10 @@ func (s *Server) handleUpdateStage(w http.ResponseWriter, r *http.Request) {
 	orden, _ := strconv.ParseFloat(r.FormValue("orden"), 64)
 	avance, _ := strconv.ParseFloat(r.FormValue("avance"), 64)
 	estado := defaultSelect(r.FormValue("estado"), "pendiente")
+	if estado == "hecha" {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(langFromRequest(r), "err.evidence_required")), http.StatusSeeOther)
+		return
+	}
 	avance = avanceForEstado(estado, avance)
 	if _, err := s.pb.UpdateStage(r.Context(), stageID, r.FormValue("name"), estado, orden, avance, r.FormValue("fecha_plan_inicio"), r.FormValue("fecha_plan_fin")); err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
@@ -701,6 +740,10 @@ func (s *Server) handleStageEstado(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	estado := defaultSelect(r.FormValue("estado"), "pendiente")
+	if estado == "hecha" {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(langFromRequest(r), "err.evidence_required")), http.StatusSeeOther)
+		return
+	}
 	stages, err := s.pb.ListStages(r.Context(), id)
 	if err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
@@ -752,6 +795,7 @@ func (s *Server) apiCreateCategory(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		Workflow    string `json:"workflow"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -761,7 +805,7 @@ func (s *Server) apiCreateCategory(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, errNameRequired)
 		return
 	}
-	item, err := s.pb.CreateCategory(r.Context(), body.Name, body.Description)
+	item, err := s.pb.CreateCategory(r.Context(), body.Name, body.Description, body.Workflow)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return

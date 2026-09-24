@@ -20,6 +20,12 @@
         <h2>{{call .T "common.new"}}</h2>
         <label>{{call .T "common.name"}}</label>
         <input name="name" required />
+        <label>{{call .T "categories.workflow"}}</label>
+        <select name="workflow">
+          <option value="implementacion">{{call .T "type.implementacion"}}</option>
+          <option value="soporte">{{call .T "type.soporte"}}</option>
+        </select>
+        <p class="muted" style="margin:-.35rem 0 .9rem;font-size:.82rem">{{call .T "categories.workflow_hint"}}</p>
         <label>{{call .T "table.description"}}</label>
         <textarea name="description"></textarea>
         <button class="btn" type="submit">{{call .T "common.save"}}</button>
@@ -28,10 +34,20 @@
         <h2>{{call .T "table.list"}}</h2>
         {{if .Categories}}
         <table>
-          <thead><tr><th>{{call .T "table.name"}}</th><th>{{call .T "table.description"}}</th></tr></thead>
+          <thead>
+            <tr>
+              <th>{{call .T "table.name"}}</th>
+              <th>{{call .T "categories.workflow"}}</th>
+              <th>{{call .T "table.description"}}</th>
+            </tr>
+          </thead>
           <tbody>
           {{range .Categories}}
-            <tr><td><strong>{{.Name}}</strong></td><td class="muted">{{.Description}}</td></tr>
+            <tr>
+              <td><strong>{{.Name}}</strong></td>
+              <td><span class="pill">{{if eq .Workflow "soporte"}}{{call $.T "type.soporte"}}{{else}}{{call $.T "type.implementacion"}}{{end}}</span></td>
+              <td class="muted">{{.Description}}</td>
+            </tr>
           {{end}}
           </tbody>
         </table>
