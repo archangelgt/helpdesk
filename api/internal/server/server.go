@@ -28,7 +28,7 @@ type Server struct {
 var statuses = []string{"abierto", "pendiente", "en_proceso", "resuelto", "cerrado"}
 var priorities = []string{"critica", "alta", "media", "baja"}
 var ticketTypes = []string{"implementacion", "soporte"}
-var stageStates = []string{"pendiente", "en_curso", "hecha", "bloqueada"}
+var stageStates = []string{"pendiente", "en_curso", "hecha", "pausada"}
 
 type boardColumn struct {
 	Key     string
@@ -156,7 +156,7 @@ func (s *Server) Routes() http.Handler {
 func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	group := r.URL.Query().Get("group")
 	if group == "" {
-		group = "priority"
+		group = "lane"
 	}
 	f := pb.TicketFilters{
 		Type:       r.URL.Query().Get("type"),
@@ -207,18 +207,22 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]string, progressByTicket map[string]TicketProgress) []boardColumn {
-	keys := priorities
-	if group == "status" {
-		keys = statuses
+	keys := []string{"atrasados", "activos", "terminados"}
+	if group == "priority" {
+		keys = priorities
 	}
 	buckets := map[string][]boardCard{}
 	for _, k := range keys {
 		buckets[k] = nil
 	}
 	for _, t := range tickets {
-		key := t.Priority
-		if group == "status" {
-			key = t.Status
+		prog := progressByTicket[t.ID]
+		key := boardLane(t, prog)
+		if group == "priority" {
+			key = t.Priority
+		}
+		if key == "" {
+			continue // terminados ocultos por antigüedad
 		}
 		if _, ok := buckets[key]; !ok {
 			continue
@@ -231,14 +235,14 @@ func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]st
 			Ticket:       t,
 			CategoryName: name,
 			NextStatuses: nextStatuses(t.Status),
-			Progress:     progressByTicket[t.ID],
+			Progress:     prog,
 		})
 	}
 	out := make([]boardColumn, 0, len(keys))
 	for _, k := range keys {
-		label := labelPriority(k)
-		if group == "status" {
-			label = labelStatus(k)
+		label := laneLabel(k)
+		if group == "priority" {
+			label = labelPriority(k)
 		}
 		out = append(out, boardColumn{Key: k, Label: label, Tickets: buckets[k]})
 	}
@@ -1007,7 +1011,7 @@ func labelVis(s string) string {
 }
 
 func labelStage(s string) string {
-	m := map[string]string{"pendiente": "Pendiente", "en_curso": "En curso", "hecha": "Hecha", "bloqueada": "Bloqueada"}
+	m := map[string]string{"pendiente": "Pendiente", "en_curso": "En curso", "hecha": "Hecha", "pausada": "Pausada"}
 	if v, ok := m[s]; ok {
 		return v
 	}

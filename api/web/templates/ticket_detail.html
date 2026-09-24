@@ -39,7 +39,9 @@
     <div class="panel" style="margin-bottom:1rem">
       <h2>Etapas del ticket</h2>
       <p class="muted" style="margin-top:0;font-size:.88rem;line-height:1.45">
-        El avance del ticket sale de las etapas hechas ({{if .Progress.HasStages}}{{.Progress.Done}} de {{.Progress.Total}}{{else}}aún sin etapas{{end}}). No hay un estado general aparte.
+        El avance del ticket sale de las etapas <strong>hechas</strong> o <strong>pausadas</strong>
+        ({{if .Progress.HasStages}}{{.Progress.Done}} de {{.Progress.Total}}{{else}}aún sin etapas{{end}}).
+        Pausada = ya no hace falta; igual cuenta en el progreso.
       </p>
 
       {{if .Stages}}

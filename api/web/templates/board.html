@@ -14,12 +14,14 @@
     <div class="toolbar">
       <div>
         <h1>{{call .T "board.title"}}</h1>
-        <p class="lead" style="margin-bottom:0">El avance sale de las etapas hechas. Agrupa por prioridad (o filtro legado por estado).</p>
+        <p class="lead" style="margin-bottom:0">
+          {{if eq .Group "lane"}}Atrasados · En curso · Terminados. {{call .T "lane.hint"}}{{else}}Vista por prioridad.{{end}}
+        </p>
       </div>
       <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
         <div class="seg">
+          <a class="{{if eq .Group "lane"}}is-on{{end}}" href="/board?group=lane">{{call .T "board.by_lane"}}</a>
           <a class="{{if eq .Group "priority"}}is-on{{end}}" href="/board?group=priority">{{call .T "board.by_priority"}}</a>
-          <a class="{{if eq .Group "status"}}is-on{{end}}" href="/board?group=status">{{call .T "board.by_status"}}</a>
         </div>
         <a class="btn" href="/tickets/new">{{call .T "board.new"}}</a>
       </div>
@@ -55,15 +57,7 @@
           {{range .Tenants}}<option value="{{.ID}}" {{selected $.Filters.TenantID .ID}}>{{.Name}}</option>{{end}}
         </select>
       </div>
-      {{if eq .Group "priority"}}
-      <div>
-        <label>Estado (derivado)</label>
-        <select name="status">
-          <option value="">Todos</option>
-          {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
-        </select>
-      </div>
-      {{else}}
+      {{if ne .Group "priority"}}
       <div>
         <label>Prioridad</label>
         <select name="priority">
@@ -77,7 +71,7 @@
 
     <div class="board">
       {{range .Columns}}
-      <section class="column">
+      <section class="column column-{{.Key}}">
         <div class="column-head">
           <h2>{{.Label}}</h2>
           <span class="count">{{len .Tickets}}</span>
@@ -88,7 +82,8 @@
           <article class="card">
             <div class="card-top">
               <span class="badge">{{$card.Ticket.Number}}</span>
-              <span class="pill {{priorityClass $card.Ticket.Priority}}">{{labelPriority $card.Ticket.Priority}}</span>
+              {{if $card.Progress.Overdue}}<span class="pill pr-crit">Atrasado</span>{{end}}
+              {{if $card.Progress.Finished}}<span class="pill st-done">Terminado</span>{{end}}
             </div>
             <h3><a href="/tickets/{{$card.Ticket.ID}}">{{$card.Ticket.Subject}}</a></h3>
             <div class="card-meta">
@@ -102,8 +97,10 @@
                 <span>{{$card.Progress.Label}} etapas</span>
                 <span>{{$card.Progress.Percent}}%</span>
               </div>
-              <div class="progress-bar {{if eq $card.Progress.Percent 100}}is-done{{end}}"><span style="width:{{$card.Progress.Percent}}%"></span></div>
-              {{if $card.Progress.Current}}<div class="muted" style="font-size:.72rem;margin-top:.35rem">Ahora: {{$card.Progress.Current}}</div>{{end}}
+              <div class="progress-bar {{if $card.Progress.Finished}}is-done{{end}}"><span style="width:{{$card.Progress.Percent}}%"></span></div>
+              {{if and $card.Progress.Current (not $card.Progress.Finished)}}
+              <div class="muted" style="font-size:.72rem;margin-top:.35rem">Ahora: {{$card.Progress.Current}}</div>
+              {{end}}
             </div>
             {{else}}
             <p class="muted" style="font-size:.78rem;margin:.35rem 0 0">Sin etapas</p>

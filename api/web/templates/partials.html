@@ -409,6 +409,22 @@
   }
   .stage-blocked .stage-body { border-color: var(--warn); }
 
+  .stage-paused .stage-dot {
+    background: var(--muted); color: #fff; border-color: var(--muted);
+  }
+  .stage-paused .stage-body {
+    border-style: dashed; opacity: .88;
+  }
+  .stage-paused .stage-head h3 { font-style: italic; }
+  .stage-paused .stage-line { background: var(--muted); }
+
+  .column-atrasados { border-color: color-mix(in srgb, #8b1e12 35%, var(--line)); }
+  .column-atrasados .column-head { background: color-mix(in srgb, #f7ddd7 55%, var(--bg)); }
+  .column-terminados { opacity: .92; }
+  .column-terminados .column-head { background: color-mix(in srgb, #e8f5ee 55%, var(--bg)); }
+  html[data-theme-resolved="dark"] .column-atrasados .column-head { background: #3a1e18; }
+  html[data-theme-resolved="dark"] .column-terminados .column-head { background: #1a3228; }
+
   .card-progress { margin-top: .35rem; }
   .card-progress .progress-bar { height: 7px; }
   .card-progress .progress-meta { font-size: .75rem; margin-bottom: .3rem; }

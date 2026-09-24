@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 func (c *Client) Bootstrap(ctx context.Context) error {
@@ -55,6 +56,9 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	}
 	if err := c.ensureNumberOrdenOptional(ctx, "template_stages"); err != nil {
 		return fmt.Errorf("template_stages fields: %w", err)
+	}
+	if err := c.migrateBloqueadaToPausada(ctx); err != nil {
+		return fmt.Errorf("stage estado migration: %w", err)
 	}
 	if err := c.ensureCollection(ctx, appUsersCollection(tenantColID)); err != nil {
 		return fmt.Errorf("app_users collection: %w", err)
@@ -268,6 +272,50 @@ func (c *Client) ensureNumberOrdenOptional(ctx context.Context, collection strin
 	return c.doJSON(ctx, http.MethodPatch, "/api/collections/"+collection, map[string]any{"fields": fields}, nil)
 }
 
+func (c *Client) migrateBloqueadaToPausada(ctx context.Context) error {
+	for _, col := range []string{"stages", "template_stages"} {
+		both := []string{"pendiente", "en_curso", "hecha", "bloqueada", "pausada"}
+		final := []string{"pendiente", "en_curso", "hecha", "pausada"}
+		if err := c.setSelectValues(ctx, col, "estado", both); err != nil {
+			return err
+		}
+		q := "/api/collections/" + col + "/records?perPage=200&filter=" + url.QueryEscape("estado='bloqueada'")
+		var out listResponse[struct {
+			ID string `json:"id"`
+		}]
+		if err := c.doJSON(ctx, http.MethodGet, q, nil, &out); err == nil {
+			for _, item := range out.Items {
+				_ = c.doJSON(ctx, http.MethodPatch, "/api/collections/"+col+"/records/"+item.ID, map[string]any{"estado": "pausada"}, nil)
+			}
+		}
+		if err := c.setSelectValues(ctx, col, "estado", final); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Client) setSelectValues(ctx context.Context, collection, field string, values []string) error {
+	var meta collectionMeta
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/"+collection, nil, &meta); err != nil {
+		return err
+	}
+	fields := append([]map[string]any{}, meta.Fields...)
+	changed := false
+	for i, f := range fields {
+		name, _ := f["name"].(string)
+		if name != field {
+			continue
+		}
+		fields[i]["values"] = values
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	return c.doJSON(ctx, http.MethodPatch, "/api/collections/"+collection, map[string]any{"fields": fields}, nil)
+}
+
 func categoriesCollection() map[string]any {
 	return map[string]any{
 		"name":       "categories",
@@ -401,7 +449,7 @@ func stagesCollection(ticketCollectionID string) map[string]any {
 				"type":      "select",
 				"required":  true,
 				"maxSelect": 1,
-				"values":    []string{"pendiente", "en_curso", "hecha", "bloqueada"},
+				"values":    []string{"pendiente", "en_curso", "hecha", "pausada"},
 			},
 			{"name": "avance", "type": "number", "required": false},
 			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
@@ -479,7 +527,7 @@ func templateStagesCollection(templateCollectionID string) map[string]any {
 				"type":      "select",
 				"required":  true,
 				"maxSelect": 1,
-				"values":    []string{"pendiente", "en_curso", "hecha", "bloqueada"},
+				"values":    []string{"pendiente", "en_curso", "hecha", "pausada"},
 			},
 			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
 			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
