@@ -155,6 +155,48 @@ func (c *Client) GetCategory(ctx context.Context, id string) (*Category, error) 
 	return &out, nil
 }
 
+// EnsureCategoryForWorkflow returns (or creates) the internal category used for a ticket type.
+// Categories are an implementation detail; plantillas drive the product UX.
+func (c *Client) EnsureCategoryForWorkflow(ctx context.Context, workflow string) (*Category, error) {
+	workflow = strings.TrimSpace(workflow)
+	if workflow != "soporte" {
+		workflow = "implementacion"
+	}
+	cats, err := c.ListCategories(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var fallback *Category
+	for i := range cats {
+		cat := &cats[i]
+		wf := cat.Workflow
+		if wf == "" {
+			lname := strings.ToLower(cat.Name)
+			if strings.Contains(lname, "soporte") || strings.Contains(lname, "support") {
+				wf = "soporte"
+			} else {
+				wf = "implementacion"
+			}
+		}
+		if wf == workflow {
+			if strings.EqualFold(cat.Name, "Soporte") || strings.EqualFold(cat.Name, "ERPSYS") {
+				return cat, nil
+			}
+			if fallback == nil {
+				fallback = cat
+			}
+		}
+	}
+	if fallback != nil {
+		return fallback, nil
+	}
+	name, desc := "ERPSYS", "Implementaciones erpsys / ERPNext"
+	if workflow == "soporte" {
+		name, desc = "Soporte", "Incidencias operativas sin etapas"
+	}
+	return c.CreateCategory(ctx, name, desc, workflow)
+}
+
 func (c *Client) ListTickets(ctx context.Context, f TicketFilters) ([]Ticket, error) {
 	q := url.Values{}
 	q.Set("sort", "-updated,-id")
@@ -244,6 +286,13 @@ func (c *Client) CreateTicketFull(ctx context.Context, in TicketCreate) (*Ticket
 	if in.Source == "" {
 		in.Source = "ui"
 	}
+	if strings.TrimSpace(in.CategoryID) == "" {
+		cat, err := c.EnsureCategoryForWorkflow(ctx, in.Type)
+		if err != nil {
+			return nil, err
+		}
+		in.CategoryID = cat.ID
+	}
 	payload := map[string]any{
 		"number":      number,
 		"subject":     strings.TrimSpace(in.Subject),
@@ -283,6 +332,7 @@ type TicketUpdate struct {
 	Priority    *string
 	Type        *string
 	Assignee    *string
+	TenantID    *string
 }
 
 func (c *Client) UpdateTicket(ctx context.Context, id string, upd TicketUpdate) (*Ticket, error) {
@@ -316,6 +366,17 @@ func (c *Client) UpdateTicket(ctx context.Context, id string, upd TicketUpdate) 
 		payload["assignee"] = strings.TrimSpace(*upd.Assignee)
 		if strings.TrimSpace(*upd.Assignee) != before.Assignee {
 			notes = append(notes, fmt.Sprintf("Asignado: %q → %q", before.Assignee, strings.TrimSpace(*upd.Assignee)))
+		}
+	}
+	if upd.TenantID != nil {
+		tid := strings.TrimSpace(*upd.TenantID)
+		if tid == "" {
+			payload["tenant"] = nil
+		} else {
+			payload["tenant"] = tid
+		}
+		if tid != before.Tenant {
+			notes = append(notes, "Clasificación (empresa) actualizada")
 		}
 	}
 	if len(payload) == 0 {
@@ -603,7 +664,11 @@ func (c *Client) CreateTicketFromTemplateOpts(ctx context.Context, opts Template
 		status = "abierto"
 	}
 	if categoryID == "" {
-		return nil, fmt.Errorf("category required (set on template or form)")
+		cat, err := c.EnsureCategoryForWorkflow(ctx, ticketType)
+		if err != nil {
+			return nil, err
+		}
+		categoryID = cat.ID
 	}
 	reqEmail := opts.RequesterEmail
 	if reqEmail == "" && clientName != "" {

@@ -42,13 +42,6 @@
         </select>
       </div>
       <div>
-        <label>{{call .T "filter.category"}}</label>
-        <select name="category">
-          <option value="">{{call .T "filter.all_f"}}</option>
-          {{range .Categories}}<option value="{{.ID}}" {{selected $.Filters.CategoryID .ID}}>{{.Name}}</option>{{end}}
-        </select>
-      </div>
-      <div>
         <label>{{call .T "filter.company"}}</label>
         <select name="tenant">
           <option value="">{{call .T "filter.all_f"}}</option>
@@ -86,7 +79,7 @@
             <h3><a href="/tickets/{{$card.Ticket.ID}}">{{$card.Ticket.Subject}}</a></h3>
             <div class="card-meta">
               <span class="pill">{{labelType $card.Ticket.Type}}</span>
-              <span class="pill">{{$card.CategoryName}}</span>
+              {{if $card.CompanyName}}<span class="pill">{{$card.CompanyName}}</span>{{end}}
               {{if $card.Ticket.Assignee}}<span class="pill">{{$card.Ticket.Assignee}}</span>{{end}}
             </div>
             {{if $card.Progress.HasStages}}

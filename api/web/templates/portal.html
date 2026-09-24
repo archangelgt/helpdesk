@@ -13,6 +13,9 @@
   <main class="page">
     <h1>{{call .T "portal.title"}}</h1>
     <p class="lead">{{call .T "portal.lead"}}</p>
+    <div style="margin-bottom:1rem">
+      <a class="btn" href="/tickets/new">{{call .T "board.new"}}</a>
+    </div>
     {{if .Tickets}}
     <div class="panel">
       <table>

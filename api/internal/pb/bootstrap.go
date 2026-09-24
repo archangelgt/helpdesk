@@ -191,8 +191,10 @@ func (c *Client) seedDemoData(ctx context.Context) error {
 	if err := c.EnsureAPIKey(ctx, "Power Tech chat/API", "hd_power_demo_key_change_me", power.ID, "chat"); err != nil {
 		return err
 	}
-	_ = c.ensureDemoCategories(ctx)
-	return nil
+	if err := c.ensureDemoCategories(ctx); err != nil {
+		return err
+	}
+	return c.ensureDemoTemplates(ctx)
 }
 
 func (c *Client) ensureDemoCategories(ctx context.Context) error {
@@ -217,9 +219,98 @@ func (c *Client) ensureDemoCategories(ctx context.Context) error {
 			return err
 		}
 	}
-	if _, ok := byName["soporte chat"]; !ok {
-		if _, err := c.CreateCategory(ctx, "Soporte Chat", "Incidencias operativas sin etapas", "soporte"); err != nil {
+	if _, ok := byName["soporte"]; !ok {
+		if _, ok2 := byName["soporte chat"]; !ok2 {
+			if _, err := c.CreateCategory(ctx, "Soporte", "Incidencias operativas sin etapas", "soporte"); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) ensureDemoTemplates(ctx context.Context) error {
+	implCat, err := c.EnsureCategoryForWorkflow(ctx, "implementacion")
+	if err != nil {
+		return err
+	}
+	supCat, err := c.EnsureCategoryForWorkflow(ctx, "soporte")
+	if err != nil {
+		return err
+	}
+	templates, err := c.ListTemplates(ctx)
+	if err != nil {
+		return err
+	}
+	byName := map[string]TicketTemplate{}
+	for _, t := range templates {
+		byName[strings.ToLower(strings.TrimSpace(t.Name))] = t
+	}
+
+	if _, ok := byName["soporte"]; !ok {
+		tpl, err := c.CreateTemplate(ctx,
+			"Soporte",
+			"Caso de soporte: asunto, descripción, archivos y prioridad.",
+			"soporte",
+			supCat.ID,
+			"media",
+			"",
+			"",
+		)
+		if err != nil {
 			return err
+		}
+		byName["soporte"] = *tpl
+	} else if t := byName["soporte"]; t.Category == "" {
+		_, _ = c.UpdateTemplate(ctx, t.ID, t.Name, t.Description, "soporte", supCat.ID, t.Priority, t.SubjectTemplate, t.BodyTemplate)
+	}
+
+	implName := "implementación erpsys"
+	var implTpl *TicketTemplate
+	if existing, ok := byName[implName]; ok {
+		implTpl = &existing
+	} else if existing, ok := byName["implementacion erpsys"]; ok {
+		implTpl = &existing
+	}
+	if implTpl == nil {
+		tpl, err := c.CreateTemplate(ctx,
+			"Implementación erpsys",
+			"Proyecto estándar erpsys con etapas",
+			"implementacion",
+			implCat.ID,
+			"media",
+			"Implementación erpsys — {{cliente}}",
+			"Proyecto de implementación erpsys para {{cliente}}.",
+		)
+		if err != nil {
+			return err
+		}
+		implTpl = tpl
+	} else if implTpl.Category == "" {
+		_, _ = c.UpdateTemplate(ctx, implTpl.ID, implTpl.Name, implTpl.Description, "implementacion", implCat.ID, implTpl.Priority, implTpl.SubjectTemplate, implTpl.BodyTemplate)
+	}
+
+	stages, err := c.ListTemplateStages(ctx, implTpl.ID)
+	if err != nil {
+		return err
+	}
+	if len(stages) == 0 {
+		demoStages := []struct {
+			Name   string
+			Orden  float64
+			Offset float64
+			Days   float64
+		}{
+			{"Kickoff y alcance", 0, 0, 3},
+			{"Análisis y diseño", 1, 3, 7},
+			{"Configuración", 2, 10, 10},
+			{"Capacitación", 3, 20, 5},
+			{"Go-live", 4, 25, 5},
+		}
+		for _, st := range demoStages {
+			if _, err := c.CreateTemplateStage(ctx, implTpl.ID, st.Name, st.Orden, st.Offset, st.Days, "pendiente"); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

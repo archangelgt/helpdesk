@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -38,7 +39,7 @@ type boardColumn struct {
 
 type boardCard struct {
 	Ticket       pb.Ticket
-	CategoryName string
+	CompanyName  string
 	NextStatuses []string
 	Progress     TicketProgress
 }
@@ -130,8 +131,6 @@ func (s *Server) Routes() http.Handler {
 		staff.Post("/templates/{id}/stages/{stageID}/delete", s.handleDeleteTemplateStage)
 
 		staff.Get("/tickets", s.handleTicketsPage)
-		staff.Get("/tickets/new", s.handleNewTicketPage)
-		staff.Post("/tickets", s.handleCreateTicketForm)
 		staff.Get("/tickets/{id}", s.handleTicketDetail)
 		staff.Post("/tickets/{id}/update", s.handleTicketUpdate)
 		staff.Post("/tickets/{id}/status", s.handleTicketStatus)
@@ -157,6 +156,13 @@ func (s *Server) Routes() http.Handler {
 		})
 	})
 
+	// Crear ticket: maestro y cliente (clasificación automática para cliente).
+	r.Group(func(create chi.Router) {
+		create.Use(s.requireAuth("maestro", "cliente"))
+		create.Get("/tickets/new", s.handleNewTicketPage)
+		create.Post("/tickets", s.handleCreateTicketForm)
+	})
+
 	return r
 }
 
@@ -166,12 +172,11 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 		group = "lane"
 	}
 	f := pb.TicketFilters{
-		Type:       r.URL.Query().Get("type"),
-		CategoryID: r.URL.Query().Get("category"),
-		Q:          r.URL.Query().Get("q"),
-		Priority:   r.URL.Query().Get("priority"),
-		Status:     r.URL.Query().Get("status"),
-		TenantID:   r.URL.Query().Get("tenant"),
+		Type:     r.URL.Query().Get("type"),
+		Q:        r.URL.Query().Get("q"),
+		Priority: r.URL.Query().Get("priority"),
+		Status:   r.URL.Query().Get("status"),
+		TenantID: r.URL.Query().Get("tenant"),
 	}
 	// Board already groups by status/priority — clear the same axis filter to show all columns.
 	if group == "status" {
@@ -180,40 +185,39 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	if group == "priority" {
 		f.Priority = ""
 	}
-	cats, _ := s.pb.ListCategories(r.Context())
 	tenants, _ := s.pb.ListTenants(r.Context())
 	tickets, err := s.pb.ListTickets(r.Context(), f)
-	catNames := map[string]string{}
-	for _, c := range cats {
-		catNames[c.ID] = c.Name
+	tenantNames := map[string]string{}
+	for _, tn := range tenants {
+		tenantNames[tn.ID] = tn.Name
 	}
 	progressByTicket := map[string]TicketProgress{}
 	for _, tk := range tickets {
 		stages, _ := s.pb.ListStages(r.Context(), tk.ID)
 		progressByTicket[tk.ID] = computeProgress(stages)
 	}
-	columns := buildBoardColumns(group, tickets, catNames, progressByTicket)
+	columns := buildBoardColumns(group, tickets, tenantNames, progressByTicket)
 	errMsg := ""
 	if err != nil {
 		errMsg = err.Error()
 	}
 	s.render(w, "board.html", s.pageBase(r, map[string]any{
-		"Title":      "Tablero",
-		"Nav":        "board",
-		"Group":      group,
-		"Columns":    columns,
-		"Categories": cats,
-		"Tenants":    tenants,
-		"Filters":    f,
-		"Types":      ticketTypes,
-		"Priorities": priorities,
-		"Statuses":   statuses,
-		"Flash":      r.URL.Query().Get("ok"),
-		"Error":      errMsg,
+		"Title":       "Tablero",
+		"Nav":         "board",
+		"Group":       group,
+		"Columns":     columns,
+		"Tenants":     tenants,
+		"TenantNames": tenantNames,
+		"Filters":     f,
+		"Types":       ticketTypes,
+		"Priorities":  priorities,
+		"Statuses":    statuses,
+		"Flash":       r.URL.Query().Get("ok"),
+		"Error":       errMsg,
 	}))
 }
 
-func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]string, progressByTicket map[string]TicketProgress) []boardColumn {
+func buildBoardColumns(group string, tickets []pb.Ticket, tenantNames map[string]string, progressByTicket map[string]TicketProgress) []boardColumn {
 	keys := []string{"atrasados", "activos", "terminados"}
 	if group == "priority" {
 		keys = priorities
@@ -234,13 +238,10 @@ func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]st
 		if _, ok := buckets[key]; !ok {
 			continue
 		}
-		name := catNames[t.Category]
-		if name == "" {
-			name = t.Category
-		}
+		name := tenantNames[t.Tenant]
 		buckets[key] = append(buckets[key], boardCard{
 			Ticket:       t,
-			CategoryName: name,
+			CompanyName:  name,
 			NextStatuses: nextStatuses(t.Status),
 			Progress:     prog,
 		})
@@ -267,102 +268,97 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCategoriesPage(w http.ResponseWriter, r *http.Request) {
-	cats, err := s.pb.ListCategories(r.Context())
-	errMsg := ""
-	if err != nil {
-		errMsg = err.Error()
-	}
-	s.render(w, "categories.html", s.pageBase(r, map[string]any{
-		"Title":      "Categorías",
-		"Nav":        "categories",
-		"Categories": cats,
-		"Error":      errMsg,
-		"Flash":      r.URL.Query().Get("ok"),
-	}))
+	http.Redirect(w, r, "/templates", http.StatusSeeOther)
 }
 
 func (s *Server) handleCreateCategoryForm(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/categories?err=form", http.StatusSeeOther)
-		return
-	}
-	name := strings.TrimSpace(r.FormValue("name"))
-	desc := strings.TrimSpace(r.FormValue("description"))
-	workflow := defaultSelect(r.FormValue("workflow"), "implementacion")
-	if name == "" {
-		http.Redirect(w, r, "/categories?err="+url.QueryEscape("nombre requerido"), http.StatusSeeOther)
-		return
-	}
-	if _, err := s.pb.CreateCategory(r.Context(), name, desc, workflow); err != nil {
-		s.log.Printf("create category: %v", err)
-		http.Redirect(w, r, "/categories?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, "/categories?ok="+url.QueryEscape("Categoría creada"), http.StatusSeeOther)
+	http.Redirect(w, r, "/templates", http.StatusSeeOther)
 }
 
 func (s *Server) handleTicketsPage(w http.ResponseWriter, r *http.Request) {
 	f := pb.TicketFilters{
-		Status:     r.URL.Query().Get("status"),
-		Priority:   r.URL.Query().Get("priority"),
-		Type:       r.URL.Query().Get("type"),
-		CategoryID: r.URL.Query().Get("category"),
-		Q:          r.URL.Query().Get("q"),
+		Status:   r.URL.Query().Get("status"),
+		Priority: r.URL.Query().Get("priority"),
+		Type:     r.URL.Query().Get("type"),
+		Q:        r.URL.Query().Get("q"),
+		TenantID: r.URL.Query().Get("tenant"),
 	}
-	cats, errCats := s.pb.ListCategories(r.Context())
+	tenants, _ := s.pb.ListTenants(r.Context())
 	tickets, errTickets := s.pb.ListTickets(r.Context(), f)
-	catNames := map[string]string{}
-	for _, c := range cats {
-		catNames[c.ID] = c.Name
+	tenantNames := map[string]string{}
+	for _, tn := range tenants {
+		tenantNames[tn.ID] = tn.Name
 	}
 	errMsg := ""
-	if errCats != nil {
-		errMsg = errCats.Error()
-	}
 	if errTickets != nil {
 		errMsg = errTickets.Error()
 	}
 	s.render(w, "tickets.html", s.pageBase(r, map[string]any{
-		"Title":      "Lista",
-		"Nav":        "list",
-		"Categories": cats,
-		"Tickets":    tickets,
-		"CatNames":   catNames,
-		"Filters":    f,
-		"Statuses":   statuses,
-		"Priorities": priorities,
-		"Types":      ticketTypes,
-		"Error":      errMsg,
-		"Flash":      r.URL.Query().Get("ok"),
+		"Title":       "Lista",
+		"Nav":         "list",
+		"Tenants":     tenants,
+		"Tickets":     tickets,
+		"TenantNames": tenantNames,
+		"Filters":     f,
+		"Statuses":    statuses,
+		"Priorities":  priorities,
+		"Types":       ticketTypes,
+		"Error":       errMsg,
+		"Flash":       r.URL.Query().Get("ok"),
 	}))
 }
 
 func (s *Server) handleNewTicketPage(w http.ResponseWriter, r *http.Request) {
-	cats, err := s.pb.ListCategories(r.Context())
+	u := userFrom(r.Context())
+	isAdmin := u != nil && u.Role == "maestro"
 	tenants, _ := s.pb.ListTenants(r.Context())
 	templates, _ := s.pb.ListTemplates(r.Context())
+	if !isAdmin {
+		// Clientes solo ven plantillas de soporte (y en blanco).
+		filtered := make([]pb.TicketTemplate, 0, len(templates))
+		for _, t := range templates {
+			if t.Type == "soporte" {
+				filtered = append(filtered, t)
+			}
+		}
+		templates = filtered
+	}
 	tplID := r.URL.Query().Get("template")
 	var selected *pb.TicketTemplate
 	var tplStages []pb.TemplateStage
 	if tplID != "" {
 		if t, e := s.pb.GetTemplate(r.Context(), tplID); e == nil {
-			selected = t
-			tplStages, _ = s.pb.ListTemplateStages(r.Context(), tplID)
+			if isAdmin || t.Type == "soporte" {
+				selected = t
+				tplStages, _ = s.pb.ListTemplateStages(r.Context(), tplID)
+			}
+		}
+	}
+	var userTenant *pb.Tenant
+	if u != nil && u.Tenant != "" {
+		if t, err := s.pb.GetTenant(r.Context(), u.Tenant); err == nil {
+			userTenant = t
+		}
+	}
+	flow := "blank"
+	if selected != nil {
+		if selected.Type == "soporte" {
+			flow = "soporte"
+		} else {
+			flow = "implementacion"
 		}
 	}
 	errMsg := r.URL.Query().Get("err")
-	if err != nil && errMsg == "" {
-		errMsg = err.Error()
-	}
 	s.render(w, "ticket_new.html", s.pageBase(r, map[string]any{
 		"Title":          "Nuevo ticket",
 		"Nav":            "new",
-		"Categories":     cats,
 		"Tenants":        tenants,
 		"Templates":      templates,
 		"SelectedTpl":    selected,
 		"TemplateStages": tplStages,
-		"Statuses":       statuses,
+		"Flow":           flow,
+		"IsAdmin":        isAdmin,
+		"UserTenant":     userTenant,
 		"Priorities":     priorities,
 		"Types":          ticketTypes,
 		"Error":          errMsg,
@@ -371,16 +367,23 @@ func (s *Server) handleNewTicketPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/tickets/new?err=form", http.StatusSeeOther)
-		return
+	u := userFrom(r.Context())
+	isAdmin := u != nil && u.Role == "maestro"
+	lang := langFromRequest(r)
+
+	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
+		// Fallback for non-multipart forms.
+		if err2 := r.ParseForm(); err2 != nil {
+			http.Redirect(w, r, "/tickets/new?err=form", http.StatusSeeOther)
+			return
+		}
 	}
+
 	subject := strings.TrimSpace(r.FormValue("subject"))
 	description := strings.TrimSpace(r.FormValue("description"))
-	categoryID := strings.TrimSpace(r.FormValue("category"))
 	status := defaultSelect(r.FormValue("status"), "abierto")
 	priority := defaultSelect(r.FormValue("priority"), "media")
-	ticketType := defaultSelect(r.FormValue("type"), "implementacion")
+	ticketType := defaultSelect(r.FormValue("type"), "soporte")
 	assignee := strings.TrimSpace(r.FormValue("assignee"))
 	templateID := strings.TrimSpace(r.FormValue("template_id"))
 	clientName := strings.TrimSpace(r.FormValue("client_name"))
@@ -388,34 +391,86 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	tenantID := strings.TrimSpace(r.FormValue("tenant"))
 	requesterEmail := strings.TrimSpace(r.FormValue("requester_email"))
 
-	if categoryID != "" {
-		if cat, err := s.pb.GetCategory(r.Context(), categoryID); err == nil && cat.Workflow != "" {
-			ticketType = cat.Workflow
+	if templateID != "" {
+		tpl, err := s.pb.GetTemplate(r.Context(), templateID)
+		if err != nil {
+			http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+			return
+		}
+		if !isAdmin && tpl.Type != "soporte" {
+			http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(i18n.T(lang, "err.forbidden")), http.StatusSeeOther)
+			return
+		}
+		ticketType = tpl.Type
+		if priority == "" || priority == "media" {
+			// keep form priority; only fill if empty was intended — form always sends one
+		}
+		if priority == "" {
+			priority = tpl.Priority
 		}
 	}
+
+	if !isAdmin {
+		ticketType = "soporte"
+		if u != nil {
+			tenantID = u.Tenant
+			requesterEmail = u.Email
+		}
+	}
+	if tenantID == "" && u != nil && u.Tenant != "" {
+		tenantID = u.Tenant
+	}
+	if requesterEmail == "" && u != nil {
+		requesterEmail = u.Email
+	}
+
 	isSupport := ticketType == "soporte"
 	if isSupport {
-		templateID = "" // soporte no usa plantillas con etapas
+		// Soporte no copia etapas aunque la plantilla las tuviera.
+		if templateID != "" {
+			if tpl, err := s.pb.GetTemplate(r.Context(), templateID); err == nil && tpl.Type == "soporte" {
+				// keep template_id only for subject/body defaults; create without stages path below
+			}
+		}
 	}
 
 	var t *pb.Ticket
 	var err error
-	if templateID != "" {
+	if templateID != "" && !isSupport {
 		t, err = s.pb.CreateTicketFromTemplateOpts(r.Context(), pb.TemplateTicketOpts{
 			TemplateID: templateID, ClientName: clientName, Subject: subject, Description: description,
-			CategoryID: categoryID, Status: status, Priority: priority, Type: ticketType,
-			Assignee: assignee, StartDate: startDate, TenantID: tenantID, RequesterEmail: requesterEmail,
+			Status: status, Priority: priority, Type: ticketType,
+			Assignee: assignee, StartDate: startDate, TenantID: tenantID,
+			RequesterID: userIDOrEmpty(u), RequesterEmail: requesterEmail,
 		})
 	} else {
-		if subject == "" || categoryID == "" {
-			http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape("asunto y categoría requeridos"), http.StatusSeeOther)
+		if subject == "" && templateID != "" {
+			if tpl, e := s.pb.GetTemplate(r.Context(), templateID); e == nil {
+				subject = strings.TrimSpace(tpl.SubjectTemplate)
+				if subject == "" {
+					subject = tpl.Name
+				}
+				if description == "" {
+					description = tpl.BodyTemplate
+				}
+			}
+		}
+		if subject == "" {
+			http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(i18n.T(lang, "err.subject_required")), http.StatusSeeOther)
 			return
 		}
+		var requesterID string
+		if u != nil {
+			requesterID = u.ID
+		}
 		t, err = s.pb.CreateTicketFull(r.Context(), pb.TicketCreate{
-			Subject: subject, Description: description, CategoryID: categoryID,
+			Subject: subject, Description: description,
 			Status: status, Priority: priority, Type: ticketType, Assignee: assignee,
-			TenantID: tenantID, RequesterEmail: requesterEmail, Source: "ui",
+			TenantID: tenantID, RequesterID: requesterID, RequesterEmail: requesterEmail, Source: "ui",
 		})
+		if err == nil && templateID != "" {
+			_, _ = s.pb.CreateComment(r.Context(), t.ID, "Creado desde plantilla", "sistema", "sistema")
+		}
 	}
 	if err != nil {
 		s.log.Printf("create ticket: %v", err)
@@ -426,13 +481,49 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 		http.Redirect(w, r, q, http.StatusSeeOther)
 		return
 	}
+
+	// Adjuntos al crear (soporte / capturas).
+	if r.MultipartForm != nil {
+		files := r.MultipartForm.File["files"]
+		if len(files) == 0 {
+			files = r.MultipartForm.File["file"]
+		}
+		author := "solicitante"
+		if isAdmin {
+			author = "agente"
+		}
+		for _, hdr := range files {
+			f, ferr := hdr.Open()
+			if ferr != nil {
+				continue
+			}
+			content, rerr := io.ReadAll(io.LimitReader(f, maxUploadBytes+1))
+			f.Close()
+			if rerr != nil || len(content) == 0 || len(content) > maxUploadBytes {
+				continue
+			}
+			ct := hdr.Header.Get("Content-Type")
+			_, _ = s.pb.CreateAttachment(r.Context(), t.ID, "", "ticket", "", author, hdr.Filename, content, ct)
+		}
+	}
+
 	_ = s.syncTicketFromStages(r, t.ID)
+	if !isAdmin {
+		http.Redirect(w, r, "/portal/tickets/"+t.ID+"?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
+		return
+	}
 	http.Redirect(w, r, "/tickets/"+t.ID+"?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
+}
+
+func userIDOrEmpty(u *pb.AppUser) string {
+	if u == nil {
+		return ""
+	}
+	return u.ID
 }
 
 func (s *Server) handleTemplatesPage(w http.ResponseWriter, r *http.Request) {
 	items, err := s.pb.ListTemplates(r.Context())
-	cats, _ := s.pb.ListCategories(r.Context())
 	errMsg := r.URL.Query().Get("err")
 	if err != nil && errMsg == "" {
 		errMsg = err.Error()
@@ -441,7 +532,6 @@ func (s *Server) handleTemplatesPage(w http.ResponseWriter, r *http.Request) {
 		"Title":      "Plantillas",
 		"Nav":        "templates",
 		"Templates":  items,
-		"Categories": cats,
 		"Types":      ticketTypes,
 		"Priorities": priorities,
 		"Error":      errMsg,
@@ -459,12 +549,18 @@ func (s *Server) handleCreateTemplateForm(w http.ResponseWriter, r *http.Request
 		http.Redirect(w, r, "/templates?err="+url.QueryEscape("nombre requerido"), http.StatusSeeOther)
 		return
 	}
+	ticketType := defaultSelect(r.FormValue("type"), "implementacion")
+	cat, err := s.pb.EnsureCategoryForWorkflow(r.Context(), ticketType)
+	if err != nil {
+		http.Redirect(w, r, "/templates?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
 	tpl, err := s.pb.CreateTemplate(
 		r.Context(),
 		name,
 		r.FormValue("description"),
-		defaultSelect(r.FormValue("type"), "implementacion"),
-		r.FormValue("category"),
+		ticketType,
+		cat.ID,
 		defaultSelect(r.FormValue("priority"), "media"),
 		r.FormValue("subject_template"),
 		r.FormValue("body_template"),
@@ -484,18 +580,16 @@ func (s *Server) handleTemplateDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stages, _ := s.pb.ListTemplateStages(r.Context(), id)
-	cats, _ := s.pb.ListCategories(r.Context())
 	s.render(w, "template_detail.html", s.pageBase(r, map[string]any{
-		"Title":      tpl.Name,
-		"Nav":        "templates",
-		"Template":   tpl,
-		"Stages":     stages,
-		"Categories": cats,
-		"Types":      ticketTypes,
-		"Priorities": priorities,
+		"Title":       tpl.Name,
+		"Nav":         "templates",
+		"Template":    tpl,
+		"Stages":      stages,
+		"Types":       ticketTypes,
+		"Priorities":  priorities,
 		"StageStates": stageStates,
-		"Flash":      r.URL.Query().Get("ok"),
-		"Error":      r.URL.Query().Get("err"),
+		"Flash":       r.URL.Query().Get("ok"),
+		"Error":       r.URL.Query().Get("err"),
 	}))
 }
 
@@ -505,12 +599,18 @@ func (s *Server) handleUpdateTemplateForm(w http.ResponseWriter, r *http.Request
 		http.Redirect(w, r, "/templates/"+id+"?err=form", http.StatusSeeOther)
 		return
 	}
+	ticketType := defaultSelect(r.FormValue("type"), "implementacion")
+	cat, err := s.pb.EnsureCategoryForWorkflow(r.Context(), ticketType)
+	if err != nil {
+		http.Redirect(w, r, "/templates/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
 	if _, err := s.pb.UpdateTemplate(
 		r.Context(), id,
 		r.FormValue("name"),
 		r.FormValue("description"),
-		defaultSelect(r.FormValue("type"), "implementacion"),
-		r.FormValue("category"),
+		ticketType,
+		cat.ID,
 		defaultSelect(r.FormValue("priority"), "media"),
 		r.FormValue("subject_template"),
 		r.FormValue("body_template"),
@@ -559,19 +659,22 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ticket no encontrado", http.StatusNotFound)
 		return
 	}
-	cats, _ := s.pb.ListCategories(r.Context())
+	tenants, _ := s.pb.ListTenants(r.Context())
 	comments, _ := s.pb.ListComments(r.Context(), id)
 	stages, _ := s.pb.ListStages(r.Context(), id)
 	atts, _ := s.pb.ListAttachments(r.Context(), id)
-	catName := ticket.Category
-	catWorkflow := ticket.Type
-	if c, err := s.pb.GetCategory(r.Context(), ticket.Category); err == nil {
-		catName = c.Name
-		if c.Workflow != "" {
-			catWorkflow = c.Workflow
+	tenantName := ""
+	if ticket.Tenant != "" {
+		if tn, err := s.pb.GetTenant(r.Context(), ticket.Tenant); err == nil {
+			tenantName = tn.Name
 		}
 	}
-	isSupport := ticket.Type == "soporte" || catWorkflow == "soporte"
+	isSupport := ticket.Type == "soporte"
+	if !isSupport {
+		if c, err := s.pb.GetCategory(r.Context(), ticket.Category); err == nil && c.Workflow == "soporte" {
+			isSupport = true
+		}
+	}
 	evidenceByStage := map[string][]pb.Attachment{}
 	ticketFiles := make([]pb.Attachment, 0)
 	for _, a := range atts {
@@ -582,23 +685,23 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.render(w, "ticket_detail.html", s.pageBase(r, map[string]any{
-		"Title":            ticket.Number,
-		"Nav":              "board",
-		"Ticket":           ticket,
-		"CategoryName":     catName,
-		"Categories":       cats,
-		"Comments":         comments,
-		"Stages":           stages,
-		"Progress":         computeProgress(stages),
-		"IsSupport":        isSupport,
-		"TicketFiles":      ticketFiles,
-		"EvidenceByStage":  evidenceByStage,
-		"Statuses":         statuses,
-		"Priorities":       priorities,
-		"Types":            ticketTypes,
-		"StageStates":      stageStates,
-		"Flash":            r.URL.Query().Get("ok"),
-		"Error":            r.URL.Query().Get("err"),
+		"Title":           ticket.Number,
+		"Nav":             "board",
+		"Ticket":          ticket,
+		"TenantName":      tenantName,
+		"Tenants":         tenants,
+		"Comments":        comments,
+		"Stages":          stages,
+		"Progress":        computeProgress(stages),
+		"IsSupport":       isSupport,
+		"TicketFiles":     ticketFiles,
+		"EvidenceByStage": evidenceByStage,
+		"Statuses":        statuses,
+		"Priorities":      priorities,
+		"Types":           ticketTypes,
+		"StageStates":     stageStates,
+		"Flash":           r.URL.Query().Get("ok"),
+		"Error":           r.URL.Query().Get("err"),
 	}))
 }
 
@@ -610,25 +713,28 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	subject := r.FormValue("subject")
 	description := r.FormValue("description")
-	category := r.FormValue("category")
 	priority := r.FormValue("priority")
 	ticketType := r.FormValue("type")
 	assignee := r.FormValue("assignee")
+	tenantID := strings.TrimSpace(r.FormValue("tenant"))
+	cat, _ := s.pb.EnsureCategoryForWorkflow(r.Context(), ticketType)
+	catID := ""
+	if cat != nil {
+		catID = cat.ID
+	}
 	upd := pb.TicketUpdate{
 		Subject:     &subject,
 		Description: &description,
-		CategoryID:  &category,
 		Priority:    &priority,
 		Type:        &ticketType,
 		Assignee:    &assignee,
+		TenantID:    &tenantID,
+	}
+	if catID != "" {
+		upd.CategoryID = &catID
 	}
 	stagesCheck, _ := s.pb.ListStages(r.Context(), id)
 	isSupport := ticketType == "soporte"
-	if !isSupport {
-		if cat, err := s.pb.GetCategory(r.Context(), category); err == nil && cat.Workflow == "soporte" {
-			isSupport = true
-		}
-	}
 	// Soporte (o tickets sin etapas) puede cambiar estado desde el formulario.
 	if isSupport || len(stagesCheck) == 0 {
 		st := r.FormValue("status")
@@ -858,7 +964,7 @@ func (s *Server) apiCreateTicket(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	if strings.TrimSpace(body.Subject) == "" || strings.TrimSpace(body.CategoryID) == "" {
+	if strings.TrimSpace(body.Subject) == "" {
 		writeErr(w, http.StatusBadRequest, errTicketRequired)
 		return
 	}
@@ -869,7 +975,7 @@ func (s *Server) apiCreateTicket(w http.ResponseWriter, r *http.Request) {
 		body.CategoryID,
 		defaultSelect(body.Status, "abierto"),
 		defaultSelect(body.Priority, "media"),
-		defaultSelect(body.Type, "implementacion"),
+		defaultSelect(body.Type, "soporte"),
 		body.Assignee,
 	)
 	if err != nil {
@@ -1068,5 +1174,5 @@ func (e simpleError) Error() string { return string(e) }
 
 const (
 	errNameRequired   simpleError = "name is required"
-	errTicketRequired simpleError = "subject and category_id are required"
+	errTicketRequired simpleError = "subject is required"
 )

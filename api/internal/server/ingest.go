@@ -86,13 +86,11 @@ func (s *Server) ingestCreateTicket(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	ticketType := defaultSelect(body.Type, "soporte")
 	if catID == "" {
-		cats, _ := s.pb.ListCategories(r.Context())
-		if len(cats) == 0 {
-			writeErr(w, http.StatusBadRequest, simpleError("no categories; create one in UI first"))
-			return
+		if cat, err := s.pb.EnsureCategoryForWorkflow(r.Context(), ticketType); err == nil {
+			catID = cat.ID
 		}
-		catID = cats[0].ID
 	}
 	source := "api"
 	ch := body.Channel
@@ -113,7 +111,7 @@ func (s *Server) ingestCreateTicket(w http.ResponseWriter, r *http.Request) {
 	ticket, err := s.pb.CreateTicketFull(r.Context(), pb.TicketCreate{
 		Subject: body.Subject, Description: body.Description, CategoryID: catID,
 		Status: defaultSelect(body.Status, "abierto"), Priority: defaultSelect(body.Priority, "media"),
-		Type: defaultSelect(body.Type, "soporte"), Assignee: body.Assignee,
+		Type: ticketType, Assignee: body.Assignee,
 		TenantID: key.Tenant, RequesterID: requesterID, RequesterEmail: email,
 		Source: source, ExternalID: body.ExternalID,
 	})

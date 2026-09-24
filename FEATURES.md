@@ -22,7 +22,7 @@ El equipo ve todo (notas internas, retrasos, riesgos). Al cliente se le puede **
 
 ### 2. Tickets de soporte
 
-Misma plataforma, otro tipo (o categoría) de ticket: incidencias, prioridad, asignación, resolución — estilo cola de help desk.
+Misma plataforma, otro tipo de ticket (plantilla soporte): incidencias, prioridad, asignación, resolución — estilo cola de help desk.
 
 ### 3. Multitenancy
 
@@ -57,7 +57,7 @@ Comentarios:
 
 - Tipos: `implementacion` | `soporte` (nombres ajustables)
 - Número único, asunto, descripción
-- Prioridad, estado, asignación, categorías
+- Prioridad, estado, asignación, plantillas (soporte / implementación)
 - Historial de cambios; adjuntos
 - En implementación: **etapas**, fechas, avance
 

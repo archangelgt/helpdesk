@@ -21,7 +21,7 @@
           <span class="pill">{{labelType .Ticket.Type}}</span>
         </div>
         <h1>{{.Ticket.Subject}}</h1>
-        <p class="lead" style="margin-bottom:0">{{.CategoryName}}{{if .Ticket.Assignee}} · {{.Ticket.Assignee}}{{end}}</p>
+        <p class="lead" style="margin-bottom:0">{{if .TenantName}}{{.TenantName}}{{end}}{{if and .TenantName .Ticket.Assignee}} · {{end}}{{if .Ticket.Assignee}}{{.Ticket.Assignee}}{{end}}</p>
         {{if and (not .IsSupport) .Progress.HasStages}}
         <div class="progress-block" style="max-width:28rem">
           <div class="progress-meta">
@@ -45,10 +45,11 @@
           <input name="subject" value="{{.Ticket.Subject}}" required />
           <label>{{if .IsSupport}}{{call .T "ticket.problem"}}{{else}}{{call .T "common.description"}}{{end}}</label>
           <textarea name="description" class="ticket-aside-desc">{{.Ticket.Description}}</textarea>
-          <label>{{call .T "common.category"}}</label>
-          <select name="category">
-            {{range .Categories}}
-            <option value="{{.ID}}" {{selected $.Ticket.Category .ID}}>{{.Name}}</option>
+          <label>{{call .T "ticket.new.classification"}}</label>
+          <select name="tenant">
+            <option value="">{{call .T "common.select"}}</option>
+            {{range .Tenants}}
+            <option value="{{.ID}}" {{selected $.Ticket.Tenant .ID}}>{{.Name}}</option>
             {{end}}
           </select>
           <div class="grid grid-2">

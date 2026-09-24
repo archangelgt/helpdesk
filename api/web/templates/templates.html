@@ -37,11 +37,6 @@
             </select>
           </div>
         </div>
-        <label>{{call .T "templates.default_category"}}</label>
-        <select name="category">
-          <option value="">{{call .T "templates.optional"}}</option>
-          {{range .Categories}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
-        </select>
         <label>{{call .T "templates.subject_hint"}}</label>
         <input name="subject_template" />
         <label>{{call .T "templates.body"}}</label>

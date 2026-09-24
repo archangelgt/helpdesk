@@ -7,10 +7,10 @@
     <a class="{{activeNav .Nav "list"}}" href="/tickets">{{call .T "nav.list"}}</a>
     <a class="{{activeNav .Nav "new"}}" href="/tickets/new">{{call .T "nav.new"}}</a>
     <a class="{{activeNav .Nav "templates"}}" href="/templates">{{call .T "nav.templates"}}</a>
-    <a class="{{activeNav .Nav "categories"}}" href="/categories">{{call .T "nav.categories"}}</a>
     <a class="{{activeNav .Nav "tenants"}}" href="/tenants">{{call .T "nav.tenants"}}</a>
     {{else if and .User (eq .User.Role "cliente")}}
     <a class="{{activeNav .Nav "portal"}}" href="/portal">{{call .T "nav.portal"}}</a>
+    <a class="{{activeNav .Nav "new"}}" href="/tickets/new">{{call .T "nav.new"}}</a>
     {{else}}
     <a class="{{activeNav .Nav "login"}}" href="/login">{{call .T "nav.login"}}</a>
     {{end}}
@@ -375,6 +375,12 @@
   .tpl-card.is-selected { border-color: var(--ink); background: var(--panel); }
   .tpl-card h3 { font-family: "Newsreader", serif; font-size: 1.1rem; margin: 0 0 .35rem; }
   .tpl-card p { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.45; }
+  .class-auto-box {
+    display: flex; flex-direction: column; gap: .2rem;
+    padding: .75rem .9rem; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel-2); margin-bottom: .15rem;
+  }
+  .class-auto-box strong { color: var(--ink); font-size: .95rem; }
   .stage-list { list-style: none; padding: 0; margin: 0 0 1rem; }
   .stage-list li {
     display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: .5rem; align-items: center;

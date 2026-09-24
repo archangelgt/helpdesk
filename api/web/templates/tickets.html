@@ -55,7 +55,7 @@
         {{range .Tickets}}
           <tr>
             <td><span class="badge">{{.Number}}</span></td>
-            <td><a href="/tickets/{{.ID}}">{{.Subject}}</a><div class="muted" style="font-size:.8rem">{{labelType .Type}} · {{index $.CatNames .Category}}</div></td>
+            <td><a href="/tickets/{{.ID}}">{{.Subject}}</a><div class="muted" style="font-size:.8rem">{{labelType .Type}}{{if .Tenant}}{{with index $.TenantNames .Tenant}} · {{.}}{{end}}{{end}}</div></td>
             <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
             <td><span class="pill {{priorityClass .Priority}}">{{labelPriority .Priority}}</span></td>
             <td><a href="/tickets/{{.ID}}">{{call $.T "table.open"}}</a></td>
