@@ -31,47 +31,47 @@
     <form class="panel filters" method="get" action="/board" style="margin-bottom:1rem">
       <input type="hidden" name="group" value="{{.Group}}" />
       <div>
-        <label>Buscar</label>
-        <input name="q" value="{{.Filters.Q}}" placeholder="HD-00001, asunto…" />
+        <label>{{call .T "filter.search"}}</label>
+        <input name="q" value="{{.Filters.Q}}" placeholder="{{call .T "filter.search_ph"}}" />
       </div>
       <div>
-        <label>Tipo</label>
+        <label>{{call .T "filter.type"}}</label>
         <select name="type">
-          <option value="">Todos</option>
-          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType .}}</option>{{end}}
+          <option value="">{{call .T "filter.all"}}</option>
+          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType $.Lang .}}</option>{{end}}
         </select>
       </div>
       <div>
-        <label>Categoría</label>
+        <label>{{call .T "filter.category"}}</label>
         <select name="category">
-          <option value="">Todas</option>
+          <option value="">{{call .T "filter.all_f"}}</option>
           {{range .Categories}}<option value="{{.ID}}" {{selected $.Filters.CategoryID .ID}}>{{.Name}}</option>{{end}}
         </select>
       </div>
       <div>
-        <label>Empresa</label>
+        <label>{{call .T "filter.company"}}</label>
         <select name="tenant">
-          <option value="">Todas</option>
+          <option value="">{{call .T "filter.all_f"}}</option>
           {{range .Tenants}}<option value="{{.ID}}" {{selected $.Filters.TenantID .ID}}>{{.Name}}</option>{{end}}
         </select>
       </div>
       {{if ne .Group "priority"}}
       <div>
-        <label>Prioridad</label>
+        <label>{{call .T "filter.priority"}}</label>
         <select name="priority">
-          <option value="">Todas</option>
-          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
+          <option value="">{{call .T "filter.all_f"}}</option>
+          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority $.Lang .}}</option>{{end}}
         </select>
       </div>
       {{end}}
-      <div><button class="btn ghost" type="submit">Filtrar</button></div>
+      <div><button class="btn ghost" type="submit">{{call .T "filter.apply"}}</button></div>
     </form>
 
     <div class="board">
       {{range .Columns}}
       <section class="column column-{{.Key}}">
         <div class="column-head">
-          <h2>{{.Label}}</h2>
+          <h2>{{if eq $.Group "lane"}}{{call $.T (printf "lane.%s" .Key)}}{{else}}{{call $.T (printf "priority.%s" .Key)}}{{end}}</h2>
           <span class="count">{{len .Tickets}}</span>
         </div>
         {{if .Tickets}}
@@ -80,33 +80,31 @@
           <article class="card">
             <div class="card-top">
               <span class="badge">{{$card.Ticket.Number}}</span>
-              {{if $card.Progress.Overdue}}<span class="pill pr-crit">Atrasado</span>{{end}}
-              {{if $card.Progress.Finished}}<span class="pill st-done">Terminado</span>{{end}}
+              {{if $card.Progress.Overdue}}<span class="pill pr-crit">{{call $.T "lane.badge.overdue"}}</span>{{end}}
+              {{if $card.Progress.Finished}}<span class="pill st-done">{{call $.T "lane.badge.done"}}</span>{{end}}
             </div>
             <h3><a href="/tickets/{{$card.Ticket.ID}}">{{$card.Ticket.Subject}}</a></h3>
             <div class="card-meta">
-              <span class="pill">{{labelType $card.Ticket.Type}}</span>
+              <span class="pill">{{labelType $.Lang $card.Ticket.Type}}</span>
               <span class="pill">{{$card.CategoryName}}</span>
               {{if $card.Ticket.Assignee}}<span class="pill">{{$card.Ticket.Assignee}}</span>{{end}}
             </div>
             {{if $card.Progress.HasStages}}
             <div class="card-progress">
               <div class="progress-meta">
-                <span>{{$card.Progress.Label}} etapas</span>
+                <span>{{$card.Progress.Label}} {{call $.T "table.stages"}}</span>
                 <span>{{$card.Progress.Percent}}%</span>
               </div>
               <div class="progress-bar {{if $card.Progress.Finished}}is-done{{end}}"><span style="width:{{$card.Progress.Percent}}%"></span></div>
               {{if and $card.Progress.Current (not $card.Progress.Finished)}}
-              <div class="muted" style="font-size:.72rem;margin-top:.35rem">Ahora: {{$card.Progress.Current}}</div>
+              <div class="muted" style="font-size:.72rem;margin-top:.35rem">{{call $.T "board.now"}}: {{$card.Progress.Current}}</div>
               {{end}}
             </div>
-            {{else}}
-            <p class="muted" style="font-size:.78rem;margin:.35rem 0 0">Sin etapas</p>
             {{end}}
           </article>
           {{end}}
         {{else}}
-          <p class="muted" style="padding:.5rem;font-size:.85rem">Sin tickets</p>
+          <p class="muted" style="padding:.5rem;font-size:.85rem">{{call $.T "board.empty"}}</p>
         {{end}}
       </section>
       {{end}}

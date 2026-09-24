@@ -13,22 +13,31 @@
   <main class="page" style="max-width:560px">
     <h1>{{call .T "prefs.title"}}</h1>
     {{if .Flash}}<div class="flash">{{call .T "flash.saved"}}</div>{{end}}
-    <form class="panel" method="post" action="/prefs">
+    <form class="panel" method="post" action="/prefs" data-prefs-page>
+      <input type="hidden" name="next" value="/prefs" />
       <label>{{call .T "prefs.lang"}}</label>
-      <select name="lang">
+      <select name="lang" data-prefs-auto>
         <option value="es" {{selected .Lang "es"}}>Español</option>
         <option value="en" {{selected .Lang "en"}}>English</option>
         <option value="pt" {{selected .Lang "pt"}}>Português</option>
       </select>
       <label>{{call .T "prefs.theme"}}</label>
-      <select name="theme">
+      <select name="theme" data-prefs-auto>
         <option value="light" {{selected .Theme "light"}}>{{call .T "prefs.light"}}</option>
         <option value="dark" {{selected .Theme "dark"}}>{{call .T "prefs.dark"}}</option>
         <option value="auto" {{selected .Theme "auto"}}>{{call .T "prefs.auto"}}</option>
       </select>
-      <button class="btn" type="submit">{{call .T "prefs.save"}}</button>
     </form>
   </main>
+  <script>
+  (function () {
+    var form = document.querySelector("[data-prefs-page]");
+    if (!form) return;
+    form.querySelectorAll("[data-prefs-auto]").forEach(function (el) {
+      el.addEventListener("change", function () { form.submit(); });
+    });
+  })();
+  </script>
 </body>
 </html>
 {{end}}

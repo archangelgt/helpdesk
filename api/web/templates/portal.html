@@ -17,15 +17,20 @@
     <div class="panel">
       <table>
         <thead>
-          <tr><th>#</th><th></th><th></th><th></th></tr>
+          <tr>
+            <th>#</th>
+            <th>{{call .T "table.subject"}}</th>
+            <th>{{call .T "filter.status"}}</th>
+            <th>{{call .T "table.priority"}}</th>
+          </tr>
         </thead>
         <tbody>
         {{range .Tickets}}
           <tr>
             <td><a href="/portal/tickets/{{.ID}}"><strong>{{.Number}}</strong></a></td>
             <td>{{.Subject}}</td>
-            <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
-            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority .Priority}}</span></td>
+            <td><span class="pill {{statusClass .Status}}">{{labelStatus $.Lang .Status}}</span></td>
+            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority $.Lang .Priority}}</span></td>
           </tr>
         {{end}}
         </tbody>

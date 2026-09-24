@@ -240,11 +240,7 @@ func buildBoardColumns(group string, tickets []pb.Ticket, catNames map[string]st
 	}
 	out := make([]boardColumn, 0, len(keys))
 	for _, k := range keys {
-		label := laneLabel(k)
-		if group == "priority" {
-			label = labelPriority(k)
-		}
-		out = append(out, boardColumn{Key: k, Label: label, Tickets: buckets[k]})
+		out = append(out, boardColumn{Key: k, Label: k, Tickets: buckets[k]})
 	}
 	return out
 }
@@ -627,7 +623,7 @@ func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if returnTo == "board" {
-		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+labelStatus(status)), http.StatusSeeOther)
+		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+labelStatus(langFromRequest(r).String(), status)), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Estado cambiado a "+status), http.StatusSeeOther)
@@ -975,47 +971,25 @@ func firstN(items []pb.Ticket, n int) []pb.Ticket {
 	return items[:n]
 }
 
-func labelStatus(s string) string {
-	m := map[string]string{
-		"abierto": "Abierto", "pendiente": "Pendiente", "en_proceso": "En proceso",
-		"resuelto": "Resuelto", "cerrado": "Cerrado",
-	}
-	if v, ok := m[s]; ok {
-		return v
-	}
-	return s
+// label helpers: pass Lang as first arg from templates ({{labelStatus $.Lang .}}).
+func labelStatus(lang, s string) string {
+	return i18n.T(i18n.Parse(lang), "status."+s)
 }
 
-func labelPriority(s string) string {
-	m := map[string]string{"baja": "Baja", "media": "Media", "alta": "Alta", "critica": "Crítica"}
-	if v, ok := m[s]; ok {
-		return v
-	}
-	return s
+func labelPriority(lang, s string) string {
+	return i18n.T(i18n.Parse(lang), "priority."+s)
 }
 
-func labelType(s string) string {
-	m := map[string]string{"implementacion": "Implementación", "soporte": "Soporte"}
-	if v, ok := m[s]; ok {
-		return v
-	}
-	return s
+func labelType(lang, s string) string {
+	return i18n.T(i18n.Parse(lang), "type."+s)
 }
 
-func labelVis(s string) string {
-	m := map[string]string{"interno": "Interno", "cliente": "Cliente", "sistema": "Sistema"}
-	if v, ok := m[s]; ok {
-		return v
-	}
-	return s
+func labelVis(lang, s string) string {
+	return i18n.T(i18n.Parse(lang), "vis."+s)
 }
 
-func labelStage(s string) string {
-	m := map[string]string{"pendiente": "Pendiente", "en_curso": "En curso", "hecha": "Hecha", "pausada": "Pausada"}
-	if v, ok := m[s]; ok {
-		return v
-	}
-	return s
+func labelStage(lang, s string) string {
+	return i18n.T(i18n.Parse(lang), "stage."+s)
 }
 
 func statusClass(s string) string {

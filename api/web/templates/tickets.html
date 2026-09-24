@@ -13,58 +13,58 @@
   <main class="page">
     <div class="toolbar">
       <div>
-        <h1>Lista</h1>
-        <p class="lead" style="margin:0">Listado de tickets.</p>
+        <h1>{{call .T "list.title"}}</h1>
+        <p class="lead" style="margin:0">{{call .T "list.lead"}}</p>
       </div>
-      <a class="btn" href="/tickets/new">+ Nuevo ticket</a>
+      <a class="btn" href="/tickets/new">{{call .T "board.new"}}</a>
     </div>
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
     <form class="panel filters" method="get" action="/tickets" style="margin-bottom:1rem">
-      <div><label>Buscar</label><input name="q" value="{{.Filters.Q}}" /></div>
+      <div><label>{{call .T "filter.search"}}</label><input name="q" value="{{.Filters.Q}}" placeholder="{{call .T "filter.search_ph"}}" /></div>
       <div>
-        <label>Estado</label>
+        <label>{{call .T "filter.status"}}</label>
         <select name="status">
-          <option value="">Todos</option>
-          {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus .}}</option>{{end}}
+          <option value="">{{call .T "filter.all"}}</option>
+          {{range .Statuses}}<option value="{{.}}" {{selected $.Filters.Status .}}>{{labelStatus $.Lang .}}</option>{{end}}
         </select>
       </div>
       <div>
-        <label>Prioridad</label>
+        <label>{{call .T "filter.priority"}}</label>
         <select name="priority">
-          <option value="">Todas</option>
-          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority .}}</option>{{end}}
+          <option value="">{{call .T "filter.all_f"}}</option>
+          {{range .Priorities}}<option value="{{.}}" {{selected $.Filters.Priority .}}>{{labelPriority $.Lang .}}</option>{{end}}
         </select>
       </div>
       <div>
-        <label>Tipo</label>
+        <label>{{call .T "filter.type"}}</label>
         <select name="type">
-          <option value="">Todos</option>
-          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType .}}</option>{{end}}
+          <option value="">{{call .T "filter.all"}}</option>
+          {{range .Types}}<option value="{{.}}" {{selected $.Filters.Type .}}>{{labelType $.Lang .}}</option>{{end}}
         </select>
       </div>
-      <div><button class="btn ghost" type="submit">Filtrar</button></div>
+      <div><button class="btn ghost" type="submit">{{call .T "filter.apply"}}</button></div>
     </form>
 
     <div class="panel">
       {{if .Tickets}}
       <table>
-        <thead><tr><th>#</th><th>Asunto</th><th>Progreso</th><th>Prioridad</th><th></th></tr></thead>
+        <thead><tr><th>#</th><th>{{call .T "table.subject"}}</th><th>{{call .T "table.progress"}}</th><th>{{call .T "table.priority"}}</th><th></th></tr></thead>
         <tbody>
         {{range .Tickets}}
           <tr>
             <td><span class="badge">{{.Number}}</span></td>
-            <td><a href="/tickets/{{.ID}}">{{.Subject}}</a><div class="muted" style="font-size:.8rem">{{labelType .Type}} · {{index $.CatNames .Category}}</div></td>
-            <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
-            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority .Priority}}</span></td>
-            <td><a href="/tickets/{{.ID}}">abrir</a></td>
+            <td><a href="/tickets/{{.ID}}">{{.Subject}}</a><div class="muted" style="font-size:.8rem">{{labelType $.Lang .Type}} · {{index $.CatNames .Category}}</div></td>
+            <td><span class="pill {{statusClass .Status}}">{{labelStatus $.Lang .Status}}</span></td>
+            <td><span class="pill {{priorityClass .Priority}}">{{labelPriority $.Lang .Priority}}</span></td>
+            <td><a href="/tickets/{{.ID}}">{{call $.T "table.open"}}</a></td>
           </tr>
         {{end}}
         </tbody>
       </table>
       {{else}}
-      <p class="muted">Sin resultados.</p>
+      <p class="muted">{{call .T "board.empty"}}</p>
       {{end}}
     </div>
   </main>

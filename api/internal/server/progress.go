@@ -169,15 +169,3 @@ func ticketFinishedTooOld(t pb.Ticket) bool {
 	return false
 }
 
-func laneLabel(key string) string {
-	switch key {
-	case "atrasados":
-		return "Atrasados"
-	case "activos":
-		return "En curso"
-	case "terminados":
-		return "Terminados"
-	default:
-		return key
-	}
-}

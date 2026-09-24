@@ -16,7 +16,7 @@
     <div class="panel">
       {{if .Tenants}}
       <table>
-        <thead><tr><th>Nombre</th><th>Slug</th><th></th></tr></thead>
+        <thead><tr><th>{{call .T "table.name"}}</th><th>{{call .T "table.slug"}}</th><th></th></tr></thead>
         <tbody>
         {{range .Tenants}}
           <tr>

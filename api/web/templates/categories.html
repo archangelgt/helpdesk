@@ -11,24 +11,24 @@
 <body>
   {{template "nav" .}}
   <main class="page">
-    <h1>Categorías</h1>
-    <p class="lead">Clasificación de tickets por categoría.</p>
+    <h1>{{call .T "categories.title"}}</h1>
+    <p class="lead">{{call .T "categories.lead"}}</p>
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
     <div class="grid create-layout">
       <form class="panel" method="post" action="/categories">
-        <h2>Nueva</h2>
-        <label>Nombre</label>
-        <input name="name" required placeholder="desarrollo a medida" />
-        <label>Descripción</label>
+        <h2>{{call .T "common.new"}}</h2>
+        <label>{{call .T "common.name"}}</label>
+        <input name="name" required />
+        <label>{{call .T "table.description"}}</label>
         <textarea name="description"></textarea>
-        <button class="btn" type="submit">Crear</button>
+        <button class="btn" type="submit">{{call .T "common.save"}}</button>
       </form>
       <div class="panel">
-        <h2>Listado</h2>
+        <h2>{{call .T "table.list"}}</h2>
         {{if .Categories}}
         <table>
-          <thead><tr><th>Nombre</th><th>Descripción</th></tr></thead>
+          <thead><tr><th>{{call .T "table.name"}}</th><th>{{call .T "table.description"}}</th></tr></thead>
           <tbody>
           {{range .Categories}}
             <tr><td><strong>{{.Name}}</strong></td><td class="muted">{{.Description}}</td></tr>
@@ -36,7 +36,7 @@
           </tbody>
         </table>
         {{else}}
-        <p class="muted">Sin categorías.</p>
+        <p class="muted">—</p>
         {{end}}
       </div>
     </div>
