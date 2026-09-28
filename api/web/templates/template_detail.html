@@ -48,6 +48,13 @@
         <input name="subject_template" value="{{.Template.SubjectTemplate}}" />
         <label>{{call .T "templates.body"}}</label>
         <textarea name="body_template">{{.Template.BodyTemplate}}</textarea>
+        <label>{{call .T "templates.allowed_roles"}}</label>
+        <div class="check-grid">
+          {{range .Roles}}
+          <label class="check-inline"><input type="checkbox" name="allowed_roles" value="{{.}}" {{checked $.Template.AllowedRoles .}} /> {{call $.T (printf "role.%s" .)}}</label>
+          {{end}}
+        </div>
+        <p class="muted" style="font-size:.82rem;margin:.25rem 0 .9rem">{{call .T "templates.allowed_roles_hint"}}</p>
         <button class="btn" type="submit">{{call .T "common.save"}}</button>
       </form>
 

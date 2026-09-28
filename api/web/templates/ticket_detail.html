@@ -42,6 +42,7 @@
       <aside class="panel ticket-aside">
         <h2>{{call .T "ticket.details"}}</h2>
         <p class="section-lead">{{call .T "ticket.details_lead"}}</p>
+        {{if .CanEdit}}
         <form method="post" action="/tickets/{{.Ticket.ID}}/update">
           <label>{{call .T "common.subject"}}</label>
           <input name="subject" value="{{.Ticket.Subject}}" required />
@@ -72,6 +73,11 @@
           <input name="assignee" value="{{.Ticket.Assignee}}" />
           <button class="btn" type="submit">{{call .T "common.save"}}</button>
         </form>
+        {{else}}
+        <p style="margin:0 0 .5rem"><strong>{{.Ticket.Subject}}</strong></p>
+        <p class="muted" style="white-space:pre-wrap">{{.Ticket.Description}}</p>
+        <p class="muted" style="font-size:.85rem">{{call .T "users.no_edit"}}</p>
+        {{end}}
       </aside>
 
       <div class="ticket-main-stack">
@@ -320,11 +326,13 @@
             <p style="margin:0 0 .75rem">{{call .T "filter.status"}}: <strong>{{labelStatus .Ticket.Status}}</strong></p>
             {{if or (eq .Ticket.Status "resuelto") (eq .Ticket.Status "cerrado")}}
             <div class="flash" style="margin-bottom:.75rem">{{call .T "ticket.already_done"}} · {{labelStatus .Ticket.Status}}</div>
+            {{if .CanEdit}}
             <form method="post" action="/tickets/{{.Ticket.ID}}/status" enctype="multipart/form-data">
               <input type="hidden" name="status" value="en_proceso" />
               <button class="btn ghost" type="submit">{{call .T "ticket.reopen"}}</button>
             </form>
-            {{else}}
+            {{end}}
+            {{else if .CanEdit}}
             <div class="support-resolve-actions" style="margin-bottom:1rem">
               <form method="post" action="/tickets/{{.Ticket.ID}}/status" enctype="multipart/form-data">
                 <input type="hidden" name="status" value="en_proceso" />
@@ -335,10 +343,12 @@
                 <button class="btn ghost" type="submit">{{call .T "status.pendiente"}}</button>
               </form>
             </div>
+            {{else}}
+            <p class="muted" style="font-size:.85rem">{{call .T "users.no_edit"}}</p>
             {{end}}
           </div>
 
-          {{if not (or (eq .Ticket.Status "resuelto") (eq .Ticket.Status "cerrado"))}}
+          {{if and .CanResolve (not (or (eq .Ticket.Status "resuelto") (eq .Ticket.Status "cerrado")))}}
           <form class="resolve-finish-form" method="post" action="/tickets/{{.Ticket.ID}}/status" enctype="multipart/form-data">
             <h3>{{call .T "ticket.finish_title"}}</h3>
             <p class="muted" style="margin:0 0 .75rem;font-size:.88rem">{{call .T "ticket.finish_lead"}}</p>
@@ -352,11 +362,13 @@
             <label>{{call .T "ticket.finish_evidence"}}</label>
             <input type="file" name="evidence" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
             <p class="muted" style="margin:-.35rem 0 .9rem;font-size:.82rem">{{call .T "ticket.finish_evidence_hint"}}</p>
-            <input type="hidden" name="author" value="agente" />
             <button class="btn" type="submit">{{call .T "ticket.finish_submit"}}</button>
           </form>
+          {{else if and (not .CanResolve) (not (or (eq .Ticket.Status "resuelto") (eq .Ticket.Status "cerrado")))}}
+          <div class="muted files-owner-hint">{{call .T "users.no_resolve"}}</div>
           {{end}}
 
+          {{if .CanEdit}}
           <div class="resolve-comment-box">
             <h3>{{call .T "ticket.comment"}}</h3>
             <form method="post" action="/tickets/{{.Ticket.ID}}/comments">
@@ -366,12 +378,13 @@
                 <option value="cliente">{{call .T "vis.cliente"}}</option>
               </select>
               <label>{{call .T "ticket.author"}}</label>
-              <input name="author" value="agente" />
+              <input name="author" value="{{if .User}}{{.User.Email}}{{else}}agente{{end}}" />
               <label>{{call .T "ticket.message"}}</label>
               <textarea name="body" required placeholder="{{call .T "ticket.work_comment_ph"}}"></textarea>
               <button class="btn ghost" type="submit">{{call .T "ticket.publish"}}</button>
             </form>
           </div>
+          {{end}}
         </section>
       </div>
     </div>

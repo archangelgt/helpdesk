@@ -14,18 +14,22 @@
     <p class="muted" style="margin:0 0 .5rem"><a href="/portal">{{call .T "portal.back"}}</a></p>
     <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.35rem">
       <span class="badge">{{.Ticket.Number}}</span>
+      <span class="pill {{statusClass .Ticket.Status}}">{{labelStatus .Ticket.Status}}</span>
       <span class="pill {{priorityClass .Ticket.Priority}}">{{labelPriority .Ticket.Priority}}</span>
+      <span class="pill">{{labelType .Ticket.Type}}</span>
     </div>
     <h1>{{.Ticket.Subject}}</h1>
-    <p class="lead">{{labelType .Ticket.Type}}</p>
+    <p class="lead">{{call .T "portal.your_case"}}</p>
     {{if .Progress.HasStages}}
     <div class="progress-block" style="max-width:28rem;margin-bottom:1rem">
       <div class="progress-meta">
-        <span><strong>{{.Progress.Label}}</strong> {{call .T "table.stages"}}</span>
-        <span><strong>{{.Progress.Percent}}%</strong></span>
+        <span>{{call .T "ticket.progress"}} · <strong>{{.Progress.Label}}</strong> {{call .T "table.stages"}}</span>
+        <span><strong>{{.Progress.Percent}}%</strong>{{if .Progress.Current}} · {{.Progress.Current}}{{end}}</span>
       </div>
       <div class="progress-bar {{if eq .Progress.Percent 100}}is-done{{end}}"><span style="width:{{.Progress.Percent}}%"></span></div>
     </div>
+    {{else}}
+    <p class="muted" style="margin:0 0 1rem">{{call .T "portal.support_progress"}}</p>
     {{end}}
     {{if .Flash}}<div class="flash">OK</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
@@ -61,7 +65,7 @@
           {{end}}
         </div>
         {{else}}
-        <p class="muted">—</p>
+        <p class="muted">{{call .T "portal.no_stages"}}</p>
         {{end}}
       </div>
       <div class="panel">

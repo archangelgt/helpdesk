@@ -142,7 +142,7 @@ func (s *Server) requireAuth(roles ...string) func(http.Handler) http.Handler {
 				return
 			}
 			if len(roleSet) > 0 && !roleSet[u.Role] {
-				if u.Role == "cliente" {
+				if u.IsCliente() {
 					http.Redirect(w, r, "/portal", http.StatusSeeOther)
 					return
 				}
@@ -168,6 +168,9 @@ func (s *Server) pageBase(r *http.Request, extra map[string]any) map[string]any 
 		"T":      i18n.Func(lang),
 		"User":   u,
 		"IsAuth": u != nil,
+	}
+	for k, v := range permFlags(u) {
+		m[k] = v
 	}
 	for k, v := range extra {
 		m[k] = v

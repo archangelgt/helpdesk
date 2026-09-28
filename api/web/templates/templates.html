@@ -41,6 +41,13 @@
         <input name="subject_template" />
         <label>{{call .T "templates.body"}}</label>
         <textarea name="body_template"></textarea>
+        <label>{{call .T "templates.allowed_roles"}}</label>
+        <div class="check-grid">
+          {{range .Roles}}
+          <label class="check-inline"><input type="checkbox" name="allowed_roles" value="{{.}}" {{if eq . "maestro"}}checked{{end}} /> {{call $.T (printf "role.%s" .)}}</label>
+          {{end}}
+        </div>
+        <p class="muted" style="font-size:.82rem;margin:.25rem 0 .9rem">{{call .T "templates.allowed_roles_hint"}}</p>
         <button class="btn" type="submit">{{call .T "templates.create"}}</button>
       </form>
 
@@ -48,7 +55,7 @@
         <h2>{{call .T "table.list"}}</h2>
         {{if .Templates}}
         <table>
-          <thead><tr><th>{{call .T "table.name"}}</th><th>{{call .T "table.type"}}</th><th></th></tr></thead>
+          <thead><tr><th>{{call .T "table.name"}}</th><th>{{call .T "table.type"}}</th><th>{{call .T "templates.allowed_roles"}}</th><th></th></tr></thead>
           <tbody>
           {{range .Templates}}
             <tr>
@@ -56,6 +63,9 @@
                 {{if .Description}}<div class="muted" style="font-size:.85rem;margin-top:.2rem">{{.Description}}</div>{{end}}
               </td>
               <td>{{labelType .Type}}</td>
+              <td class="muted" style="font-size:.82rem">
+                {{range $i, $r := .AllowedRoles}}{{if $i}}, {{end}}{{call $.T (printf "role.%s" $r)}}{{else}}—{{end}}
+              </td>
               <td style="text-align:right;white-space:nowrap">
                 <a href="/tickets/new?template={{.ID}}">{{call $.T "templates.use"}} →</a>
               </td>

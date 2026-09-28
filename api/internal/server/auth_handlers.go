@@ -11,11 +11,7 @@ import (
 
 func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	if u := s.loadUser(r); u != nil {
-		if u.Role == "cliente" {
-			http.Redirect(w, r, "/portal", http.StatusSeeOther)
-			return
-		}
-		http.Redirect(w, r, "/board", http.StatusSeeOther)
+		http.Redirect(w, r, homeForUser(u), http.StatusSeeOther)
 		return
 	}
 	s.render(w, "login.html", s.pageBase(r, map[string]any{
@@ -48,21 +44,17 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
 		return
 	}
-	// Cliente debe pertenecer a la empresa del seraph_id (NIT). Maestro puede entrar con cualquier NIT válido.
-	if u.Role == "cliente" && u.Tenant != tenant.ID {
+	// Cliente/agente con tenant deben coincidir con el NIT. Maestro puede usar cualquier NIT válido.
+	if u.Role != pb.RoleMaestro && u.Tenant != "" && u.Tenant != tenant.ID {
 		http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
 		return
 	}
 	s.setSession(w, u.ID)
 	if next == "" {
-		if u.Role == "cliente" {
-			next = "/portal"
-		} else {
-			next = "/board"
-		}
+		next = homeForUser(u)
 	}
 	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		next = "/board"
+		next = homeForUser(u)
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -74,11 +66,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRegisterPage(w http.ResponseWriter, r *http.Request) {
 	if u := s.loadUser(r); u != nil {
-		if u.Role == "cliente" {
-			http.Redirect(w, r, "/portal", http.StatusSeeOther)
-			return
-		}
-		http.Redirect(w, r, "/board", http.StatusSeeOther)
+		http.Redirect(w, r, homeForUser(u), http.StatusSeeOther)
 		return
 	}
 	s.render(w, "register.html", s.pageBase(r, map[string]any{
@@ -125,7 +113,7 @@ func (s *Server) handleRegisterForm(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = strings.Split(email, "@")[0]
 	}
-	if _, err := s.pb.CreateUser(r.Context(), email, name, pass, "cliente", tenant.ID); err != nil {
+	if _, err := s.pb.CreateUser(r.Context(), email, name, pass, pb.RoleCliente, tenant.ID, pb.DefaultPermissions(pb.RoleCliente)); err != nil {
 		http.Redirect(w, r, "/register?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}

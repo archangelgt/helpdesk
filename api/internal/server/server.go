@@ -70,6 +70,22 @@ func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 			}
 			return ""
 		},
+		"contains": func(list []string, want string) bool {
+			for _, v := range list {
+				if v == want {
+					return true
+				}
+			}
+			return false
+		},
+		"checked": func(list []string, want string) template.HTMLAttr {
+			for _, v := range list {
+				if v == want {
+					return "checked"
+				}
+			}
+			return ""
+		},
 		"call": func(fn func(string) string, key string) string {
 			if fn == nil {
 				return key
@@ -103,7 +119,7 @@ func (s *Server) Routes() http.Handler {
 	r.Post("/prefs", s.handlePrefsForm)
 
 	r.Route("/portal", func(pr chi.Router) {
-		pr.Use(s.requireAuth("cliente", "maestro"))
+		pr.Use(s.requireAuth(pb.RoleCliente, pb.RoleMaestro, pb.RoleAgente))
 		pr.Get("/", s.handlePortal)
 		pr.Get("/tickets/{id}", s.handlePortalTicket)
 		pr.Post("/tickets/{id}/comments", s.handlePortalComment)
@@ -116,24 +132,12 @@ func (s *Server) Routes() http.Handler {
 		api.Post("/tickets/{id}/comments", s.ingestAddComment)
 	})
 
+	// Tablero y trabajo de tickets: maestro y agente.
 	r.Group(func(staff chi.Router) {
-		staff.Use(s.requireAuth("maestro"))
+		staff.Use(s.requireAuth(pb.RoleMaestro, pb.RoleAgente))
 
 		staff.Get("/", s.handleBoard)
 		staff.Get("/board", s.handleBoard)
-		staff.Get("/categories", s.handleCategoriesPage)
-		staff.Post("/categories", s.handleCreateCategoryForm)
-		staff.Get("/tenants", s.handleTenantsPage)
-		staff.Post("/tenants", s.handleCreateTenantForm)
-		staff.Post("/tenants/update", s.handleUpdateTenantForm)
-
-		staff.Get("/templates", s.handleTemplatesPage)
-		staff.Post("/templates", s.handleCreateTemplateForm)
-		staff.Get("/templates/{id}", s.handleTemplateDetail)
-		staff.Post("/templates/{id}/update", s.handleUpdateTemplateForm)
-		staff.Post("/templates/{id}/stages", s.handleAddTemplateStage)
-		staff.Post("/templates/{id}/stages/{stageID}/delete", s.handleDeleteTemplateStage)
-
 		staff.Get("/tickets", s.handleTicketsPage)
 		staff.Get("/tickets/{id}", s.handleTicketDetail)
 		staff.Post("/tickets/{id}/update", s.handleTicketUpdate)
@@ -160,9 +164,31 @@ func (s *Server) Routes() http.Handler {
 		})
 	})
 
-	// Crear ticket: maestro y cliente (clasificación automática para cliente).
+	// Administración: plantillas, empresas, usuarios (permiso admin).
+	r.Group(func(admin chi.Router) {
+		admin.Use(s.requireAuth(pb.RoleMaestro, pb.RoleAgente))
+		admin.Use(s.requirePerm(pb.PermAdmin))
+
+		admin.Get("/categories", s.handleCategoriesPage)
+		admin.Post("/categories", s.handleCreateCategoryForm)
+		admin.Get("/tenants", s.handleTenantsPage)
+		admin.Post("/tenants", s.handleCreateTenantForm)
+		admin.Post("/tenants/update", s.handleUpdateTenantForm)
+		admin.Get("/templates", s.handleTemplatesPage)
+		admin.Post("/templates", s.handleCreateTemplateForm)
+		admin.Get("/templates/{id}", s.handleTemplateDetail)
+		admin.Post("/templates/{id}/update", s.handleUpdateTemplateForm)
+		admin.Post("/templates/{id}/stages", s.handleAddTemplateStage)
+		admin.Post("/templates/{id}/stages/{stageID}/delete", s.handleDeleteTemplateStage)
+		admin.Get("/users", s.handleUsersPage)
+		admin.Post("/users", s.handleCreateUserForm)
+		admin.Post("/users/{id}/update", s.handleUpdateUserForm)
+	})
+
+	// Crear ticket: cualquier rol autenticado con permiso crear.
 	r.Group(func(create chi.Router) {
-		create.Use(s.requireAuth("maestro", "cliente"))
+		create.Use(s.requireAuth(pb.RoleMaestro, pb.RoleAgente, pb.RoleCliente))
+		create.Use(s.requirePerm(pb.PermCrear))
 		create.Get("/tickets/new", s.handleNewTicketPage)
 		create.Post("/tickets", s.handleCreateTicketForm)
 	})
@@ -314,28 +340,23 @@ func (s *Server) handleTicketsPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleNewTicketPage(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
-	isAdmin := u != nil && u.Role == "maestro"
+	isMaestro := u != nil && u.Role == pb.RoleMaestro
 	tenants, _ := s.pb.ListTenants(r.Context())
-	templates, _ := s.pb.ListTemplates(r.Context())
-	if !isAdmin {
-		// Clientes solo ven plantillas de soporte (y en blanco).
-		filtered := make([]pb.TicketTemplate, 0, len(templates))
-		for _, t := range templates {
-			if t.Type == "soporte" {
-				filtered = append(filtered, t)
-			}
+	allTpl, _ := s.pb.ListTemplates(r.Context())
+	templates := make([]pb.TicketTemplate, 0, len(allTpl))
+	for _, t := range allTpl {
+		tt := t
+		if pb.CanUseTemplate(u, &tt) {
+			templates = append(templates, t)
 		}
-		templates = filtered
 	}
 	tplID := r.URL.Query().Get("template")
 	var selected *pb.TicketTemplate
 	var tplStages []pb.TemplateStage
 	if tplID != "" {
-		if t, e := s.pb.GetTemplate(r.Context(), tplID); e == nil {
-			if isAdmin || t.Type == "soporte" {
-				selected = t
-				tplStages, _ = s.pb.ListTemplateStages(r.Context(), tplID)
-			}
+		if t, e := s.pb.GetTemplate(r.Context(), tplID); e == nil && pb.CanUseTemplate(u, t) {
+			selected = t
+			tplStages, _ = s.pb.ListTemplateStages(r.Context(), tplID)
 		}
 	}
 	var userTenant *pb.Tenant
@@ -361,7 +382,7 @@ func (s *Server) handleNewTicketPage(w http.ResponseWriter, r *http.Request) {
 		"SelectedTpl":    selected,
 		"TemplateStages": tplStages,
 		"Flow":           flow,
-		"IsAdmin":        isAdmin,
+		"IsAdmin":        isMaestro,
 		"UserTenant":     userTenant,
 		"Priorities":     priorities,
 		"Types":          ticketTypes,
@@ -372,7 +393,8 @@ func (s *Server) handleNewTicketPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
-	isAdmin := u != nil && u.Role == "maestro"
+	isMaestro := u != nil && u.Role == pb.RoleMaestro
+	isStaff := u != nil && u.IsStaff()
 	lang := langFromRequest(r)
 
 	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
@@ -401,23 +423,23 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 			http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 			return
 		}
-		if !isAdmin && tpl.Type != "soporte" {
+		if !pb.CanUseTemplate(u, tpl) {
 			http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(i18n.T(lang, "err.forbidden")), http.StatusSeeOther)
 			return
 		}
 		ticketType = tpl.Type
-		if priority == "" || priority == "media" {
-			// keep form priority; only fill if empty was intended — form always sends one
-		}
 		if priority == "" {
 			priority = tpl.Priority
 		}
 	}
 
-	if !isAdmin {
+	// Solo maestros eligen implementación en blanco / plantillas de proyecto.
+	if !isMaestro {
 		ticketType = "soporte"
 		if u != nil {
-			tenantID = u.Tenant
+			if u.Tenant != "" {
+				tenantID = u.Tenant
+			}
 			requesterEmail = u.Email
 		}
 	}
@@ -427,16 +449,12 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	if requesterEmail == "" && u != nil {
 		requesterEmail = u.Email
 	}
+	if ticketType == "implementacion" && !isMaestro {
+		http.Redirect(w, r, "/tickets/new?err="+url.QueryEscape(i18n.T(lang, "err.forbidden")), http.StatusSeeOther)
+		return
+	}
 
 	isSupport := ticketType == "soporte"
-	if isSupport {
-		// Soporte no copia etapas aunque la plantilla las tuviera.
-		if templateID != "" {
-			if tpl, err := s.pb.GetTemplate(r.Context(), templateID); err == nil && tpl.Type == "soporte" {
-				// keep template_id only for subject/body defaults; create without stages path below
-			}
-		}
-	}
 
 	var t *pb.Ticket
 	var err error
@@ -496,7 +514,7 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 		author := "solicitante"
 		if u != nil && u.Email != "" {
 			author = strings.ToLower(strings.TrimSpace(u.Email))
-		} else if isAdmin {
+		} else if isStaff {
 			author = "agente"
 		}
 		for _, hdr := range files {
@@ -515,7 +533,7 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	}
 
 	_ = s.syncTicketFromStages(r, t.ID)
-	if !isAdmin {
+	if !isStaff {
 		http.Redirect(w, r, "/portal/tickets/"+t.ID+"?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
 		return
 	}
@@ -541,6 +559,7 @@ func (s *Server) handleTemplatesPage(w http.ResponseWriter, r *http.Request) {
 		"Templates":  items,
 		"Types":      ticketTypes,
 		"Priorities": priorities,
+		"Roles":      pb.AllRoles,
 		"Error":      errMsg,
 		"Flash":      r.URL.Query().Get("ok"),
 	}))
@@ -571,6 +590,7 @@ func (s *Server) handleCreateTemplateForm(w http.ResponseWriter, r *http.Request
 		defaultSelect(r.FormValue("priority"), "media"),
 		r.FormValue("subject_template"),
 		r.FormValue("body_template"),
+		parseFormRoles(r, "allowed_roles"),
 	)
 	if err != nil {
 		http.Redirect(w, r, "/templates?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
@@ -594,6 +614,7 @@ func (s *Server) handleTemplateDetail(w http.ResponseWriter, r *http.Request) {
 		"Stages":      stages,
 		"Types":       ticketTypes,
 		"Priorities":  priorities,
+		"Roles":       pb.AllRoles,
 		"StageStates": stageStates,
 		"Flash":       r.URL.Query().Get("ok"),
 		"Error":       r.URL.Query().Get("err"),
@@ -621,6 +642,7 @@ func (s *Server) handleUpdateTemplateForm(w http.ResponseWriter, r *http.Request
 		defaultSelect(r.FormValue("priority"), "media"),
 		r.FormValue("subject_template"),
 		r.FormValue("body_template"),
+		parseFormRoles(r, "allowed_roles"),
 	); err != nil {
 		http.Redirect(w, r, "/templates/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
@@ -772,6 +794,12 @@ func canAddCaseFiles(u *pb.AppUser, t *pb.Ticket, files []pb.Attachment) bool {
 
 func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	lang := langFromRequest(r)
+	u := userFrom(r.Context())
+	if u == nil || !u.HasPerm(pb.PermEditar) {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.forbidden")), http.StatusSeeOther)
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err=form", http.StatusSeeOther)
 		return
@@ -810,6 +838,7 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	lang := langFromRequest(r)
+	u := userFrom(r.Context())
 	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
 		if err2 := r.ParseForm(); err2 != nil {
 			http.Redirect(w, r, "/tickets/"+id+"?err=form", http.StatusSeeOther)
@@ -820,8 +849,22 @@ func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 	returnTo := strings.TrimSpace(r.FormValue("return_to"))
 	commentBody := strings.TrimSpace(r.FormValue("comment"))
 	author := defaultSelect(r.FormValue("author"), "agente")
+	if u != nil && u.Email != "" {
+		author = strings.ToLower(strings.TrimSpace(u.Email))
+	}
 	if status == "" {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape("estado requerido"), http.StatusSeeOther)
+		return
+	}
+	// Terminar (resuelto/cerrado) exige permiso resolver; otros cambios de estado, editar.
+	needsResolve := status == "resuelto" || status == "cerrado"
+	if needsResolve {
+		if u == nil || !u.HasPerm(pb.PermResolver) {
+			http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.no_resolve")), http.StatusSeeOther)
+			return
+		}
+	} else if u == nil || !u.HasPerm(pb.PermEditar) {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.forbidden")), http.StatusSeeOther)
 		return
 	}
 	upd := pb.TicketUpdate{Status: &status}
@@ -1206,6 +1249,40 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeErr(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
+}
+
+func parseFormRoles(r *http.Request, key string) []string {
+	vals := r.Form[key]
+	out := make([]string, 0, len(vals))
+	seen := map[string]bool{}
+	for _, v := range vals {
+		v = strings.TrimSpace(v)
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
+}
+
+func parseFormPerms(r *http.Request) []string {
+	vals := r.Form["permissions"]
+	out := make([]string, 0, len(vals))
+	seen := map[string]bool{}
+	allowed := map[string]bool{}
+	for _, p := range pb.AllPermissions {
+		allowed[p] = true
+	}
+	for _, v := range vals {
+		v = strings.TrimSpace(v)
+		if !allowed[v] || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
 }
 
 func defaultSelect(v, fallback string) string {

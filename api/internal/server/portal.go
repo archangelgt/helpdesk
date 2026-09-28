@@ -97,7 +97,7 @@ func portalCanView(u *pb.AppUser, t *pb.Ticket) bool {
 	if u == nil || t == nil {
 		return false
 	}
-	if u.Role == "maestro" {
+	if u.IsStaff() {
 		return true
 	}
 	if t.Requester == u.ID {

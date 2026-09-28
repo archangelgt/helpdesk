@@ -21,15 +21,16 @@ type Tenant struct {
 }
 
 type AppUser struct {
-	ID           string `json:"id"`
-	Email        string `json:"email"`
-	Name         string `json:"name"`
-	PasswordHash string `json:"password_hash"`
-	Role         string `json:"role"` // maestro | cliente
-	Tenant       string `json:"tenant"`
-	Active       bool   `json:"active"`
-	Created      string `json:"created"`
-	Updated      string `json:"updated"`
+	ID           string   `json:"id"`
+	Email        string   `json:"email"`
+	Name         string   `json:"name"`
+	PasswordHash string   `json:"password_hash"`
+	Role         string   `json:"role"` // maestro | agente | cliente
+	Permissions  []string `json:"permissions"`
+	Tenant       string   `json:"tenant"`
+	Active       bool     `json:"active"`
+	Created      string   `json:"created"`
+	Updated      string   `json:"updated"`
 }
 
 type APIKey struct {
@@ -187,12 +188,19 @@ func (c *Client) GetUser(ctx context.Context, id string) (*AppUser, error) {
 	return &out, nil
 }
 
-func (c *Client) CreateUser(ctx context.Context, email, name, password, role, tenantID string) (*AppUser, error) {
+func (c *Client) CreateUser(ctx context.Context, email, name, password, role, tenantID string, permissions []string) (*AppUser, error) {
+	if role == "" {
+		role = RoleCliente
+	}
+	if permissions == nil {
+		permissions = DefaultPermissions(role)
+	}
 	payload := map[string]any{
 		"email":         strings.ToLower(strings.TrimSpace(email)),
 		"name":          strings.TrimSpace(name),
 		"password_hash": HashPassword(password),
 		"role":          role,
+		"permissions":   permissions,
 		"active":        true,
 	}
 	if tenantID != "" {
@@ -205,11 +213,54 @@ func (c *Client) CreateUser(ctx context.Context, email, name, password, role, te
 	return &out, nil
 }
 
-func (c *Client) EnsureUser(ctx context.Context, email, name, password, role, tenantID string) (*AppUser, error) {
-	if u, err := c.GetUserByEmail(ctx, email); err == nil {
-		return u, nil
+func (c *Client) UpdateUser(ctx context.Context, id, name, role, tenantID string, permissions []string, active bool) (*AppUser, error) {
+	payload := map[string]any{
+		"name":        strings.TrimSpace(name),
+		"role":        role,
+		"permissions": permissions,
+		"active":      active,
 	}
-	return c.CreateUser(ctx, email, name, password, role, tenantID)
+	if tenantID == "" {
+		payload["tenant"] = nil
+	} else {
+		payload["tenant"] = tenantID
+	}
+	var out AppUser
+	if err := c.doJSON(ctx, http.MethodPatch, "/api/collections/app_users/records/"+url.PathEscape(id), payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) ListUsers(ctx context.Context) ([]AppUser, error) {
+	var out listResponse[AppUser]
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/app_users/records?sort=email&perPage=200", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Items, nil
+}
+
+func (c *Client) EnsureUser(ctx context.Context, email, name, password, role, tenantID string) (*AppUser, error) {
+	return c.EnsureUserWithPerms(ctx, email, name, password, role, tenantID, nil)
+}
+
+func (c *Client) EnsureUserWithPerms(ctx context.Context, email, name, password, role, tenantID string, permissions []string) (*AppUser, error) {
+	if permissions == nil {
+		permissions = DefaultPermissions(role)
+	}
+	if u, err := c.GetUserByEmail(ctx, email); err == nil {
+		payload := map[string]any{
+			"role":        role,
+			"permissions": permissions,
+			"name":        strings.TrimSpace(name),
+		}
+		if tenantID != "" {
+			payload["tenant"] = tenantID
+		}
+		_ = c.doJSON(ctx, http.MethodPatch, "/api/collections/app_users/records/"+url.PathEscape(u.ID), payload, nil)
+		return c.GetUserByEmail(ctx, email)
+	}
+	return c.CreateUser(ctx, email, name, password, role, tenantID, permissions)
 }
 
 func (c *Client) FindAPIKeyByRaw(ctx context.Context, raw string) (*APIKey, error) {

@@ -134,7 +134,7 @@
 
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.4rem">
           <button class="btn" type="submit">{{if .SelectedTpl}}{{call .T "ticket.new.create_tpl"}}{{else}}{{call .T "ticket.new.create_blank"}}{{end}}</button>
-          <a class="btn ghost" href="{{if .IsAdmin}}/board{{else}}/portal{{end}}">{{call .T "common.cancel"}}</a>
+          <a class="btn ghost" href="{{if .IsStaff}}/board{{else}}/portal{{end}}">{{call .T "common.cancel"}}</a>
         </div>
       </form>
 

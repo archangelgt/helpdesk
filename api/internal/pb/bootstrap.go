@@ -77,12 +77,18 @@ func (c *Client) Bootstrap(ctx context.Context) error {
 	if err := c.ensureCollection(ctx, appUsersCollection(tenantColID)); err != nil {
 		return fmt.Errorf("app_users collection: %w", err)
 	}
+	if err := c.ensureAppUserFields(ctx, tenantColID); err != nil {
+		return fmt.Errorf("app_users fields: %w", err)
+	}
 	userColID, err := c.collectionID(ctx, "app_users")
 	if err != nil {
 		return fmt.Errorf("app_users id: %w", err)
 	}
 	if err := c.ensureTicketExtraFields(ctx, tenantColID, userColID); err != nil {
 		return fmt.Errorf("ticket requester field: %w", err)
+	}
+	if err := c.ensureTemplateFields(ctx); err != nil {
+		return fmt.Errorf("template fields: %w", err)
 	}
 	if err := c.ensureCollection(ctx, apiKeysCollection(tenantColID)); err != nil {
 		return fmt.Errorf("api_keys collection: %w", err)
@@ -176,13 +182,27 @@ func (c *Client) seedDemoData(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := c.EnsureUser(ctx, "maestro@helpdesk.local", "Maestro Helpdesk", "maestro123", "maestro", ""); err != nil {
+	// Maestro: todos los permisos.
+	if _, err := c.EnsureUserWithPerms(ctx, "maestro@helpdesk.local", "Maestro Helpdesk", "maestro123", RoleMaestro, "", DefaultPermissions(RoleMaestro)); err != nil {
 		return err
 	}
-	if _, err := c.EnsureUser(ctx, "cliente.cap@helpdesk.local", "Cliente Cap World", "cliente123", "cliente", cap.ID); err != nil {
+	// Agente: crea, edita y resuelve (tablero), sin admin.
+	if _, err := c.EnsureUserWithPerms(ctx, "agente@helpdesk.local", "Agente Cap World", "agente123", RoleAgente, cap.ID, []string{PermCrear, PermEditar, PermResolver}); err != nil {
 		return err
 	}
-	if _, err := c.EnsureUser(ctx, "cliente.power@helpdesk.local", "Cliente Power Tech", "cliente123", "cliente", power.ID); err != nil {
+	// Agente limitado: crea y edita, pero no puede terminar tickets.
+	if _, err := c.EnsureUserWithPerms(ctx, "agente.limite@helpdesk.local", "Agente sin resolver", "agente123", RoleAgente, cap.ID, []string{PermCrear, PermEditar}); err != nil {
+		return err
+	}
+	// Cliente: puede crear (blank/soporte) y ver avance en portal.
+	if _, err := c.EnsureUserWithPerms(ctx, "cliente.cap@helpdesk.local", "Cliente Cap World", "cliente123", RoleCliente, cap.ID, []string{PermCrear}); err != nil {
+		return err
+	}
+	// Cliente solo lectura: ve portal, no crea tickets.
+	if _, err := c.EnsureUserWithPerms(ctx, "cliente.lectura@helpdesk.local", "Cliente solo lectura", "cliente123", RoleCliente, cap.ID, []string{}); err != nil {
+		return err
+	}
+	if _, err := c.EnsureUserWithPerms(ctx, "cliente.power@helpdesk.local", "Cliente Power Tech", "cliente123", RoleCliente, power.ID, []string{PermCrear}); err != nil {
 		return err
 	}
 	if err := c.EnsureAPIKey(ctx, "Cap World chat/API", "hd_cap_demo_key_change_me", cap.ID, "chat"); err != nil {
@@ -247,6 +267,7 @@ func (c *Client) ensureDemoTemplates(ctx context.Context) error {
 		byName[strings.ToLower(strings.TrimSpace(t.Name))] = t
 	}
 
+	soporteRoles := []string{RoleMaestro, RoleAgente, RoleCliente}
 	if _, ok := byName["soporte"]; !ok {
 		tpl, err := c.CreateTemplate(ctx,
 			"Soporte",
@@ -256,13 +277,23 @@ func (c *Client) ensureDemoTemplates(ctx context.Context) error {
 			"media",
 			"",
 			"",
+			soporteRoles,
 		)
 		if err != nil {
 			return err
 		}
 		byName["soporte"] = *tpl
-	} else if t := byName["soporte"]; t.Category == "" {
-		_, _ = c.UpdateTemplate(ctx, t.ID, t.Name, t.Description, "soporte", supCat.ID, t.Priority, t.SubjectTemplate, t.BodyTemplate)
+	} else {
+		t := byName["soporte"]
+		roles := t.AllowedRoles
+		if len(roles) == 0 {
+			roles = soporteRoles
+		}
+		cat := t.Category
+		if cat == "" {
+			cat = supCat.ID
+		}
+		_, _ = c.UpdateTemplate(ctx, t.ID, t.Name, t.Description, "soporte", cat, t.Priority, t.SubjectTemplate, t.BodyTemplate, roles)
 	}
 
 	implName := "implementación erpsys"
@@ -272,6 +303,7 @@ func (c *Client) ensureDemoTemplates(ctx context.Context) error {
 	} else if existing, ok := byName["implementacion erpsys"]; ok {
 		implTpl = &existing
 	}
+	implRoles := []string{RoleMaestro}
 	if implTpl == nil {
 		tpl, err := c.CreateTemplate(ctx,
 			"Implementación erpsys",
@@ -281,13 +313,25 @@ func (c *Client) ensureDemoTemplates(ctx context.Context) error {
 			"media",
 			"Implementación erpsys — {{cliente}}",
 			"Proyecto de implementación erpsys para {{cliente}}.",
+			implRoles,
 		)
 		if err != nil {
 			return err
 		}
 		implTpl = tpl
-	} else if implTpl.Category == "" {
-		_, _ = c.UpdateTemplate(ctx, implTpl.ID, implTpl.Name, implTpl.Description, "implementacion", implCat.ID, implTpl.Priority, implTpl.SubjectTemplate, implTpl.BodyTemplate)
+	} else {
+		roles := implTpl.AllowedRoles
+		if len(roles) == 0 {
+			roles = implRoles
+		}
+		cat := implTpl.Category
+		if cat == "" {
+			cat = implCat.ID
+		}
+		updated, err := c.UpdateTemplate(ctx, implTpl.ID, implTpl.Name, implTpl.Description, "implementacion", cat, implTpl.Priority, implTpl.SubjectTemplate, implTpl.BodyTemplate, roles)
+		if err == nil {
+			implTpl = updated
+		}
 	}
 
 	stages, err := c.ListTemplateStages(ctx, implTpl.ID)
@@ -427,7 +471,11 @@ func appUsersCollection(tenantColID string) map[string]any {
 			{"name": "password_hash", "type": "text", "required": true, "max": 200},
 			{
 				"name": "role", "type": "select", "required": true, "maxSelect": 1,
-				"values": []string{"maestro", "cliente"},
+				"values": []string{RoleMaestro, RoleAgente, RoleCliente},
+			},
+			{
+				"name": "permissions", "type": "select", "required": false, "maxSelect": 4,
+				"values": AllPermissions,
 			},
 			{
 				"name": "tenant", "type": "relation", "required": false,
@@ -441,6 +489,108 @@ func appUsersCollection(tenantColID string) map[string]any {
 			"CREATE UNIQUE INDEX idx_app_users_email ON app_users (`email`)",
 		},
 	}
+}
+
+func (c *Client) ensureAppUserFields(ctx context.Context, tenantColID string) error {
+	if err := c.setSelectValues(ctx, "app_users", "role", AllRoles); err != nil {
+		return err
+	}
+	var meta collectionMeta
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/app_users", nil, &meta); err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for _, f := range meta.Fields {
+		if n, ok := f["name"].(string); ok {
+			have[n] = true
+		}
+	}
+	fields := append([]map[string]any{}, meta.Fields...)
+	changed := false
+	addedPermField := !have["permissions"]
+	if addedPermField {
+		fields = append(fields, map[string]any{
+			"name": "permissions", "type": "select", "required": false, "maxSelect": 4,
+			"values": AllPermissions,
+		})
+		changed = true
+	} else {
+		for i, f := range fields {
+			if f["name"] == "permissions" {
+				fields[i]["values"] = AllPermissions
+				fields[i]["maxSelect"] = 4
+				changed = true
+			}
+		}
+	}
+	_ = tenantColID
+	if changed {
+		if err := c.doJSON(ctx, http.MethodPatch, "/api/collections/app_users", map[string]any{"fields": fields}, nil); err != nil {
+			return err
+		}
+	}
+	// Solo al crear el campo por primera vez: rellenar defaults por rol.
+	if addedPermField {
+		var users listResponse[AppUser]
+		if err := c.doJSON(ctx, http.MethodGet, "/api/collections/app_users/records?perPage=200", nil, &users); err == nil {
+			for _, u := range users.Items {
+				perms := DefaultPermissions(u.Role)
+				if perms == nil {
+					perms = []string{}
+				}
+				_ = c.doJSON(ctx, http.MethodPatch, "/api/collections/app_users/records/"+u.ID, map[string]any{"permissions": perms}, nil)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) ensureTemplateFields(ctx context.Context) error {
+	var meta collectionMeta
+	if err := c.doJSON(ctx, http.MethodGet, "/api/collections/ticket_templates", nil, &meta); err != nil {
+		return err
+	}
+	have := map[string]bool{}
+	for _, f := range meta.Fields {
+		if n, ok := f["name"].(string); ok {
+			have[n] = true
+		}
+	}
+	fields := append([]map[string]any{}, meta.Fields...)
+	changed := false
+	if !have["allowed_roles"] {
+		fields = append(fields, map[string]any{
+			"name": "allowed_roles", "type": "select", "required": false, "maxSelect": 3,
+			"values": AllRoles,
+		})
+		changed = true
+	} else {
+		for i, f := range fields {
+			if f["name"] == "allowed_roles" {
+				fields[i]["values"] = AllRoles
+				fields[i]["maxSelect"] = 3
+				changed = true
+			}
+		}
+	}
+	if changed {
+		if err := c.doJSON(ctx, http.MethodPatch, "/api/collections/ticket_templates", map[string]any{"fields": fields}, nil); err != nil {
+			return err
+		}
+	}
+	templates, err := c.ListTemplates(ctx)
+	if err != nil {
+		return nil
+	}
+	for _, t := range templates {
+		if len(t.AllowedRoles) > 0 {
+			continue
+		}
+		_ = c.doJSON(ctx, http.MethodPatch, "/api/collections/ticket_templates/records/"+t.ID, map[string]any{
+			"allowed_roles": DefaultTemplateRoles(t.Type),
+		}, nil)
+	}
+	return nil
 }
 
 func apiKeysCollection(tenantColID string) map[string]any {
@@ -694,6 +844,10 @@ func ticketTemplatesCollection(categoryCollectionID string) map[string]any {
 			},
 			{"name": "subject_template", "type": "text", "required": false, "max": 200},
 			{"name": "body_template", "type": "text", "required": false, "max": 5000},
+			{
+				"name": "allowed_roles", "type": "select", "required": false, "maxSelect": 3,
+				"values": AllRoles,
+			},
 			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
 			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
 		},

@@ -472,16 +472,17 @@ func (c *Client) UpdateStage(ctx context.Context, id, name, estado string, orden
 }
 
 type TicketTemplate struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Description     string `json:"description"`
-	Type            string `json:"type"`
-	Category        string `json:"category"`
-	Priority        string `json:"priority"`
-	SubjectTemplate string `json:"subject_template"`
-	BodyTemplate    string `json:"body_template"`
-	Created         string `json:"created"`
-	Updated         string `json:"updated"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description"`
+	Type            string   `json:"type"`
+	Category        string   `json:"category"`
+	Priority        string   `json:"priority"`
+	SubjectTemplate string   `json:"subject_template"`
+	BodyTemplate    string   `json:"body_template"`
+	AllowedRoles    []string `json:"allowed_roles"`
+	Created         string   `json:"created"`
+	Updated         string   `json:"updated"`
 }
 
 type TemplateStage struct {
@@ -513,12 +514,15 @@ func (c *Client) GetTemplate(ctx context.Context, id string) (*TicketTemplate, e
 	return &out, nil
 }
 
-func (c *Client) CreateTemplate(ctx context.Context, name, description, ticketType, categoryID, priority, subjectTpl, bodyTpl string) (*TicketTemplate, error) {
+func (c *Client) CreateTemplate(ctx context.Context, name, description, ticketType, categoryID, priority, subjectTpl, bodyTpl string, allowedRoles []string) (*TicketTemplate, error) {
 	if priority == "" {
 		priority = "media"
 	}
 	if ticketType == "" {
 		ticketType = "implementacion"
+	}
+	if len(allowedRoles) == 0 {
+		allowedRoles = DefaultTemplateRoles(ticketType)
 	}
 	payload := map[string]any{
 		"name":             strings.TrimSpace(name),
@@ -527,6 +531,7 @@ func (c *Client) CreateTemplate(ctx context.Context, name, description, ticketTy
 		"priority":         priority,
 		"subject_template": strings.TrimSpace(subjectTpl),
 		"body_template":    strings.TrimSpace(bodyTpl),
+		"allowed_roles":    allowedRoles,
 	}
 	if strings.TrimSpace(categoryID) != "" {
 		payload["category"] = categoryID
@@ -538,7 +543,10 @@ func (c *Client) CreateTemplate(ctx context.Context, name, description, ticketTy
 	return &out, nil
 }
 
-func (c *Client) UpdateTemplate(ctx context.Context, id, name, description, ticketType, categoryID, priority, subjectTpl, bodyTpl string) (*TicketTemplate, error) {
+func (c *Client) UpdateTemplate(ctx context.Context, id, name, description, ticketType, categoryID, priority, subjectTpl, bodyTpl string, allowedRoles []string) (*TicketTemplate, error) {
+	if len(allowedRoles) == 0 {
+		allowedRoles = DefaultTemplateRoles(ticketType)
+	}
 	payload := map[string]any{
 		"name":             strings.TrimSpace(name),
 		"description":      strings.TrimSpace(description),
@@ -546,6 +554,7 @@ func (c *Client) UpdateTemplate(ctx context.Context, id, name, description, tick
 		"priority":         priority,
 		"subject_template": strings.TrimSpace(subjectTpl),
 		"body_template":    strings.TrimSpace(bodyTpl),
+		"allowed_roles":    allowedRoles,
 	}
 	if strings.TrimSpace(categoryID) != "" {
 		payload["category"] = categoryID

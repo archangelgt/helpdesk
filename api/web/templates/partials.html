@@ -1,16 +1,19 @@
 {{define "nav"}}
 <header class="topbar">
-  <div class="brand"><a href="{{if and .User (eq .User.Role "cliente")}}/portal{{else}}/board{{end}}">{{call .T "app.name"}}</a></div>
+  <div class="brand"><a href="{{if .IsStaff}}/board{{else if .User}}/portal{{else}}/login{{end}}">{{call .T "app.name"}}</a></div>
   <nav>
-    {{if and .User (eq .User.Role "maestro")}}
+    {{if .IsStaff}}
     <a class="{{activeNav .Nav "board"}}" href="/board">{{call .T "nav.board"}}</a>
     <a class="{{activeNav .Nav "list"}}" href="/tickets">{{call .T "nav.list"}}</a>
-    <a class="{{activeNav .Nav "new"}}" href="/tickets/new">{{call .T "nav.new"}}</a>
+    {{if .CanCreate}}<a class="{{activeNav .Nav "new"}}" href="/tickets/new">{{call .T "nav.new"}}</a>{{end}}
+    {{if .CanAdmin}}
     <a class="{{activeNav .Nav "templates"}}" href="/templates">{{call .T "nav.templates"}}</a>
     <a class="{{activeNav .Nav "tenants"}}" href="/tenants">{{call .T "nav.tenants"}}</a>
-    {{else if and .User (eq .User.Role "cliente")}}
+    <a class="{{activeNav .Nav "users"}}" href="/users">{{call .T "nav.users"}}</a>
+    {{end}}
+    {{else if .User}}
     <a class="{{activeNav .Nav "portal"}}" href="/portal">{{call .T "nav.portal"}}</a>
-    <a class="{{activeNav .Nav "new"}}" href="/tickets/new">{{call .T "nav.new"}}</a>
+    {{if .CanCreate}}<a class="{{activeNav .Nav "new"}}" href="/tickets/new">{{call .T "nav.new"}}</a>{{end}}
     {{else}}
     <a class="{{activeNav .Nav "login"}}" href="/login">{{call .T "nav.login"}}</a>
     {{end}}
@@ -694,6 +697,26 @@
     border: 1px dashed var(--line); background: var(--panel);
   }
   .upload-form { margin-top: .5rem; }
+  .check-grid {
+    display: flex; flex-direction: column; gap: .35rem;
+    margin: .25rem 0 .5rem;
+  }
+  .check-inline {
+    display: flex; align-items: center; gap: .45rem;
+    font-size: .88rem; font-weight: 500; text-transform: none;
+    margin: 0; cursor: pointer;
+  }
+  .check-inline input { width: auto; margin: 0; }
+  .user-list { display: flex; flex-direction: column; gap: .85rem; }
+  .user-card {
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: .9rem 1rem; background: var(--panel-2);
+  }
+  html[data-theme-resolved="light"] .user-card { background: #fff; }
+  .user-card-top {
+    display: flex; justify-content: space-between; gap: .75rem;
+    align-items: flex-start; margin-bottom: .65rem;
+  }
   .support-problem {
     padding: .85rem 1rem; border-radius: 14px;
     border: 1px solid var(--line); background: var(--panel-2);
