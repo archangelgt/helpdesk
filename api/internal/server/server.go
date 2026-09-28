@@ -733,15 +733,7 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 	if catID != "" {
 		upd.CategoryID = &catID
 	}
-	stagesCheck, _ := s.pb.ListStages(r.Context(), id)
-	isSupport := ticketType == "soporte"
-	// Soporte (o tickets sin etapas) puede cambiar estado desde el formulario.
-	if isSupport || len(stagesCheck) == 0 {
-		st := r.FormValue("status")
-		if st != "" {
-			upd.Status = &st
-		}
-	}
+	// El estado se cambia solo desde Atención y resolución (/status).
 	if _, err := s.pb.UpdateTicket(r.Context(), id, upd); err != nil {
 		s.log.Printf("update ticket: %v", err)
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
@@ -752,12 +744,17 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, "/tickets/"+id+"?err=form", http.StatusSeeOther)
-		return
+	lang := langFromRequest(r)
+	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
+		if err2 := r.ParseForm(); err2 != nil {
+			http.Redirect(w, r, "/tickets/"+id+"?err=form", http.StatusSeeOther)
+			return
+		}
 	}
 	status := strings.TrimSpace(r.FormValue("status"))
 	returnTo := strings.TrimSpace(r.FormValue("return_to"))
+	commentBody := strings.TrimSpace(r.FormValue("comment"))
+	author := defaultSelect(r.FormValue("author"), "agente")
 	if status == "" {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape("estado requerido"), http.StatusSeeOther)
 		return
@@ -771,17 +768,42 @@ func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, dest+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
+
+	// Evidencias opcionales al cambiar estado (resolución).
+	if r.MultipartForm != nil {
+		files := r.MultipartForm.File["evidence"]
+		if len(files) == 0 {
+			files = r.MultipartForm.File["file"]
+		}
+		for _, hdr := range files {
+			f, ferr := hdr.Open()
+			if ferr != nil {
+				continue
+			}
+			content, rerr := io.ReadAll(io.LimitReader(f, maxUploadBytes+1))
+			f.Close()
+			if rerr != nil || len(content) == 0 || len(content) > maxUploadBytes {
+				continue
+			}
+			ct := hdr.Header.Get("Content-Type")
+			_, _ = s.pb.CreateAttachment(r.Context(), id, "", "ticket", "evidencia:"+status, author, hdr.Filename, content, ct)
+		}
+	}
+	if commentBody != "" {
+		_, _ = s.pb.CreateComment(r.Context(), id, commentBody, "interno", author)
+	}
+
 	if returnTo == "board" {
-		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+i18n.T(langFromRequest(r), "status."+status)), http.StatusSeeOther)
+		http.Redirect(w, r, "/board?ok="+url.QueryEscape("Estado → "+i18n.T(lang, "status."+status)), http.StatusSeeOther)
 		return
 	}
-	msg := i18n.T(langFromRequest(r), "status."+status)
+	msg := i18n.T(lang, "status."+status)
 	if status == "resuelto" {
-		msg = i18n.T(langFromRequest(r), "flash.ticket_resolved")
+		msg = i18n.T(lang, "flash.ticket_resolved")
 	} else if status == "cerrado" {
-		msg = i18n.T(langFromRequest(r), "flash.ticket_closed")
+		msg = i18n.T(lang, "flash.ticket_closed")
 	} else if status == "en_proceso" || status == "abierto" {
-		msg = i18n.T(langFromRequest(r), "flash.ticket_reopened")
+		msg = i18n.T(lang, "flash.ticket_reopened")
 	}
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape(msg), http.StatusSeeOther)
 }
