@@ -618,6 +618,81 @@
     font-size: .88rem; padding: .45rem .65rem;
     border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
   }
+  .files-subhead {
+    margin: 0 0 .55rem; font-size: .92rem; font-weight: 650;
+  }
+  .case-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: .65rem;
+    margin: 0 0 1rem;
+  }
+  .case-gallery-item {
+    position: relative;
+    display: block; width: 100%; padding: 0; margin: 0;
+    border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; cursor: zoom-in;
+    background: var(--panel-2); aspect-ratio: 1;
+    transition: transform .18s ease, border-color .18s ease;
+  }
+  .case-gallery-item:hover,
+  .case-gallery-item:focus-visible {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent, #3b82f6) 55%, var(--line));
+    outline: none;
+  }
+  .case-gallery-item img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .case-gallery-cap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: .35rem .45rem; font-size: .72rem; line-height: 1.25;
+    color: #fff; text-align: left;
+    background: linear-gradient(transparent, rgba(0,0,0,.72));
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .case-lightbox {
+    border: none; padding: 0; max-width: min(96vw, 920px);
+    max-height: 92vh; background: transparent; color: #fff;
+  }
+  .case-lightbox::backdrop {
+    background: rgba(8, 12, 20, .82);
+    backdrop-filter: blur(3px);
+  }
+  .case-lightbox-figure {
+    margin: 0; display: flex; flex-direction: column; align-items: center;
+    gap: .55rem; padding: 2.5rem 2.75rem 1rem;
+  }
+  .case-lightbox-figure img {
+    max-width: min(90vw, 880px); max-height: 78vh;
+    object-fit: contain; border-radius: 8px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  .case-lightbox-figure figcaption {
+    font-size: .88rem; color: rgba(255,255,255,.85);
+    text-align: center; max-width: 40rem;
+  }
+  .case-lightbox-close {
+    position: absolute; top: .35rem; right: .35rem; z-index: 2;
+    width: 2.25rem; height: 2.25rem; border: none; border-radius: 999px;
+    background: rgba(255,255,255,.12); color: #fff; font-size: 1.35rem;
+    cursor: pointer; line-height: 1;
+  }
+  .case-lightbox-close:hover { background: rgba(255,255,255,.22); }
+  .case-lightbox-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 2.5rem; height: 2.5rem; border: none; border-radius: 999px;
+    background: rgba(255,255,255,.12); color: #fff; font-size: 1.6rem;
+    cursor: pointer; line-height: 1; z-index: 2;
+  }
+  .case-lightbox-nav:hover { background: rgba(255,255,255,.22); }
+  .case-lightbox-nav.prev { left: .15rem; }
+  .case-lightbox-nav.next { right: .15rem; }
+  .files-owner-hint {
+    margin: .75rem 0 0; font-size: .85rem;
+    padding: .65rem .8rem; border-radius: 10px;
+    border: 1px dashed var(--line); background: var(--panel);
+  }
   .upload-form { margin-top: .5rem; }
   .support-problem {
     padding: .85rem 1rem; border-radius: 14px;

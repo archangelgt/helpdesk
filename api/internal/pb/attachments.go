@@ -26,6 +26,32 @@ type Attachment struct {
 	Updated string `json:"updated"`
 }
 
+// MediaKind returns image | file based on the stored filename.
+func (a Attachment) MediaKind() string {
+	name := strings.ToLower(a.File)
+	switch {
+	case strings.HasSuffix(name, ".jpg"), strings.HasSuffix(name, ".jpeg"),
+		strings.HasSuffix(name, ".png"), strings.HasSuffix(name, ".gif"),
+		strings.HasSuffix(name, ".webp"), strings.HasSuffix(name, ".bmp"):
+		return "image"
+	default:
+		return "file"
+	}
+}
+
+func (a Attachment) IsImage() bool { return a.MediaKind() == "image" }
+
+// IsCaseFile is a user-facing case attachment (not stage evidence / resolve evidence).
+func (a Attachment) IsCaseFile() bool {
+	if a.Kind == "evidence" && a.Stage != "" {
+		return false
+	}
+	if strings.HasPrefix(a.Note, "evidencia:") {
+		return false
+	}
+	return true
+}
+
 func (c *Client) ListAttachments(ctx context.Context, ticketID string) ([]Attachment, error) {
 	q := url.Values{}
 	q.Set("filter", fmt.Sprintf("ticket='%s'", escapeFilter(ticketID)))

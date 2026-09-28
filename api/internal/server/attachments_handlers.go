@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/archangelgt/helpdesk/api/internal/i18n"
+	"github.com/archangelgt/helpdesk/api/internal/pb"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -16,12 +17,32 @@ const maxUploadBytes = 15 << 20
 func (s *Server) handleUploadTicketAttachment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	lang := langFromRequest(r)
+	u := userFrom(r.Context())
+	ticket, err := s.pb.GetTicket(r.Context(), id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	atts, _ := s.pb.ListAttachments(r.Context(), id)
+	caseFiles := make([]pb.Attachment, 0)
+	for _, a := range atts {
+		if a.IsCaseFile() {
+			caseFiles = append(caseFiles, a)
+		}
+	}
+	if !canAddCaseFiles(u, ticket, caseFiles) {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.files_owner_only")), http.StatusSeeOther)
+		return
+	}
 	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.upload")), http.StatusSeeOther)
 		return
 	}
 	note := strings.TrimSpace(r.FormValue("note"))
-	author := defaultSelect(r.FormValue("author"), "agente")
+	author := "agente"
+	if u != nil && u.Email != "" {
+		author = strings.ToLower(strings.TrimSpace(u.Email))
+	}
 	file, hdr, err := r.FormFile("file")
 	if err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.upload_required")), http.StatusSeeOther)

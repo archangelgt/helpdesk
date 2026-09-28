@@ -60,6 +60,10 @@ func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 		"statusClass":   statusClass,
 		"priorityClass": priorityClass,
 		"stageClass":    stageClass,
+		"isImage":       func(a pb.Attachment) bool { return a.IsImage() },
+		"fileURL": func(ticketID string, a pb.Attachment) string {
+			return "/tickets/" + ticketID + "/attachments/" + a.ID + "/file"
+		},
 		"activeNav": func(cur, want string) string {
 			if cur == want {
 				return "is-active"
@@ -677,13 +681,24 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	evidenceByStage := map[string][]pb.Attachment{}
 	ticketFiles := make([]pb.Attachment, 0)
+	caseImages := make([]pb.Attachment, 0)
+	caseDocs := make([]pb.Attachment, 0)
 	for _, a := range atts {
 		if a.Kind == "evidence" && a.Stage != "" {
 			evidenceByStage[a.Stage] = append(evidenceByStage[a.Stage], a)
+			continue
+		}
+		if !a.IsCaseFile() {
+			continue
+		}
+		ticketFiles = append(ticketFiles, a)
+		if a.IsImage() {
+			caseImages = append(caseImages, a)
 		} else {
-			ticketFiles = append(ticketFiles, a)
+			caseDocs = append(caseDocs, a)
 		}
 	}
+	u := userFrom(r.Context())
 	s.render(w, "ticket_detail.html", s.pageBase(r, map[string]any{
 		"Title":           ticket.Number,
 		"Nav":             "board",
@@ -695,6 +710,9 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 		"Progress":        computeProgress(stages),
 		"IsSupport":       isSupport,
 		"TicketFiles":     ticketFiles,
+		"CaseImages":      caseImages,
+		"CaseDocs":        caseDocs,
+		"CanAddCaseFiles": canAddCaseFiles(u, ticket, ticketFiles),
 		"EvidenceByStage": evidenceByStage,
 		"Statuses":        statuses,
 		"Priorities":      priorities,
@@ -703,6 +721,50 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 		"Flash":           r.URL.Query().Get("ok"),
 		"Error":           r.URL.Query().Get("err"),
 	}))
+}
+
+// canAddCaseFiles: only the user who owns/created the case images may add more.
+func canAddCaseFiles(u *pb.AppUser, t *pb.Ticket, files []pb.Attachment) bool {
+	if u == nil || t == nil {
+		return false
+	}
+	email := strings.ToLower(strings.TrimSpace(u.Email))
+	uid := strings.ToLower(strings.TrimSpace(u.ID))
+	name := strings.ToLower(strings.TrimSpace(u.Name))
+
+	isRequester := false
+	if t.Requester != "" && t.Requester == u.ID {
+		isRequester = true
+	}
+	if t.RequesterEmail != "" && strings.EqualFold(t.RequesterEmail, u.Email) {
+		isRequester = true
+	}
+
+	// files llegan ordenados por -created; el dueño es el autor del archivo más antiguo.
+	var owner string
+	for i := len(files) - 1; i >= 0; i-- {
+		a := strings.ToLower(strings.TrimSpace(files[i].Author))
+		if a == "" {
+			continue
+		}
+		owner = a
+		break
+	}
+	if owner == "" {
+		// Sin archivos aún: solo el solicitante del ticket (o cualquiera si no hay solicitante).
+		if t.Requester == "" && t.RequesterEmail == "" {
+			return true
+		}
+		return isRequester
+	}
+	if owner == email || owner == uid || owner == name {
+		return true
+	}
+	// Legado: uploads antiguos con author "agente" → solo el solicitante del ticket.
+	if owner == "agente" && isRequester {
+		return true
+	}
+	return false
 }
 
 func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
