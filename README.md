@@ -74,6 +74,20 @@ Borrar la base: `docker compose down -v` (destruye el volumen Docker).
 **Base de datos:** solo dentro de Docker — volumen `helpdesk_pb_data` → `/pb_data`. Sin bind al host del proyecto.
 
 
+## Deploy en erpsys (`support.erpsys.pro`)
+
+Solo **Docker** + **Apache** como reverse proxy (TLS en Apache → `127.0.0.1:3000` del contenedor).
+
+Guía completa: [docs/DEPLOY_ERPSYS.md](./docs/DEPLOY_ERPSYS.md).
+
+```bash
+# En el servidor erpsys
+cp .env.example .env   # secretos fuertes
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+sudo cp docker/apache/support.erpsys.pro.conf /etc/apache2/sites-available/
+sudo a2ensite support.erpsys.pro.conf && sudo systemctl reload apache2
+```
+
 ## Documentos
 
 | Doc | Contenido |
@@ -83,6 +97,7 @@ Borrar la base: `docker compose down -v` (destruye el volumen Docker).
 | [FEATURES.md](./FEATURES.md) | Capacidades |
 | [BOUNDARIES.md](./BOUNDARIES.md) | Qué no mezclar |
 | [docs/API_INGEST.md](./docs/API_INGEST.md) | Contrato API canales |
+| [docs/DEPLOY_ERPSYS.md](./docs/DEPLOY_ERPSYS.md) | Deploy Docker + Apache → support.erpsys.pro |
 
 ## Stack (obligatorio)
 

@@ -91,9 +91,10 @@ Cada canal: config por tenant, reintentos, trazas.
 
 ## Fase 6 — Docker en erpsys
 
-- Compose producción, secretos, proxy/TLS erpsys
-- Deploy documentado + smoke test
-- Verificación de adaptador ERPSYS Chat en el entorno real
+- [x] Compose producción (`docker-compose.prod.yml`), secretos, proxy/TLS Apache
+- [x] Deploy documentado: [docs/DEPLOY_ERPSYS.md](./docs/DEPLOY_ERPSYS.md) → `support.erpsys.pro`
+- [ ] Smoke test en el servidor erpsys real
+- [ ] Verificación de adaptador ERPSYS Chat en el entorno real
 
 ---
 
