@@ -366,14 +366,35 @@
     margin-bottom: 1.25rem;
   }
   .tpl-card {
-    display: block; background: var(--panel-2); border: 1px solid var(--line);
-    border-radius: 16px; padding: 1rem; color: inherit; text-decoration: none;
-    box-shadow: var(--shadow); transition: transform .15s ease, border-color .15s ease;
+    position: relative;
+    display: block; background: var(--panel-2); border: 2px solid var(--line);
+    border-radius: 16px; padding: 1rem 1rem 1.05rem; color: inherit; text-decoration: none;
+    box-shadow: var(--shadow);
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
   }
   html[data-theme-resolved="light"] .tpl-card { background: #fff; }
   .tpl-card:hover { transform: translateY(-2px); border-color: var(--accent); text-decoration: none; color: inherit; }
-  .tpl-card.is-selected { border-color: var(--ink); background: var(--panel); }
+  .tpl-card.is-selected {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent), var(--shadow);
+  }
+  html[data-theme-resolved="light"] .tpl-card.is-selected {
+    background: color-mix(in srgb, var(--accent) 8%, #fff);
+  }
+  .tpl-card.is-selected::after {
+    content: attr(data-selected-label);
+    position: absolute; top: .65rem; right: .7rem;
+    font-size: .68rem; font-weight: 700; letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border-radius: 999px;
+    padding: .2rem .55rem;
+    line-height: 1.2;
+  }
   .tpl-card h3 { font-family: "Newsreader", serif; font-size: 1.1rem; margin: 0 0 .35rem; }
+  .tpl-card.is-selected h3 { color: var(--ink); padding-right: 5.5rem; }
   .tpl-card p { margin: 0; color: var(--muted); font-size: .85rem; line-height: 1.45; }
   .class-auto-box {
     display: flex; flex-direction: column; gap: .2rem;

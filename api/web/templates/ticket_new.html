@@ -18,17 +18,25 @@
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
     <h2 style="margin-bottom:.65rem">{{call .T "ticket.new.start_tpl"}}</h2>
-    <div class="tpl-pick">
-      <a class="tpl-card {{if eq .Flow "blank"}}is-selected{{end}}" href="/tickets/new">
+    <p class="muted" style="margin:-.25rem 0 .85rem;font-size:.88rem">{{call .T "ticket.new.pick_hint"}}</p>
+    <div class="tpl-pick" role="listbox" aria-label="{{call .T "ticket.new.start_tpl"}}">
+      <a class="tpl-card {{if eq .Flow "blank"}}is-selected{{end}}"
+         href="/tickets/new"
+         role="option"
+         aria-selected="{{if eq .Flow "blank"}}true{{else}}false{{end}}"
+         data-selected-label="{{call .T "ticket.new.selected"}}">
         <h3>{{call .T "ticket.new.blank"}}</h3>
         <p>{{call .T "ticket.new.blank_lead"}}</p>
       </a>
       {{range .Templates}}
-      <a class="tpl-card {{if and $.SelectedTpl (eq $.SelectedTpl.ID .ID)}}is-selected{{end}}" href="/tickets/new?template={{.ID}}">
+      <a class="tpl-card {{if and $.SelectedTpl (eq $.SelectedTpl.ID .ID)}}is-selected{{end}}"
+         href="/tickets/new?template={{.ID}}"
+         role="option"
+         aria-selected="{{if and $.SelectedTpl (eq $.SelectedTpl.ID .ID)}}true{{else}}false{{end}}"
+         data-selected-label="{{call $.T "ticket.new.selected"}}">
         <h3>{{.Name}}</h3>
         <p>{{if .Description}}{{.Description}}{{else}}{{labelType .Type}} · {{labelPriority .Priority}}{{end}}</p>
       </a>
-      {{else}}
       {{end}}
     </div>
     {{if not .Templates}}
