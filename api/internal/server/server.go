@@ -486,14 +486,17 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Adjuntos al crear (soporte / capturas).
+	// Adjuntos al crear (soporte / capturas). El autor es el usuario que sube
+	// (email) para que solo él pueda agregar más imágenes del caso.
 	if r.MultipartForm != nil {
 		files := r.MultipartForm.File["files"]
 		if len(files) == 0 {
 			files = r.MultipartForm.File["file"]
 		}
 		author := "solicitante"
-		if isAdmin {
+		if u != nil && u.Email != "" {
+			author = strings.ToLower(strings.TrimSpace(u.Email))
+		} else if isAdmin {
 			author = "agente"
 		}
 		for _, hdr := range files {
@@ -760,8 +763,8 @@ func canAddCaseFiles(u *pb.AppUser, t *pb.Ticket, files []pb.Attachment) bool {
 	if owner == email || owner == uid || owner == name {
 		return true
 	}
-	// Legado: uploads antiguos con author "agente" → solo el solicitante del ticket.
-	if owner == "agente" && isRequester {
+	// Legado: uploads antiguos con author genérico → solo el solicitante del ticket.
+	if (owner == "agente" || owner == "solicitante") && isRequester {
 		return true
 	}
 	return false
