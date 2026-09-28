@@ -4,6 +4,26 @@ Regla del producto: **solo Docker** (PocketBase + API Go en contenedores).
 En el host de erpsys: **Apache** hace TLS y hace proxy del subdominio al contenedor.  
 No correr binarios de PocketBase ni de la API Go en el host.
 
+## Deploy automático (recomendado)
+
+En el servidor (root), con Docker ya instalado:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/archangelgt/helpdesk/main/scripts/deploy-erpsys.sh | sudo bash
+# o, con el repo clonado:
+sudo bash scripts/deploy-erpsys.sh
+```
+
+Desde fuera, con clave SSH:
+
+```bash
+DEPLOY_SSH=root@IP_DEL_SERVIDOR \
+DEPLOY_SSH_KEY=~/.ssh/id_ed25519 \
+bash scripts/deploy-erpsys.sh --remote
+```
+
+El script: genera `.env` con secretos, `docker compose` prod (bind `127.0.0.1`), configura Apache (httpd/apache2), intenta Let’s Encrypt y hace smoke test.
+
 ```text
 Internet → Apache (:443, support.erpsys.pro)
               ↓ ProxyPass
@@ -58,7 +78,7 @@ Edita `.env` con secretos fuertes (no uses los defaults de demo):
 ```env
 API_PORT=3000
 PB_PORT=8090
-# Bind solo a localhost: Apache hace el proxy público
+# Importante: solo localhost — Apache hace el proxy público
 API_BIND=127.0.0.1
 PB_BIND=127.0.0.1
 
@@ -66,6 +86,8 @@ SESSION_SECRET=<cadena-larga-aleatoria>
 PB_ADMIN_EMAIL=admin@erpsys.pro
 PB_ADMIN_PASSWORD=<password-fuerte>
 ```
+
+Sin `API_BIND=127.0.0.1`, el puerto 3000 quedaría expuesto a toda la red del host.
 
 Generar secretos:
 
