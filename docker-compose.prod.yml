@@ -1,14 +1,18 @@
-# Producción (erpsys): puertos solo en localhost.
-# Apache (support.erpsys.pro) hace proxy a 127.0.0.1:3000.
+# Producción (erpsys / support.erpsys.pro).
+# Apache hace TLS + ProxyPass a 127.0.0.1:3000.
 #
+#   cp .env.example .env   # rellenar secretos y API_BIND=127.0.0.1
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
+# Ver docs/DEPLOY_ERPSYS.md
+
 services:
   api:
-    ports: !override
-      - "${API_BIND:-127.0.0.1}:${API_PORT:-3000}:8080"
-      - "${PB_BIND:-127.0.0.1}:${PB_PORT:-8090}:8090"
     environment:
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
       PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:?Set PB_ADMIN_EMAIL in .env}
       PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:?Set PB_ADMIN_PASSWORD in .env}
+    restart: always
+
+  pocketbase:
+    restart: always
