@@ -29,8 +29,15 @@ type AppUser struct {
 	Permissions  []string `json:"permissions"`
 	Tenant       string   `json:"tenant"`
 	Active       bool     `json:"active"`
+	AuthSource   string   `json:"auth_source"` // "" / local: password_hash | erp: contraseña del ERP
 	Created      string   `json:"created"`
 	Updated      string   `json:"updated"`
+}
+
+const AuthSourceERP = "erp"
+
+func (u *AppUser) UsesERPAuth() bool {
+	return u != nil && u.AuthSource == AuthSourceERP
 }
 
 type APIKey struct {
@@ -150,6 +157,17 @@ func (c *Client) UpdateTenant(ctx context.Context, id, name, slug, nit string) (
 	return &out, nil
 }
 
+// UpsertTenantByNit crea la empresa si no existe (por NIT/seraph_id) o actualiza su nombre.
+func (c *Client) UpsertTenantByNit(ctx context.Context, name, slug, nit string) (*Tenant, error) {
+	if t, err := c.GetTenantByNit(ctx, nit); err == nil {
+		if strings.TrimSpace(name) != "" && t.Name != strings.TrimSpace(name) {
+			return c.UpdateTenant(ctx, t.ID, name, t.Slug, t.Nit)
+		}
+		return t, nil
+	}
+	return c.CreateTenant(ctx, name, slug, nit)
+}
+
 func (c *Client) EnsureTenant(ctx context.Context, name, slug, nit string) (*Tenant, error) {
 	nit = normalizeNIT(nit)
 	if t, err := c.GetTenantBySlug(ctx, slug); err == nil {
@@ -205,6 +223,31 @@ func (c *Client) CreateUser(ctx context.Context, email, name, password, role, te
 	}
 	if tenantID != "" {
 		payload["tenant"] = tenantID
+	}
+	var out AppUser
+	if err := c.doJSON(ctx, http.MethodPost, "/api/collections/app_users/records", payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CreateERPUser crea un usuario cuya contraseña se valida contra el ERP.
+// password_hash es obligatorio en la colección; se guarda un valor que CheckPassword nunca acepta.
+func (c *Client) CreateERPUser(ctx context.Context, email, name, role, tenantID string, permissions []string) (*AppUser, error) {
+	if permissions == nil {
+		permissions = DefaultPermissions(role)
+	}
+	salt := make([]byte, 16)
+	_, _ = rand.Read(salt)
+	payload := map[string]any{
+		"email":         strings.ToLower(strings.TrimSpace(email)),
+		"name":          strings.TrimSpace(name),
+		"password_hash": "erp$" + hex.EncodeToString(salt),
+		"role":          role,
+		"permissions":   permissions,
+		"active":        true,
+		"auth_source":   AuthSourceERP,
+		"tenant":        tenantID,
 	}
 	var out AppUser
 	if err := c.doJSON(ctx, http.MethodPost, "/api/collections/app_users/records", payload, &out); err != nil {

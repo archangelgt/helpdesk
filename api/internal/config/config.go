@@ -16,6 +16,9 @@ type Config struct {
 	// PublicURL es la URL pública de la app (enlaces en correos).
 	PublicURL string
 	SMTP      SMTPConfig
+	// API del ERP (usuarios y empresas). Sin URL o token la integración queda apagada.
+	ERPAPIURL   string
+	ERPAPIToken string
 }
 
 // SMTPConfig vacío (sin Host) desactiva el envío de correos.
@@ -48,6 +51,8 @@ func FromEnv() Config {
 			FromName: getenv("SMTP_FROM_NAME", "Soporte ERPSYS"),
 			Bcc:      getenv("SMTP_BCC", ""),
 		},
+		ERPAPIURL:   strings.TrimRight(getenv("ERP_API_URL", ""), "/"),
+		ERPAPIToken: getenv("ERP_API_TOKEN", ""),
 	}
 }
 

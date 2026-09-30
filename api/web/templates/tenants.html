@@ -12,66 +12,58 @@
   {{template "nav" .}}
   <main class="page">
     <h1>{{call .T "tenants.title"}}</h1>
-    <p class="lead">{{call .T "tenants.lead"}}</p>
+    <p class="lead">{{call .T "tenants.erp_lead"}}</p>
     {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
     {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
 
-    <div class="grid create-layout">
-      <form class="panel" method="post" action="/tenants">
-        <h2>{{call .T "tenants.new"}}</h2>
-        <label>{{call .T "table.name"}}</label>
-        <input name="name" required />
-        <label>{{call .T "tenants.nit"}}</label>
-        <input name="nit" required placeholder="{{call .T "login.seraph_id_ph"}}" />
-        <p class="muted" style="margin:-.4rem 0 .9rem;font-size:.82rem">{{call .T "tenants.nit_hint"}}</p>
-        <label>{{call .T "table.slug"}}</label>
-        <input name="slug" placeholder="cap-world" />
-        <button class="btn" type="submit">{{call .T "tenants.create"}}</button>
-      </form>
-
-      <div class="panel">
-        <h2>{{call .T "table.list"}}</h2>
-        {{if .Tenants}}
-        <div class="tenant-list">
-          {{range .Tenants}}
-          <article class="tenant-card">
-            {{if eq $.EditID .ID}}
-            <form method="post" action="/tenants/update">
-              <input type="hidden" name="id" value="{{.ID}}" />
-              <label>{{call $.T "table.name"}}</label>
-              <input name="name" value="{{.Name}}" required />
-              <label>{{call $.T "tenants.nit"}}</label>
-              <input name="nit" value="{{.Nit}}" required />
-              <label>{{call $.T "table.slug"}}</label>
-              <input name="slug" value="{{.Slug}}" required />
-              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-                <button class="btn" type="submit">{{call $.T "common.save"}}</button>
-                <a class="btn ghost" href="/tenants">{{call $.T "common.cancel"}}</a>
+    <div class="panel">
+      <h2>{{call .T "tenants.erp_list"}} <span class="muted" style="font-size:.9rem;font-weight:500">({{len .Companies}})</span></h2>
+      {{if .Companies}}
+      <div class="tenant-list">
+        {{range .Companies}}
+        <article class="tenant-card">
+          <div class="tenant-card-top">
+            <div>
+              <strong>{{.Company.Nombre}}</strong>
+              {{if and .Company.RazonSocial (ne .Company.RazonSocial .Company.Nombre)}}<div class="muted" style="font-size:.85rem">{{.Company.RazonSocial}}</div>{{end}}
+              <div class="muted" style="font-size:.85rem;margin-top:.25rem">
+                {{call $.T "tenants.nit"}}: <code>{{.Company.SeraphID}}</code>
+                · {{call $.T "tenants.licence"}}: {{if .Company.Licencia}}{{.Company.Licencia}}{{else}}—{{end}}
+                {{if .Company.LicenciaVencida}}<span class="badge pr-crit">{{call $.T "tenants.licence_expired"}}</span>{{end}}
+                {{if not .Company.Activa}}<span class="badge st-closed">{{call $.T "tenants.inactive"}}</span>{{end}}
+                · {{call $.T "tenants.users"}}: {{.Users}}{{if gt .Company.LimiteUsuarios 0}} ({{call $.T "tenants.erp_max"}} {{.Company.LimiteUsuarios}}){{end}}
               </div>
-            </form>
-            {{else}}
-            <div class="tenant-card-top">
-              <div>
-                <strong>{{.Name}}</strong>
-                <div class="muted" style="font-size:.85rem;margin-top:.2rem">
-                  {{call $.T "tenants.nit"}}: <code>{{.Nit}}</code>
-                  · {{.Slug}}
-                </div>
-              </div>
-              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-                <a class="btn ghost" style="padding:.35rem .75rem;font-size:.8rem" href="/tenants?edit={{.ID}}">{{call $.T "common.edit"}}</a>
-                <a href="/board?tenant={{.ID}}">{{call $.T "nav.board"}} →</a>
-              </div>
+              {{if .Company.Email}}<div class="muted" style="font-size:.8rem;margin-top:.15rem">{{.Company.Email}}</div>{{end}}
             </div>
-            {{end}}
-          </article>
-          {{end}}
-        </div>
-        {{else}}
-        <p class="muted">—</p>
+            {{if .Tenant}}<a href="/board?tenant={{.Tenant.ID}}">{{call $.T "nav.board"}} →</a>{{end}}
+          </div>
+        </article>
+        {{end}}
+      </div>
+      {{else}}
+      <p class="muted">—</p>
+      {{end}}
+    </div>
+
+    {{if .LocalTenants}}
+    <div class="panel" style="margin-top:1rem">
+      <h2>{{call .T "tenants.local_only"}}</h2>
+      <p class="muted" style="margin-top:0;font-size:.85rem">{{call .T "tenants.local_only_hint"}}</p>
+      <div class="tenant-list">
+        {{range .LocalTenants}}
+        <article class="tenant-card">
+          <div class="tenant-card-top">
+            <div>
+              <strong>{{.Name}}</strong>
+              <div class="muted" style="font-size:.85rem;margin-top:.2rem">{{call $.T "tenants.nit"}}: <code>{{.Nit}}</code> · {{call $.T "tenants.users"}}: {{index $.UsersByTenant .ID}}</div>
+            </div>
+            <a href="/board?tenant={{.ID}}">{{call $.T "nav.board"}} →</a>
+          </div>
+        </article>
         {{end}}
       </div>
     </div>
+    {{end}}
   </main>
 </body>
 </html>

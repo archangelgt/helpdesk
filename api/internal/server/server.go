@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/archangelgt/helpdesk/api/internal/config"
+	"github.com/archangelgt/helpdesk/api/internal/erp"
 	"github.com/archangelgt/helpdesk/api/internal/i18n"
 	"github.com/archangelgt/helpdesk/api/internal/mail"
 	"github.com/archangelgt/helpdesk/api/internal/pb"
@@ -26,6 +27,7 @@ type Server struct {
 	log    *log.Logger
 	tmpl   *template.Template
 	mailer *mail.Sender
+	erp    *erp.Client
 }
 
 var statuses = []string{"abierto", "pendiente", "en_proceso", "resuelto", "cerrado"}
@@ -102,7 +104,13 @@ func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 	} else {
 		logger.Printf("notificaciones por correo desactivadas (SMTP_HOST vacío)")
 	}
-	return &Server{cfg: cfg, pb: client, log: logger, tmpl: tmpl, mailer: mailer}
+	erpClient := erp.New(cfg.ERPAPIURL, cfg.ERPAPIToken)
+	if erpClient.Enabled() {
+		logger.Printf("integración ERP activa vía %s", cfg.ERPAPIURL)
+	} else {
+		logger.Printf("integración ERP desactivada (ERP_API_URL / ERP_API_TOKEN vacíos)")
+	}
+	return &Server{cfg: cfg, pb: client, log: logger, tmpl: tmpl, mailer: mailer, erp: erpClient}
 }
 
 func (s *Server) Routes() http.Handler {

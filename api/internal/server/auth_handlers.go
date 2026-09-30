@@ -1,10 +1,13 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/archangelgt/helpdesk/api/internal/erp"
 	"github.com/archangelgt/helpdesk/api/internal/i18n"
 	"github.com/archangelgt/helpdesk/api/internal/pb"
 )
@@ -40,12 +43,27 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, err := s.pb.GetUserByEmail(r.Context(), email)
-	if err != nil || !u.Active || !pb.CheckPassword(u.PasswordHash, pass) {
+	if err != nil || !u.Active {
 		http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
 		return
 	}
 	// Cliente/agente con tenant deben coincidir con el NIT. Maestro puede usar cualquier NIT válido.
 	if u.Role != pb.RoleMaestro && u.Tenant != "" && u.Tenant != tenant.ID {
+		http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
+		return
+	}
+	if u.UsesERPAuth() {
+		erpUser, err := s.erp.Authenticate(r.Context(), tenant.Nit, email, pass)
+		if err != nil {
+			s.log.Printf("login ERP %s/%s: %v", tenant.Nit, email, err)
+			http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.erp_unavailable")), http.StatusSeeOther)
+			return
+		}
+		if erpUser == nil {
+			http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
+			return
+		}
+	} else if !pb.CheckPassword(u.PasswordHash, pass) {
 		http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
 		return
 	}
@@ -84,40 +102,60 @@ func (s *Server) handleRegisterForm(w http.ResponseWriter, r *http.Request) {
 	}
 	lang := langFromRequest(r)
 	seraphID := strings.TrimSpace(r.FormValue("seraph_id"))
-	email := strings.TrimSpace(r.FormValue("email"))
-	name := strings.TrimSpace(r.FormValue("name"))
-	pass := r.FormValue("password")
-	pass2 := r.FormValue("password2")
+	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
+	fail := func(key string) {
+		http.Redirect(w, r, "/register?err="+url.QueryEscape(i18n.T(lang, key)), http.StatusSeeOther)
+	}
 
-	if seraphID == "" || email == "" || pass == "" {
-		http.Redirect(w, r, "/register?err="+url.QueryEscape(i18n.T(lang, "err.register_required")), http.StatusSeeOther)
+	if seraphID == "" || email == "" {
+		fail("err.register_required")
 		return
 	}
-	if len(pass) < 6 {
-		http.Redirect(w, r, "/register?err="+url.QueryEscape(i18n.T(lang, "err.register_password")), http.StatusSeeOther)
-		return
-	}
-	if pass != pass2 {
-		http.Redirect(w, r, "/register?err="+url.QueryEscape(i18n.T(lang, "err.register_mismatch")), http.StatusSeeOther)
-		return
-	}
-	tenant, err := s.pb.GetTenantByNit(r.Context(), seraphID)
-	if err != nil {
-		http.Redirect(w, r, "/register?err="+url.QueryEscape(i18n.T(lang, "err.register_nit")), http.StatusSeeOther)
+	if !s.erp.Enabled() {
+		fail("err.erp_unavailable")
 		return
 	}
 	if _, err := s.pb.GetUserByEmail(r.Context(), email); err == nil {
-		http.Redirect(w, r, "/register?err="+url.QueryEscape(i18n.T(lang, "err.register_exists")), http.StatusSeeOther)
+		fail("err.register_exists")
 		return
 	}
-	if name == "" {
-		name = strings.Split(email, "@")[0]
+	company, erpUser, err := s.erp.LookupUser(r.Context(), seraphID, email)
+	if errors.Is(err, erp.ErrCompanyNotFound) {
+		fail("err.register_nit")
+		return
 	}
-	if _, err := s.pb.CreateUser(r.Context(), email, name, pass, pb.RoleCliente, tenant.ID, pb.DefaultPermissions(pb.RoleCliente)); err != nil {
+	if err != nil {
+		s.log.Printf("registro ERP %s/%s: %v", seraphID, email, err)
+		fail("err.erp_unavailable")
+		return
+	}
+	if erpUser == nil {
+		fail("err.register_erp_user")
+		return
+	}
+	tenant, err := s.tenantFromERP(r.Context(), *company)
+	if err != nil {
 		http.Redirect(w, r, "/register?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/login?ok="+url.QueryEscape(i18n.T(lang, "flash.registered")), http.StatusSeeOther)
+	if _, err := s.pb.CreateERPUser(r.Context(), email, erpUser.Nombre, pb.RoleCliente, tenant.ID, pb.DefaultPermissions(pb.RoleCliente)); err != nil {
+		http.Redirect(w, r, "/register?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/login?ok="+url.QueryEscape(i18n.T(lang, "flash.registered_erp")), http.StatusSeeOther)
+}
+
+// tenantFromERP crea o actualiza en Helpdesk la empresa del ERP (NIT = seraph_id).
+func (s *Server) tenantFromERP(ctx context.Context, c erp.Company) (*pb.Tenant, error) {
+	name := strings.TrimSpace(c.Nombre)
+	if name == "" {
+		name = c.SeraphID
+	}
+	slug := slugify(name)
+	if len(slug) > 60 {
+		slug = strings.Trim(slug[:60], "-")
+	}
+	return s.pb.UpsertTenantByNit(ctx, name, slug+"-"+c.SeraphID, c.SeraphID)
 }
 
 func (s *Server) handlePrefsPage(w http.ResponseWriter, r *http.Request) {
@@ -147,20 +185,73 @@ func (s *Server) handlePrefsForm(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
+type erpCompanyRow struct {
+	Company erp.Company
+	Tenant  *pb.Tenant
+	Users   int
+}
+
+// handleTenantsPage muestra las empresas del ERP y las sincroniza como tenants de Helpdesk
+// (para poder clasificar tickets y registrar usuarios con su seraph_id).
 func (s *Server) handleTenantsPage(w http.ResponseWriter, r *http.Request) {
-	items, err := s.pb.ListTenants(r.Context())
-	errMsg := ""
-	if err != nil {
-		errMsg = err.Error()
+	lang := langFromRequest(r)
+	var errs []string
+	var rows []erpCompanyRow
+	erpNits := map[string]bool{}
+
+	if s.erp.Enabled() {
+		companies, err := s.erp.Companies(r.Context())
+		if err != nil {
+			s.log.Printf("empresas ERP: %v", err)
+			errs = append(errs, i18n.T(lang, "err.erp_unavailable"))
+		}
+		for _, c := range companies {
+			erpNits[normalizeTenantNit(c.SeraphID)] = true
+			t, err := s.tenantFromERP(r.Context(), c)
+			if err != nil {
+				errs = append(errs, c.SeraphID+": "+err.Error())
+			}
+			rows = append(rows, erpCompanyRow{Company: c, Tenant: t})
+		}
+	} else {
+		errs = append(errs, i18n.T(lang, "err.erp_unavailable"))
 	}
+
+	usersByTenant := map[string]int{}
+	if users, err := s.pb.ListUsers(r.Context()); err == nil {
+		for _, u := range users {
+			usersByTenant[u.Tenant]++
+		}
+	}
+	for i := range rows {
+		if rows[i].Tenant != nil {
+			rows[i].Users = usersByTenant[rows[i].Tenant.ID]
+		}
+	}
+	var localOnly []pb.Tenant
+	if items, err := s.pb.ListTenants(r.Context()); err == nil {
+		for _, t := range items {
+			if !erpNits[normalizeTenantNit(t.Nit)] {
+				localOnly = append(localOnly, t)
+			}
+		}
+	} else {
+		errs = append(errs, err.Error())
+	}
+
 	s.render(w, "tenants.html", s.pageBase(r, map[string]any{
-		"Title":   i18n.T(langFromRequest(r), "tenants.title"),
-		"Nav":     "tenants",
-		"Tenants": items,
-		"Flash":   r.URL.Query().Get("ok"),
-		"Error":   firstNonEmpty(errMsg, r.URL.Query().Get("err")),
-		"EditID":  r.URL.Query().Get("edit"),
+		"Title":         i18n.T(lang, "tenants.title"),
+		"Nav":           "tenants",
+		"Companies":     rows,
+		"LocalTenants":  localOnly,
+		"UsersByTenant": usersByTenant,
+		"Flash":         r.URL.Query().Get("ok"),
+		"Error":         firstNonEmpty(strings.Join(errs, " · "), r.URL.Query().Get("err")),
 	}))
+}
+
+func normalizeTenantNit(nit string) string {
+	return strings.ToUpper(strings.TrimSpace(nit))
 }
 
 func (s *Server) handleCreateTenantForm(w http.ResponseWriter, r *http.Request) {

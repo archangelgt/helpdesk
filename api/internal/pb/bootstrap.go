@@ -482,6 +482,7 @@ func appUsersCollection(tenantColID string) map[string]any {
 				"collectionId": tenantColID, "maxSelect": 1, "cascadeDelete": false,
 			},
 			{"name": "active", "type": "bool", "required": false},
+			{"name": "auth_source", "type": "text", "required": false, "max": 20},
 			{"name": "created", "type": "autodate", "onCreate": true, "onUpdate": false},
 			{"name": "updated", "type": "autodate", "onCreate": true, "onUpdate": true},
 		},
@@ -522,6 +523,10 @@ func (c *Client) ensureAppUserFields(ctx context.Context, tenantColID string) er
 				changed = true
 			}
 		}
+	}
+	if !have["auth_source"] {
+		fields = append(fields, map[string]any{"name": "auth_source", "type": "text", "required": false, "max": 20})
+		changed = true
 	}
 	_ = tenantColID
 	if changed {
