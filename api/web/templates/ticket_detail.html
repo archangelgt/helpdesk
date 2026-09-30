@@ -42,7 +42,7 @@
       <aside class="panel ticket-aside">
         <h2>{{call .T "ticket.details"}}</h2>
         <p class="section-lead">{{call .T "ticket.details_lead"}}</p>
-        {{if .CanEdit}}
+        {{if .CanEditData}}
         <form method="post" action="/tickets/{{.Ticket.ID}}/update">
           <label>{{call .T "common.subject"}}</label>
           <input name="subject" value="{{.Ticket.Subject}}" required />
@@ -76,7 +76,9 @@
         {{else}}
         <p style="margin:0 0 .5rem"><strong>{{.Ticket.Subject}}</strong></p>
         <p class="muted" style="white-space:pre-wrap">{{.Ticket.Description}}</p>
-        <p class="muted" style="font-size:.85rem">{{call .T "users.no_edit"}}</p>
+        {{if .TenantName}}<p style="margin:0 0 .25rem"><span class="muted">{{call .T "ticket.new.classification"}}:</span> {{.TenantName}}</p>{{end}}
+        {{if .Ticket.Assignee}}<p style="margin:0 0 .25rem"><span class="muted">{{call .T "common.assignee"}}:</span> {{.Ticket.Assignee}}</p>{{end}}
+        <p class="muted" style="font-size:.85rem">{{if .CanEdit}}{{call .T "ticket.not_owner_edit"}}{{else}}{{call .T "users.no_edit"}}{{end}}</p>
         {{end}}
       </aside>
 

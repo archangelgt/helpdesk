@@ -764,6 +764,7 @@ func (s *Server) handleTicketDetail(w http.ResponseWriter, r *http.Request) {
 		"CaseImages":      caseImages,
 		"CaseDocs":        caseDocs,
 		"CanAddCaseFiles": canAddCaseFiles(u, ticket, ticketFiles),
+		"CanEditData":     canEditTicketData(u, ticket),
 		"EvidenceByStage": evidenceByStage,
 		"Statuses":        statuses,
 		"Priorities":      priorities,
@@ -818,12 +819,33 @@ func canAddCaseFiles(u *pb.AppUser, t *pb.Ticket, files []pb.Attachment) bool {
 	return false
 }
 
+// canEditTicketData: los datos del ticket solo los modifica quien lo creó.
+// Tickets sin creador (ingresados por API) quedan para quien tenga permiso de editar.
+func canEditTicketData(u *pb.AppUser, t *pb.Ticket) bool {
+	if u == nil || t == nil || !u.HasPerm(pb.PermEditar) {
+		return false
+	}
+	if t.Requester == "" {
+		return true
+	}
+	return t.Requester == u.ID
+}
+
 func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	lang := langFromRequest(r)
 	u := userFrom(r.Context())
 	if u == nil || !u.HasPerm(pb.PermEditar) {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.forbidden")), http.StatusSeeOther)
+		return
+	}
+	ticket, err := s.pb.GetTicket(r.Context(), id)
+	if err != nil {
+		http.Error(w, "ticket no encontrado", http.StatusNotFound)
+		return
+	}
+	if !canEditTicketData(u, ticket) {
+		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(i18n.T(lang, "err.not_ticket_owner")), http.StatusSeeOther)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
