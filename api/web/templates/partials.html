@@ -309,7 +309,10 @@
   }
   html[data-theme-resolved="light"] .card { background: #fff; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(21,32,24,.12); }
-  .card-top { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .45rem; }
+  .card-top { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-bottom: .45rem; }
+  .card-top .badge { margin-right: auto; }
+  .card-open { margin: .75rem 0 0; }
+  .card-open .btn { width: 100%; justify-content: center; padding: .55rem .9rem; font-size: .88rem; }
   .card h3 {
     font-family: "Newsreader", serif; font-size: 1.05rem; font-weight: 600;
     margin: 0 0 .55rem; line-height: 1.25;
@@ -578,6 +581,26 @@
     margin: 0 0 .45rem; font-size: 1rem;
   }
   .ticket-resolve-panel .resolve-comment-box { margin-bottom: 0; }
+  .ticket-page:not(.is-resolving) .work-only { display: none !important; }
+  .ticket-page.is-resolving .resolve-cta { display: none; }
+  .resolve-cta {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+    padding: 1rem 1.15rem; border-radius: 18px; border: 1px dashed var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  }
+  .resolve-cta p { margin: .2rem 0 0; font-size: .88rem; }
+  .resolve-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .ticket-resolve-panel { scroll-margin-top: 5rem; animation: resolve-in .25s ease; }
+  @keyframes resolve-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .ticket-facts { margin: 0 0 1rem; display: grid; gap: .5rem; }
+  .ticket-facts div {
+    display: flex; justify-content: space-between; align-items: center; gap: .75rem;
+    padding-bottom: .5rem; border-bottom: 1px solid var(--line);
+  }
+  .ticket-facts dt { font-size: .75rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+  .ticket-facts dd { margin: 0; text-align: right; font-size: .9rem; word-break: break-word; }
+  .ticket-facts-note { font-size: .82rem; margin: 0; }
+  .ticket-edit summary { cursor: pointer; font-weight: 700; font-size: .9rem; margin-bottom: .6rem; }
   .ticket-bottom {
     display: grid; gap: 1rem;
   }

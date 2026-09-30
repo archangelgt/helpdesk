@@ -73,6 +73,7 @@
           <article class="card">
             <div class="card-top">
               <span class="badge">{{$card.Ticket.Number}}</span>
+              <span class="pill {{statusClass $card.Ticket.Status}}">{{labelStatus $card.Ticket.Status}}</span>
               {{if $card.Progress.Overdue}}<span class="pill pr-crit">{{call $.T "lane.badge.overdue"}}</span>{{end}}
               {{if $card.Progress.Finished}}<span class="pill st-done">{{call $.T "lane.badge.done"}}</span>{{end}}
             </div>
@@ -94,6 +95,9 @@
               {{end}}
             </div>
             {{end}}
+            <form class="card-open" method="post" action="/tickets/{{$card.Ticket.ID}}/open">
+              <button class="btn" type="submit">{{call $.T "board.open_ticket"}}</button>
+            </form>
           </article>
           {{end}}
         {{else}}

@@ -64,6 +64,7 @@ func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 		"statusClass":   statusClass,
 		"priorityClass": priorityClass,
 		"stageClass":    stageClass,
+		"shortDate":     shortDate,
 		"isImage":       func(a pb.Attachment) bool { return a.IsImage() },
 		"fileURL": func(ticketID string, a pb.Attachment) string {
 			return "/tickets/" + ticketID + "/attachments/" + a.ID + "/file"
@@ -163,6 +164,7 @@ func (s *Server) Routes() http.Handler {
 		staff.Get("/board", s.handleBoard)
 		staff.Get("/tickets", s.handleTicketsPage)
 		staff.Get("/tickets/{id}", s.handleTicketDetail)
+		staff.Post("/tickets/{id}/open", s.handleTicketOpen)
 		staff.Post("/tickets/{id}/update", s.handleTicketUpdate)
 		staff.Post("/tickets/{id}/status", s.handleTicketStatus)
 		staff.Post("/tickets/{id}/comments", s.handleAddComment)
@@ -881,6 +883,28 @@ func (s *Server) handleTicketUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Ticket actualizado"), http.StatusSeeOther)
+}
+
+// handleTicketOpen: botón "Abrir ticket" del tablero. Un ticket nuevo (abierto)
+// pasa a pendiente al abrirlo; en cualquier otro estado solo se muestra.
+func (s *Server) handleTicketOpen(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	u := userFrom(r.Context())
+	ticket, err := s.pb.GetTicket(r.Context(), id)
+	if err != nil {
+		http.Error(w, "ticket no encontrado", http.StatusNotFound)
+		return
+	}
+	if ticket.Status == "abierto" && u != nil && u.HasPerm(pb.PermEditar) {
+		st := "pendiente"
+		if _, err := s.pb.UpdateTicket(r.Context(), id, pb.TicketUpdate{Status: &st}); err != nil {
+			s.log.Printf("open ticket: %v", err)
+		} else {
+			author := strings.ToLower(strings.TrimSpace(u.Email))
+			_, _ = s.pb.CreateComment(r.Context(), id, "Ticket abierto por "+author, "interno", author)
+		}
+	}
+	http.Redirect(w, r, "/tickets/"+id, http.StatusSeeOther)
 }
 
 func (s *Server) handleTicketStatus(w http.ResponseWriter, r *http.Request) {
