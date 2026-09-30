@@ -19,6 +19,8 @@ type Config struct {
 	// API del ERP (usuarios y empresas). Sin URL o token la integración queda apagada.
 	ERPAPIURL   string
 	ERPAPIToken string
+	// Los usuarios del ERP de esta empresa (Seraph Systems) entran como maestros.
+	MasterSeraphID string
 }
 
 // SMTPConfig vacío (sin Host) desactiva el envío de correos.
@@ -52,7 +54,8 @@ func FromEnv() Config {
 			Bcc:      getenv("SMTP_BCC", ""),
 		},
 		ERPAPIURL:   strings.TrimRight(getenv("ERP_API_URL", ""), "/"),
-		ERPAPIToken: getenv("ERP_API_TOKEN", ""),
+		ERPAPIToken:    getenv("ERP_API_TOKEN", ""),
+		MasterSeraphID: getenv("MASTER_SERAPH_ID", "116077069"),
 	}
 }
 

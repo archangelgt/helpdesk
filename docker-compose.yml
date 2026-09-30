@@ -25,6 +25,8 @@ services:
       # Integración con el ERP (usuarios y empresas); vacío = desactivada.
       ERP_API_URL: ${ERP_API_URL:-}
       ERP_API_TOKEN: ${ERP_API_TOKEN:-}
+      # Usuarios del ERP de esta empresa entran como maestros (Seraph Systems).
+      MASTER_SERAPH_ID: ${MASTER_SERAPH_ID:-116077069}
       HTTP_ADDR: ":8080"
       POCKETBASE_URL: http://127.0.0.1:8090
       PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@helpdesk.local}

@@ -53,15 +53,29 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if u.UsesERPAuth() {
-		erpUser, err := s.erp.Authenticate(r.Context(), tenant.Nit, email, pass)
+		// La contraseña vive en el ERP de la empresa del usuario, no en la del seraph_id
+		// escrito (un maestro puede entrar con cualquier seraph_id).
+		home := tenant
+		if u.Tenant != "" && u.Tenant != tenant.ID {
+			if home, err = s.pb.GetTenant(r.Context(), u.Tenant); err != nil {
+				http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
+				return
+			}
+		}
+		erpUser, err := s.erp.Authenticate(r.Context(), home.Nit, email, pass)
 		if err != nil {
-			s.log.Printf("login ERP %s/%s: %v", tenant.Nit, email, err)
+			s.log.Printf("login ERP %s/%s: %v", home.Nit, email, err)
 			http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.erp_unavailable")), http.StatusSeeOther)
 			return
 		}
 		if erpUser == nil {
 			http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
 			return
+		}
+		if role, perms := s.erpRole(home.Nit); role == pb.RoleMaestro && u.Role != pb.RoleMaestro {
+			if updated, err := s.pb.UpdateUser(r.Context(), u.ID, u.Name, role, u.Tenant, perms, true); err == nil {
+				u = updated
+			}
 		}
 	} else if !pb.CheckPassword(u.PasswordHash, pass) {
 		http.Redirect(w, r, "/login?err="+url.QueryEscape(i18n.T(lang, "err.auth")), http.StatusSeeOther)
@@ -138,11 +152,21 @@ func (s *Server) handleRegisterForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/register?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	if _, err := s.pb.CreateERPUser(r.Context(), email, erpUser.Nombre, pb.RoleCliente, tenant.ID, pb.DefaultPermissions(pb.RoleCliente)); err != nil {
+	role, perms := s.erpRole(company.SeraphID)
+	if _, err := s.pb.CreateERPUser(r.Context(), email, erpUser.Nombre, role, tenant.ID, perms); err != nil {
 		http.Redirect(w, r, "/register?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/login?ok="+url.QueryEscape(i18n.T(lang, "flash.registered_erp")), http.StatusSeeOther)
+}
+
+// erpRole: los usuarios del ERP de la empresa maestra son maestros; el resto, clientes
+// que solo crean tickets.
+func (s *Server) erpRole(seraphID string) (string, []string) {
+	if normalizeTenantNit(seraphID) == normalizeTenantNit(s.cfg.MasterSeraphID) {
+		return pb.RoleMaestro, pb.DefaultPermissions(pb.RoleMaestro)
+	}
+	return pb.RoleCliente, pb.DefaultPermissions(pb.RoleCliente)
 }
 
 // tenantFromERP crea o actualiza en Helpdesk la empresa del ERP (NIT = seraph_id).
