@@ -1,6 +1,10 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+	"strings"
+)
 
 type Config struct {
 	HTTPAddr        string
@@ -9,9 +13,24 @@ type Config struct {
 	PBAdminPassword string
 	WebDir          string
 	SessionSecret   string
+	// PublicURL es la URL pública de la app (enlaces en correos).
+	PublicURL string
+	SMTP      SMTPConfig
+}
+
+// SMTPConfig vacío (sin Host) desactiva el envío de correos.
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	From     string
+	FromName string
+	Bcc      string
 }
 
 func FromEnv() Config {
+	port, _ := strconv.Atoi(getenv("SMTP_PORT", "587"))
 	return Config{
 		HTTPAddr:        getenv("HTTP_ADDR", ":8080"),
 		PocketBaseURL:   getenv("POCKETBASE_URL", "http://pocketbase:8090"),
@@ -19,6 +38,16 @@ func FromEnv() Config {
 		PBAdminPassword: getenv("PB_ADMIN_PASSWORD", "helpdesk-admin-change-me"),
 		WebDir:          getenv("WEB_DIR", "web"),
 		SessionSecret:   getenv("SESSION_SECRET", "helpdesk-dev-session-secret-change-me"),
+		PublicURL:       strings.TrimRight(getenv("PUBLIC_URL", "http://localhost:3000"), "/"),
+		SMTP: SMTPConfig{
+			Host:     getenv("SMTP_HOST", ""),
+			Port:     port,
+			User:     getenv("SMTP_USER", ""),
+			Password: getenv("SMTP_PASSWORD", ""),
+			From:     getenv("SMTP_FROM", ""),
+			FromName: getenv("SMTP_FROM_NAME", "Soporte ERPSYS"),
+			Bcc:      getenv("SMTP_BCC", ""),
+		},
 	}
 }
 

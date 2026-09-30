@@ -94,6 +94,7 @@ func (s *Server) handleCompleteStage(w http.ResponseWriter, r *http.Request) {
 	var curOrden float64
 	var curIni, curFin string
 	var curAvance float64
+	var curEstado string
 	found := false
 	for _, st := range stages {
 		if st.ID == stageID {
@@ -101,6 +102,7 @@ func (s *Server) handleCompleteStage(w http.ResponseWriter, r *http.Request) {
 			curName, curOrden = st.Name, st.Orden
 			curIni, curFin = st.FechaPlanInicio, st.FechaPlanFin
 			curAvance = st.Avance
+			curEstado = st.Estado
 			break
 		}
 	}
@@ -137,6 +139,7 @@ func (s *Server) handleCompleteStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.syncTicketFromStages(r, id)
+	s.notifyStageChanged(id, stageID, curEstado)
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape(i18n.T(lang, "flash.stage_done")), http.StatusSeeOther)
 }
 

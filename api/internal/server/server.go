@@ -14,16 +14,18 @@ import (
 
 	"github.com/archangelgt/helpdesk/api/internal/config"
 	"github.com/archangelgt/helpdesk/api/internal/i18n"
+	"github.com/archangelgt/helpdesk/api/internal/mail"
 	"github.com/archangelgt/helpdesk/api/internal/pb"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	cfg  config.Config
-	pb   *pb.Client
-	log  *log.Logger
-	tmpl *template.Template
+	cfg    config.Config
+	pb     *pb.Client
+	log    *log.Logger
+	tmpl   *template.Template
+	mailer *mail.Sender
 }
 
 var statuses = []string{"abierto", "pendiente", "en_proceso", "resuelto", "cerrado"}
@@ -94,7 +96,13 @@ func New(cfg config.Config, client *pb.Client, logger *log.Logger) *Server {
 		},
 	}
 	tmpl := template.Must(template.New("root").Funcs(funcs).ParseGlob(filepath.Join(cfg.WebDir, "templates", "*.html")))
-	return &Server{cfg: cfg, pb: client, log: logger, tmpl: tmpl}
+	mailer := mail.New(cfg.SMTP)
+	if mailer.Enabled() {
+		logger.Printf("notificaciones por correo activas vía %s:%d", cfg.SMTP.Host, cfg.SMTP.Port)
+	} else {
+		logger.Printf("notificaciones por correo desactivadas (SMTP_HOST vacío)")
+	}
+	return &Server{cfg: cfg, pb: client, log: logger, tmpl: tmpl, mailer: mailer}
 }
 
 func (s *Server) Routes() http.Handler {
@@ -453,7 +461,7 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	if tenantID == "" && u != nil && u.Tenant != "" {
 		tenantID = u.Tenant
 	}
-	if requesterEmail == "" && u != nil {
+	if requesterEmail == "" && u != nil && ticketType != "implementacion" {
 		requesterEmail = u.Email
 	}
 	if ticketType == "implementacion" && !isMaestro {
@@ -540,6 +548,9 @@ func (s *Server) handleCreateTicketForm(w http.ResponseWriter, r *http.Request) 
 	}
 
 	_ = s.syncTicketFromStages(r, t.ID)
+	if t.Type == "implementacion" {
+		s.notifyImplementationCreated(t.ID)
+	}
 	if !isStaff {
 		http.Redirect(w, r, "/portal/tickets/"+t.ID+"?ok="+url.QueryEscape("Ticket "+t.Number+" creado"), http.StatusSeeOther)
 		return
@@ -982,11 +993,20 @@ func (s *Server) handleUpdateStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	avance = avanceForEstado(estado, avance)
+	prevEstado := ""
+	if stages, err := s.pb.ListStages(r.Context(), id); err == nil {
+		for _, st := range stages {
+			if st.ID == stageID {
+				prevEstado = st.Estado
+			}
+		}
+	}
 	if _, err := s.pb.UpdateStage(r.Context(), stageID, r.FormValue("name"), estado, orden, avance, r.FormValue("fecha_plan_inicio"), r.FormValue("fecha_plan_fin")); err != nil {
 		http.Redirect(w, r, "/tickets/"+id+"?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	_ = s.syncTicketFromStages(r, id)
+	s.notifyStageChanged(id, stageID, prevEstado)
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Etapa actualizada"), http.StatusSeeOther)
 }
 
@@ -1023,6 +1043,7 @@ func (s *Server) handleStageEstado(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.syncTicketFromStages(r, id)
+	s.notifyStageChanged(id, stageID, cur.Estado)
 	http.Redirect(w, r, "/tickets/"+id+"?ok="+url.QueryEscape("Etapa → "+estado), http.StatusSeeOther)
 }
 

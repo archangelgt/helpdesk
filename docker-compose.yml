@@ -13,6 +13,15 @@ services:
       - "${PB_BIND:-0.0.0.0}:${PB_PORT:-8090}:8090"
     environment:
       SESSION_SECRET: ${SESSION_SECRET:-helpdesk-dev-session-secret-change-me}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      # Notificaciones por correo; sin SMTP_HOST no se envía nada.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Soporte ERPSYS}
+      SMTP_BCC: ${SMTP_BCC:-}
       HTTP_ADDR: ":8080"
       POCKETBASE_URL: http://127.0.0.1:8090
       PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:-admin@helpdesk.local}

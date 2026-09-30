@@ -87,8 +87,14 @@
             </select>
           </div>
           <div>
+            {{if eq .Flow "implementacion"}}
+            <label>{{call .T "ticket.new.client_email"}}</label>
+            <input name="requester_email" type="email" placeholder="cliente@empresa.com" />
+            <p class="muted" style="margin:-.35rem 0 .9rem;font-size:.82rem">{{call .T "ticket.new.client_email_hint"}}</p>
+            {{else}}
             <label>{{call .T "ticket.new.requester"}}</label>
             <input name="requester_email" type="email" value="{{if .User}}{{.User.Email}}{{end}}" />
+            {{end}}
           </div>
         </div>
         {{else}}
