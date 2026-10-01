@@ -25,7 +25,9 @@
           <tr>
             <th>#</th>
             <th>{{call .T "table.subject"}}</th>
+            <th>{{call .T "filter.type"}}</th>
             <th>{{call .T "filter.status"}}</th>
+            <th>{{call .T "ticket.progress"}}</th>
             <th>{{call .T "table.priority"}}</th>
           </tr>
         </thead>
@@ -34,7 +36,16 @@
           <tr>
             <td><a href="/portal/tickets/{{.ID}}"><strong>{{.Number}}</strong></a></td>
             <td>{{.Subject}}</td>
+            <td><span class="pill">{{labelType .Type}}</span></td>
             <td><span class="pill {{statusClass .Status}}">{{labelStatus .Status}}</span></td>
+            {{$p := index $.Progress .ID}}
+            <td style="min-width:9rem">
+              {{if $p.HasStages}}
+              <div class="progress-meta" style="font-size:.75rem;margin-bottom:.25rem"><span>{{$p.Label}}</span><span>{{$p.Percent}}%</span></div>
+              <div class="progress-bar {{if eq $p.Percent 100}}is-done{{end}}" style="height:6px"><span style="width:{{$p.Percent}}%"></span></div>
+              {{if and $p.Current (lt $p.Percent 100)}}<div class="muted" style="font-size:.72rem;margin-top:.25rem">{{$p.Current}}</div>{{end}}
+              {{else}}<span class="muted">—</span>{{end}}
+            </td>
             <td><span class="pill {{priorityClass .Priority}}">{{labelPriority .Priority}}</span></td>
           </tr>
         {{end}}

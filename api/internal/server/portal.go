@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/archangelgt/helpdesk/api/internal/i18n"
@@ -12,28 +13,41 @@ import (
 
 func (s *Server) handlePortal(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
-	f := pb.TicketFilters{}
-	if u.Tenant != "" {
-		f.TenantID = u.Tenant
+	// Los tickets donde el usuario es solicitante se listan aunque estén en otra empresa.
+	var all []pb.Ticket
+	if strings.TrimSpace(u.Email) != "" {
+		byEmail, _ := s.pb.ListTickets(r.Context(), pb.TicketFilters{RequesterEmail: u.Email})
+		all = append(all, byEmail...)
 	}
-	f.RequesterEmail = u.Email
-	// Also include by requester id
-	ticketsByEmail, _ := s.pb.ListTickets(r.Context(), f)
-	f2 := pb.TicketFilters{RequesterID: u.ID, TenantID: u.Tenant}
-	ticketsByID, _ := s.pb.ListTickets(r.Context(), f2)
+	if u.ID != "" {
+		byID, _ := s.pb.ListTickets(r.Context(), pb.TicketFilters{RequesterID: u.ID})
+		all = append(all, byID...)
+	}
+	// Las implementaciones de la empresa las ven todos sus usuarios.
+	if u.Tenant != "" {
+		impl, _ := s.pb.ListTickets(r.Context(), pb.TicketFilters{TenantID: u.Tenant, Type: "implementacion"})
+		all = append(all, impl...)
+	}
 	seen := map[string]bool{}
 	var tickets []pb.Ticket
-	for _, t := range append(ticketsByEmail, ticketsByID...) {
+	progress := map[string]TicketProgress{}
+	for _, t := range all {
 		if seen[t.ID] {
 			continue
 		}
 		seen[t.ID] = true
 		tickets = append(tickets, t)
+		if t.Type == "implementacion" {
+			stages, _ := s.pb.ListStages(r.Context(), t.ID)
+			progress[t.ID] = computeProgress(stages)
+		}
 	}
+	sort.SliceStable(tickets, func(i, j int) bool { return tickets[i].Created > tickets[j].Created })
 	s.render(w, "portal.html", s.pageBase(r, map[string]any{
-		"Title":   i18n.T(langFromRequest(r), "portal.title"),
-		"Nav":     "portal",
-		"Tickets": tickets,
+		"Title":    i18n.T(langFromRequest(r), "portal.title"),
+		"Nav":      "portal",
+		"Tickets":  tickets,
+		"Progress": progress,
 	}))
 }
 
@@ -104,6 +118,9 @@ func portalCanView(u *pb.AppUser, t *pb.Ticket) bool {
 		return true
 	}
 	if t.RequesterEmail != "" && strings.EqualFold(t.RequesterEmail, u.Email) {
+		return true
+	}
+	if t.Type == "implementacion" && u.Tenant != "" && t.Tenant == u.Tenant {
 		return true
 	}
 	return false
