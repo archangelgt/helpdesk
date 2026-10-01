@@ -27,7 +27,8 @@ Una plataforma de soporte e implementación **multi-empresa (multi-tenant)** que
 Con ella:
 
 - El jefe asigna **tareas** e **implementaciones** a los técnicos y ve el avance en tiempo real.
-- El cliente ve el progreso de su implementación etapa por etapa.
+- El cliente ve el progreso de su implementación etapa por etapa y **se entera de todo**; cuando necesitamos algo de él (información, documentos, accesos, aprobaciones) se le pide formalmente, se le recuerda y, al entregarlo, la implementación avanza a la siguiente etapa.
+- Soporte, implementación, tarea y cualquier tipo nuevo de caso viven en un **modelo de datos normalizado y configurable**, sin crear tablas nuevas por cada tipo.
 - Los usuarios reportan **bugs/errores** con tickets de soporte (texto, imágenes, videos, documentos) y el equipo técnico los recibe al instante.
 - Todos se mantienen informados por **correo** (y luego otros canales) y pueden comentar el avance.
 - Se obtienen **estadísticas**: qué técnico resuelve más, qué usuario/empresa reporta más, qué está atrasado y cuánto falta para terminar.
@@ -63,14 +64,18 @@ Los permisos se modelan como **RBAC** (rol → permisos) más **reglas de alcanc
 - **Tenant / instancia**: empresa que compra el helpdesk. Tiene su propia instalación completa (programa, base PocketBase, colas) en su propio dominio.
 - **Cliente**: empresa cliente del tenant. Puede venir de una API externa (erpsys).
 - **Producto / servicio**: lo que el tenant vende (ej. "ERPsys", "Punto de venta"). Un cliente tiene uno o más productos contratados.
-- **Ticket**: unidad de trabajo. Tipos:
-  - `support` — reporte de error/bug/duda de un usuario.
+- **Caso (work item)**: unidad de trabajo única para todo. Soporte, implementación, tarea y cualquier tipo futuro son **la misma entidad** con un **tipo** distinto; en pantalla se muestra con el nombre de su tipo ("Ticket de soporte", "Implementación"…).
+- **Tipo de caso**: configurable por cada empresa, sin programar. Vienen de fábrica:
+  - `support` — reporte de error, bug o duda de un usuario.
   - `implementation` — proyecto para poner en marcha un servicio a un cliente; tiene **etapas**.
   - `task` — tarea interna asignada por el jefe a un técnico.
-  - `request` — solicitud de cambio/mejora (opcional, fase 2).
-- **Etapa**: paso de una implementación con fechas planificadas, responsable y estado.
-- **Plantilla de implementación**: conjunto de etapas predefinidas con duración estimada para reutilizar.
-- **SLA**: tiempos objetivo de primera respuesta y de resolución según prioridad.
+  - Ejemplos que la empresa puede agregar: solicitud de cambio, capacitación, migración de datos, incidente, visita en sitio, renovación.
+  Cada tipo define su flujo de estados, si tiene etapas, sus campos adicionales, su prefijo de numeración y si el cliente lo ve.
+- **Flujo de estados (workflow)**: estados y transiciones permitidas de un tipo. Cada estado pertenece a una **categoría fija** (nuevo, abierto, en progreso, esperando cliente, esperando interno, resuelto, cerrado, cancelado) para que reportes y SLA funcionen igual con cualquier tipo.
+- **Etapa**: paso de un caso con etapas (ej. una implementación), con fechas, responsable, **de quién depende** (nuestro equipo, el cliente o ambos) y dependencias con otras etapas.
+- **Requerimiento al cliente**: algo que necesitamos del cliente para avanzar (información, documento, carga de datos, accesos, aprobación, reunión). Tiene responsable del lado del cliente, fecha límite, recordatorios y revisión; si es bloqueante, la etapa no avanza hasta que se acepte.
+- **Plantilla**: conjunto reutilizable de etapas, requerimientos al cliente y checklists para un tipo de caso (ej. "Implementación ERPsys estándar").
+- **SLA**: tiempos objetivo de primera respuesta y de resolución según tipo, prioridad y cliente; se pausa mientras se espera al cliente.
 
 ---
 
@@ -249,72 +254,165 @@ Reglas: los `controllers` no tocan PocketBase directamente (pasan por `services`
 
 ### 7.1 Base de cada instancia (una por empresa)
 
-Es la base que se ve en `https://pb-support.erpsys.pro/_/#/` para nuestra instancia, y en `pb-support.<dominio>` para cada empresa. Todas las colecciones tienen `created` y `updated` automáticos. Las flechas indican relaciones.
+Es la base que se ve en `https://pb-support.erpsys.pro/_/#/` para nuestra instancia, y en `pb-support.<dominio>` para cada empresa.
+
+### 7.2 Reglas de normalización
+
+1. **Una sola entidad de trabajo** (`work_items`) para soporte, implementación, tarea y cualquier tipo futuro. Lo que cambia entre tipos (flujo, etapas, campos extra) vive en **catálogos configurables**, no en tablas distintas ni en código.
+2. **Nada de textos libres para valores repetidos**: tipo, estado, prioridad, categoría, canal, rol, etc. son **relaciones a catálogos** (`work_item_types`, `statuses`, `priorities`…). Cambiar el nombre de un estado no toca los casos.
+3. **Relaciones muchos a muchos con datos propios** van en **tablas intermedias** (`team_members`, `client_products`, `work_item_participants`, `work_item_tags`, `stage_dependencies`).
+4. **Historial separado y solo de inserción**: estados, asignaciones y eventos se guardan en tablas de historial (`work_item_status_history`, `work_item_assignments`, `work_item_events`). De ahí salen métricas como "quién resolvió", "tiempo en cada estado" o "tiempo esperando al cliente".
+5. **Campos de caché explícitos**: algunos valores derivados se guardan por rendimiento (ej. `progress_percent`, `status_category`, `resolved_by`). Están marcados como *(caché)*, solo los escriben los servicios y se pueden recalcular desde el historial.
+6. **Adjuntos y comentarios con un único dueño**: un adjunto pertenece a exactamente uno de: caso, comentario, etapa o requerimiento al cliente (validado en servicio y en hook de PocketBase).
+7. **Integridad**: relaciones de PocketBase con borrado en cascada o restringido según el caso, índices únicos (ej. número por tipo, participante por rol), borrado lógico (`deleted_at`) para casos, y todas las colecciones con `created` y `updated`.
+8. **Textos traducibles**: los catálogos guardan una **clave de traducción** (`label_key`) además del nombre, para mostrarse en es/en/pt.
+
+### 7.3 Colecciones por dominio
+
+**A. Personas y organización**
 
 | Colección | Campos principales |
 |---|---|
-| `users` (auth) | nombre, correo, teléfono, avatar, rol, cliente → `clients` (vacío si es personal interno), equipo(s) → `teams`, estado, **idioma** (`es`/`en`/`pt`), zona horaria, **modo** (`light`/`dark`/`system`), **tema de color**, `external_source`, `external_id`, último acceso |
-| `teams` | nombre, líder → `users`, productos → `products` |
-| `clients` | nombre, NIT/ID fiscal, estado, SLA → `sla_policies`, ejecutivo → `users`, `external_source`, `external_id` |
-| `products` | código, nombre, descripción, activo |
-| `client_products` | cliente → `clients`, producto → `products`, plan/licencia, vigencia |
-| `tickets` | número (secuencial), tipo, título, descripción, estado, prioridad, severidad, producto, cliente, **solicitante** → `users`, **creado por** → `users`, **asignado a** → `users`, equipo → `teams`, **resuelto por** → `users`, cerrado por → `users`, canal (`web`/`email`/`api`/`widget`), referencia externa, ticket padre → `tickets`, plantilla, SLA, vencimientos (primera respuesta, resolución), fechas de primera respuesta / resuelto / cerrado, observadores → `users` (múltiple), etiquetas |
-| `ticket_stages` | ticket, nombre, orden, descripción, estado, responsable → `users`, inicio y fin planificados, inicio y fin reales, **completada por** → `users`, peso (para el % de avance), visible al cliente (sí/no) |
-| `implementation_templates` / `template_stages` | nombre, producto; etapas con orden, duración estimada en días hábiles, rol responsable sugerido |
-| `comments` | ticket, etapa (opcional), autor → `users`, cuerpo, visibilidad (`public`/`internal`), origen (`web`/`email`/`api`) |
-| `attachments` | ticket, comentario, etapa, archivo (imágenes, videos, PDF, Office, zip), tipo MIME, tamaño, subido por → `users` |
-| `ticket_events` | ticket, actor → `users`, tipo (`status_changed`, `assigned`, `stage_completed`, `comment_added`…), valor anterior, valor nuevo, metadatos JSON |
-| `sla_policies` / `business_calendars` | metas por prioridad; horario laboral y feriados |
-| `notification_rules` | evento, destinatarios (solicitante, admin del cliente, asignado, equipo, jefe, observadores), canales, plantilla |
-| `notification_channels` | tipo (`email`, `webhook`, `slack`, `teams`, `whatsapp`, `telegram`), configuración cifrada |
-| `notifications` (outbox) | evento, destinatario, canal, estado (`pending`/`sent`/`failed`), intentos, error |
+| `users` (auth) | nombre, correo, teléfono, avatar, rol → `roles`, cliente → `clients` (vacío si es personal interno), estado, idioma, zona horaria, modo (`light`/`dark`/`system`), tema de color, último acceso |
+| `roles` | código (`owner`, `manager`, `technician`, `agent`, `client_admin`, `client_user`, `viewer`), ámbito (`staff`/`client`), `label_key` |
+| `permissions` / `role_permissions` | permiso (`work_item.create`, `stage.complete`, `client_request.review`, `settings.manage`…); tabla intermedia rol ↔ permiso |
+| `teams` / `team_members` | equipo (nombre, producto principal); miembro: equipo → `teams`, usuario → `users`, rol en el equipo (`leader`/`member`) |
+| `clients` | nombre, NIT/ID fiscal, estado, política SLA → `sla_policies`, ejecutivo de cuenta → `users` |
+| `client_contacts` | cliente → `clients`, usuario → `users`, tipo de contacto (`primary`, `technical`, `approver`, `billing`), recibe avisos (sí/no) |
+| `products` / `client_products` | producto (código, nombre, activo); contratación: cliente, producto, plan, estado de licencia, vigencia |
+| `external_identities` | usuario → `users` **o** cliente → `clients`, sistema (`erpsys`, `erpsyschat`…), ID externo, último sincronizado (único por sistema + ID) |
+
+**B. Catálogos configurables del trabajo**
+
+| Colección | Campos principales |
+|---|---|
+| `work_item_types` | código, nombre, `label_key`, icono, color, prefijo de numeración, flujo por defecto → `workflows`, **tiene etapas** (sí/no), **visible al cliente** (sí/no), requiere producto (sí/no), prioridad por defecto → `priorities`, activo |
+| `workflows` | nombre, aplica a (`work_item` / `stage`) |
+| `statuses` | flujo → `workflows`, código, nombre, `label_key`, **categoría** (`new`, `open`, `in_progress`, `waiting_client`, `waiting_internal`, `resolved`, `closed`, `cancelled`), color, orden, inicial (sí/no), final (sí/no), **pausa SLA** (sí/no), nombre que ve el cliente |
+| `workflow_transitions` | flujo, estado origen → `statuses`, estado destino → `statuses`, roles permitidos → `roles` (múltiple), exige comentario, exige evidencia |
+| `priorities` | código, nombre, `label_key`, nivel, color |
+| `categories` | tipo → `work_item_types`, nombre, categoría padre → `categories` (árbol) |
+| `channels` | código (`web`, `portal`, `email`, `api`, `widget`, `chat`), nombre |
+| `tags` | nombre, color |
+| `custom_fields` | tipo de caso → `work_item_types`, clave, `label_key`, tipo de dato (texto, número, fecha, lista, usuario, archivo), opciones, obligatorio, visible al cliente, orden |
+
+**C. Casos y su trabajo**
+
+| Colección | Campos principales |
+|---|---|
+| `work_items` | número (secuencial por tipo, ej. `SOP-0012`, `IMP-0003`), tipo → `work_item_types`, título, descripción, estado → `statuses`, prioridad → `priorities`, categoría → `categories`, producto → `products`, cliente → `clients`, canal → `channels`, **solicitante** → `users`, **creado por** → `users`, **asignado actual** → `users`, equipo → `teams`, caso padre → `work_items`, plantilla → `templates`, política SLA → `sla_policies`, fecha límite, inicio y fin planificados, fechas de primera respuesta / resuelto / cerrado, `status_category` *(caché)*, `progress_percent` *(caché)*, `resolved_by` → `users` *(caché)*, `deleted_at` |
+| `custom_field_values` | caso → `work_items`, campo → `custom_fields`, valor (texto / número / fecha / JSON) — único por caso + campo |
+| `work_item_participants` | caso, usuario, rol en el caso (`watcher`, `collaborator`, `approver`, `client_contact`), recibe avisos — único por caso + usuario + rol |
+| `work_item_assignments` | caso, etapa (opcional), asignado → `users`, equipo, asignado por → `users`, desde, hasta (historial de asignaciones) |
+| `work_item_status_history` | caso, estado anterior, estado nuevo, categoría nueva, cambiado por → `users`, fecha, segundos en el estado anterior |
+| `work_item_links` | caso origen, caso destino, tipo (`relates_to`, `duplicates`, `blocks`, `caused_by`) |
+| `work_item_tags` | caso ↔ etiqueta |
+| `stages` | caso → `work_items`, etapa de plantilla de origen, nombre, `label_key` opcional, descripción, orden, estado → `statuses` (flujo de etapas), **depende de** (`internal`/`client`/`shared`), responsable → `users`, inicio y fin planificados, inicio y fin reales, completada por → `users`, peso, visible al cliente, exige evidencia, exige aprobación del cliente |
+| `stage_dependencies` | etapa → `stages`, depende de → `stages`, tipo (`finish_to_start`) |
+| `checklist_items` | etapa → `stages` (o caso), texto, orden, hecho, hecho por, fecha |
+| `client_requests` | **requerimiento al cliente**: caso → `work_items`, etapa → `stages`, título, descripción, tipo (`information`, `document`, `data_upload`, `access`, `approval`, `meeting`), pedido por → `users`, contacto del cliente → `users`, fecha límite, **bloqueante** (sí/no), estado (`pending`, `submitted`, `in_review`, `accepted`, `rejected`, `cancelled`), enviado en, revisado por, revisado en, motivo de rechazo, recordatorios enviados, último recordatorio |
+| `comments` | caso, etapa (opcional), requerimiento (opcional), autor → `users`, cuerpo, visibilidad (`public`/`internal`), canal → `channels` |
+| `attachments` | **un solo dueño**: caso, comentario, etapa o requerimiento; archivo (imágenes, videos, PDF, Office, Excel, zip), tipo MIME, tamaño, uso (`general`, `evidence`, `client_submission`, `template_file`), subido por → `users` |
+| `work_item_events` | caso, actor, tipo de evento (`created`, `status_changed`, `assigned`, `stage_completed`, `client_request_submitted`…), valores anterior/nuevo, metadatos (línea de tiempo y auditoría funcional) |
+| `time_entries` (fase 3) | caso, etapa, usuario, minutos, fecha, facturable |
+
+**D. Plantillas**
+
+| Colección | Campos principales |
+|---|---|
+| `templates` | tipo → `work_item_types`, producto, nombre, descripción, activa |
+| `template_stages` | plantilla, nombre, orden, duración en días hábiles, depende de (`internal`/`client`/`shared`), rol sugerido → `roles`, peso, exige evidencia, exige aprobación |
+| `template_stage_dependencies` | etapa de plantilla ↔ etapa de plantilla de la que depende |
+| `template_client_requests` | etapa de plantilla, título, descripción, tipo, bloqueante, días para entregar, archivo modelo (ej. Excel de carga) |
+| `template_checklist_items` | etapa de plantilla, texto, orden |
+
+**E. SLA y calendario**
+
+| Colección | Campos principales |
+|---|---|
+| `sla_policies` / `sla_targets` | política; metas por tipo de caso + prioridad: minutos de primera respuesta y de resolución |
+| `business_calendars` / `holidays` | horario laboral por día; feriados |
+| `sla_timers` | caso, métrica (`first_response`, `resolution`), inicio, total pausado, vence en, incumplido en, estado |
+
+**F. Notificaciones, canales e integraciones**
+
+| Colección | Campos principales |
+|---|---|
+| `notification_rules` | evento, tipo de caso (opcional), destinatarios (solicitante, contactos del cliente, asignado, equipo, jefe, participantes), canales, plantilla |
+| `notification_templates` | evento, canal, idioma, asunto, cuerpo |
+| `notification_channels` | tipo (`email`, `webhook`, `erpsyschat`, `slack`, `teams`, `whatsapp`, `telegram`), configuración cifrada |
+| `notifications` | evento, destinatario, canal, estado (`pending`/`sent`/`failed`), intentos, error |
 | `user_notification_prefs` | usuario, evento, canales activos, resumen diario |
-| `inbound_mailboxes` | dirección, tipo (IMAP / webhook del proveedor), credenciales cifradas, producto y equipo por defecto |
-| `email_threads` | Message-ID ↔ ticket, para que las respuestas por correo se agreguen como comentarios |
-| `sync_runs` | conector → `connectors`, inicio, fin, creados, actualizados, errores |
-| `api_keys` | nombre, hash, prefijo, scopes, cliente (opcional), expiración, último uso |
-| `webhooks` / `webhook_deliveries` | URL, eventos, secreto de firma; entregas con estado y reintentos |
-| `sessions` | usuario, hash del refresh token, IP, user agent, expiración, revocado |
-| `audit_logs` | actor, acción, entidad, id, IP, cambios JSON |
-| `canned_responses` | respuestas rápidas para técnicos |
-| `external_refs` | ticket → `tickets`, sistema (`erpsyschat`, `erpsys`, `email`…), tipo de objeto (conversación, pedido, usuario), ID externo, URL |
-| `connectors` | tipo (`erpsys`, `erpsyschat`, `rest`, `csv`), activo, URL, credenciales cifradas, mapeo de campos, frecuencia de sincronización, eventos suscritos, estado de salud, último error |
-| `event_outbox` | evento, carga JSON, destino, estado, intentos, próximo reintento (garantiza que ningún aviso se pierda) |
-| `email_senders` | nombre, correo remitente, responder a, proveedor, credenciales cifradas, estado de verificación SPF/DKIM, por defecto (sí/no), tipos de aviso que usa |
-| `settings_history` | sección, valor anterior y nuevo (sin secretos), quién y cuándo |
+| `email_senders` | nombre, correo remitente, responder a, proveedor, credenciales cifradas, verificación SPF/DKIM, por defecto, eventos que usa |
+| `inbound_mailboxes` / `email_threads` | buzones de entrada (IMAP / webhook) con tipo de caso y equipo por defecto; Message-ID ↔ caso |
+| `connectors` / `sync_runs` | conectores (erpsys, erpsyschat, REST, CSV) con credenciales cifradas, mapeo, frecuencia, salud; ejecuciones de sincronización |
+| `external_refs` | caso → `work_items`, sistema, tipo de objeto (conversación, pedido…), ID externo, URL |
+| `event_outbox` | evento, carga, destino, estado, intentos, próximo reintento |
+| `api_keys` / `webhooks` / `webhook_deliveries` | llaves con hash y scopes; webhooks salientes firmados y sus entregas |
+
+**G. Sistema**
+
+| Colección | Campos principales |
+|---|---|
+| `settings` / `settings_history` | configuración de la empresa (sección 14); historial de cambios sin secretos |
+| `translations_overrides` | clave, idioma, texto personalizado por la empresa |
 | `saved_views` | usuario o equipo, nombre, modo del tablero, filtros, orden, densidad, favorito |
-| `settings` | nombre y logo de la empresa, **idioma por defecto**, **modo y tema de color por defecto** (o color de marca propio), zona horaria, estados personalizados, límites de archivos |
-| `translations_overrides` | clave, idioma, texto: permite a cada empresa ajustar textos (ej. llamar "Casos" a los tickets) sin tocar el código |
-| *Vistas de estadísticas* | `stats_by_technician`, `stats_by_requester`, `stats_by_client`, `stats_overdue`, `stats_implementation_progress` (view collections con SQL `GROUP BY`) |
+| `canned_responses` | respuestas rápidas por tipo de caso e idioma |
+| `sessions` / `audit_logs` | sesiones con refresh token (hash); auditoría de acciones sensibles |
+| *Vistas de estadísticas* | `stats_by_technician`, `stats_by_requester`, `stats_by_client`, `stats_by_type`, `stats_overdue`, `stats_implementation_progress`, `stats_client_wait_time` (view collections con SQL de agregación) |
+
+### 7.4 Diagrama de relaciones (núcleo)
 
 ```mermaid
 erDiagram
-  CLIENTS ||--o{ USERS : "tiene usuarios"
+  ROLES ||--o{ USERS : "rol"
+  CLIENTS ||--o{ USERS : "usuarios del cliente"
+  CLIENTS ||--o{ CLIENT_CONTACTS : contactos
+  USERS ||--o{ CLIENT_CONTACTS : "es contacto"
   CLIENTS ||--o{ CLIENT_PRODUCTS : contrata
   PRODUCTS ||--o{ CLIENT_PRODUCTS : "es contratado"
-  CLIENTS ||--o{ TICKETS : "pertenece"
-  PRODUCTS ||--o{ TICKETS : "sobre"
-  USERS ||--o{ TICKETS : "solicita (requester)"
-  USERS ||--o{ TICKETS : "crea (created_by)"
-  USERS ||--o{ TICKETS : "atiende (assignee)"
-  USERS ||--o{ TICKETS : "resuelve (resolved_by)"
-  TEAMS ||--o{ TICKETS : "equipo"
-  TEAMS }o--o{ USERS : miembros
-  TICKETS ||--o{ TICKET_STAGES : "etapas"
-  USERS ||--o{ TICKET_STAGES : "responsable / completa"
-  TICKETS ||--o{ COMMENTS : tiene
-  TICKETS ||--o{ ATTACHMENTS : tiene
-  TICKETS ||--o{ TICKET_EVENTS : historial
-  TICKETS ||--o{ TICKETS : "subtareas"
-  IMPLEMENTATION_TEMPLATES ||--o{ TEMPLATE_STAGES : define
-  SLA_POLICIES ||--o{ TICKETS : aplica
+  TEAMS ||--o{ TEAM_MEMBERS : tiene
+  USERS ||--o{ TEAM_MEMBERS : pertenece
+
+  WORK_ITEM_TYPES ||--o{ WORK_ITEMS : "tipo"
+  WORKFLOWS ||--o{ STATUSES : define
+  WORKFLOWS ||--o{ WORKFLOW_TRANSITIONS : permite
+  WORK_ITEM_TYPES }o--|| WORKFLOWS : "usa flujo"
+  STATUSES ||--o{ WORK_ITEMS : "estado"
+  PRIORITIES ||--o{ WORK_ITEMS : "prioridad"
+  CLIENTS ||--o{ WORK_ITEMS : "cliente"
+  PRODUCTS ||--o{ WORK_ITEMS : "producto"
+  USERS ||--o{ WORK_ITEMS : "solicita / crea / atiende"
+  WORK_ITEMS ||--o{ WORK_ITEMS : "subcasos"
+
+  WORK_ITEMS ||--o{ WORK_ITEM_PARTICIPANTS : participantes
+  WORK_ITEMS ||--o{ WORK_ITEM_ASSIGNMENTS : "historial asignación"
+  WORK_ITEMS ||--o{ WORK_ITEM_STATUS_HISTORY : "historial estado"
+  WORK_ITEMS ||--o{ CUSTOM_FIELD_VALUES : "campos extra"
+  CUSTOM_FIELDS ||--o{ CUSTOM_FIELD_VALUES : define
+
+  WORK_ITEMS ||--o{ STAGES : etapas
+  STAGES ||--o{ STAGE_DEPENDENCIES : "depende de"
+  STAGES ||--o{ CHECKLIST_ITEMS : checklist
+  STAGES ||--o{ CLIENT_REQUESTS : "requerimientos al cliente"
+  USERS ||--o{ CLIENT_REQUESTS : "contacto responsable"
+
+  WORK_ITEMS ||--o{ COMMENTS : comentarios
+  WORK_ITEMS ||--o{ ATTACHMENTS : adjuntos
+  CLIENT_REQUESTS ||--o{ ATTACHMENTS : "entregas del cliente"
+
+  TEMPLATES ||--o{ TEMPLATE_STAGES : define
+  TEMPLATE_STAGES ||--o{ TEMPLATE_CLIENT_REQUESTS : "requerimientos modelo"
+  TEMPLATES ||--o{ WORK_ITEMS : "origen"
 ```
 
 ---
 
 ## 8. Estados y flujos
 
-### Ticket de soporte
+Los flujos son **configurables por tipo de caso** (`workflows`, `statuses`, `workflow_transitions`). Abajo están los que vienen de fábrica; cada empresa puede renombrar estados, agregar otros o crear tipos nuevos con su propio flujo, siempre asignando cada estado a una categoría fija.
+
+### Ticket de soporte (flujo por defecto)
 
 ```mermaid
 stateDiagram-v2
@@ -335,17 +433,69 @@ Al crear el ticket, el sistema registra automáticamente **fecha, hora, usuario,
 
 ### Implementación
 
-- Estados: `planificada` → `en_curso` → `en_pausa` ↔ `en_curso` → `completada` (o `cancelada`).
-- Etapas: `pendiente` → `en_curso` → `completada` (también `bloqueada` y `omitida`).
-- Al crearla desde una plantilla, las fechas de cada etapa se calculan con días hábiles a partir de la fecha de inicio.
+- **Estados del caso**: `planificada` → `en_curso` ↔ `esperando_cliente` → `en_pausa` ↔ `en_curso` → `completada` (o `cancelada`). El estado se **deriva de sus etapas**: si la etapa actual espera al cliente, la implementación pasa a "Esperando cliente".
+- **Estados de etapa**: `pendiente` → `en_curso` ↔ `esperando_cliente` → `en_revision` → `completada` (también `bloqueada` y `omitida`).
+- **Dependencias**: una etapa no puede iniciar hasta que terminen las etapas de las que depende (por defecto, la anterior). Al completarse una etapa, se **desbloquea la siguiente** y se avisa a su responsable y al cliente.
+- **De quién depende cada etapa**: nuestro equipo, el cliente o ambos. Se muestra en la línea de tiempo con un color distinto para que el cliente sepa cuándo le toca actuar.
+- Al crearla desde una plantilla se generan etapas, dependencias, checklists y **requerimientos al cliente**, con fechas en días hábiles desde la fecha de inicio.
 - **Avance** = suma de pesos de etapas completadas / suma total.
-- **Etapa atrasada**: fin planificado < hoy y no completada.
-- **Fecha estimada de término**: fin planificado de la última etapa + retraso acumulado actual; se muestra "faltan X días hábiles" o "atrasada X días".
-- Al completar una etapa se puede exigir evidencia (archivo o comentario).
+- **Etapa atrasada**: fin planificado < hoy y no completada. El retraso se separa en **atribuible a nuestro equipo** y **atribuible al cliente** (tiempo en "esperando cliente").
+- **Fecha estimada de término**: fin planificado de la última etapa + retraso acumulado actual, recalculada cada vez que el cliente entrega algo tarde; se muestra "faltan X días hábiles" o "atrasada X días (Y por espera del cliente)".
+- Al completar una etapa se puede exigir evidencia (archivo o comentario) y/o **aprobación del cliente**.
+
+```mermaid
+stateDiagram-v2
+  [*] --> pendiente
+  pendiente --> en_curso: etapas previas completadas
+  en_curso --> esperando_cliente: se piden requerimientos bloqueantes
+  esperando_cliente --> en_curso: el cliente entrega y se aceptan
+  esperando_cliente --> esperando_cliente: entrega rechazada (con motivo)
+  en_curso --> en_revision: requiere aprobación del cliente
+  en_revision --> completada: cliente aprueba
+  en_revision --> en_curso: cliente pide cambios
+  en_curso --> completada: técnico completa (con evidencia si aplica)
+  en_curso --> bloqueada: impedimento interno
+  bloqueada --> en_curso
+  completada --> [*]
+```
+
+### Requerimientos al cliente (ej. etapa "Carga de información")
+
+```mermaid
+sequenceDiagram
+  participant T as Técnico
+  participant H as Helpdesk
+  participant C as Cliente (portal / correo / chat)
+
+  T->>H: Inicia la etapa "Carga de información"
+  H->>H: Crea los requerimientos de la plantilla<br/>(ej. catálogo de productos en Excel, listado de usuarios, logo)
+  H-->>C: Aviso: "Necesitamos esta información para continuar" + fecha límite + archivo modelo
+  H->>H: Etapa e implementación pasan a "Esperando cliente" (se pausa el SLA)
+  H-->>C: Recordatorios automáticos (antes de vencer, al vencer, cada N días)
+  C->>H: Sube los archivos / responde en "Pendientes de tu parte"
+  H-->>T: Aviso: "El cliente entregó la información"
+  T->>H: Revisa: acepta o rechaza con motivo
+  alt rechazado
+    H-->>C: Aviso con el motivo, vuelve a pendiente
+  else todos los bloqueantes aceptados
+    H->>H: Etapa vuelve a "En curso" y el técnico la completa
+    H-->>C: Aviso: "Recibimos todo, avanzamos a la etapa Configuración"
+  end
+```
+
+- Tipos de requerimiento: información (formulario o texto), documento, carga de datos (con archivo modelo, ej. Excel), accesos/credenciales (se guardan cifrados), aprobación (firma de conformidad) y reunión (agendar).
+- Cada requerimiento tiene **contacto responsable del cliente**, fecha límite, si es **bloqueante**, historial de entregas y comentarios propios.
+- Si vence sin respuesta: aviso al contacto, luego al `client_admin` y al ejecutivo de cuenta (escalamiento configurable).
+- El técnico también puede agregar requerimientos manuales en cualquier etapa (no solo los de la plantilla).
+- Esto sirve para cualquier tipo de caso, no solo implementaciones (ej. un ticket de soporte que necesita un acceso remoto).
 
 ### Tarea interna
 
 `pendiente` → `en_progreso` → `hecha` (vista tipo ToDo, con fecha límite y prioridad).
+
+### Tipos nuevos
+
+La empresa crea un tipo (ej. "Capacitación") desde la configuración: nombre, icono, prefijo, flujo (uno existente o uno nuevo), si tiene etapas, plantilla por defecto, campos extra y si lo ve el cliente. No requiere cambios de código ni de base de datos.
 
 ---
 
@@ -380,7 +530,7 @@ Patrón **conector**: cada fuente implementa la misma interfaz (`listClients`, `
 
 ### 10.2 Exponer APIs (para que los productos creen tickets)
 
-- `POST /public/v1/tickets` crear ticket (con adjuntos), `GET /public/v1/tickets/{ref}` estado, `POST /public/v1/tickets/{ref}/comments`, `GET /public/v1/tickets?requester=...`.
+- `POST /public/v1/work-items` crear caso de cualquier tipo habilitado (por defecto soporte, con adjuntos), `GET /public/v1/work-items/{ref}` estado y avance, `POST /public/v1/work-items/{ref}/comments`, `GET /public/v1/work-items?requester=...&type=...`, `GET /public/v1/work-items/{ref}/client-requests` y `POST /public/v1/client-requests/{id}/submit` (para que el cliente entregue requerimientos desde su propio sistema o desde el chat).
 - Autenticación con **API key** de la instancia; opcionalmente "en nombre de" un usuario (se crea o vincula por correo/ID externo).
 - **Idempotencia** con cabecera `Idempotency-Key` y referencia externa.
 - **Webhooks salientes**: `ticket.created`, `ticket.status_changed`, `ticket.assigned`, `comment.created`, `stage.completed`, `implementation.completed`.
@@ -395,7 +545,7 @@ Patrón **conector**: cada fuente implementa la misma interfaz (`listClients`, `
 
 ### 10.4 API interna (la usa el frontend)
 
-`/api/v1/auth/*`, `/api/v1/me`, `/api/v1/tickets` (+ `/comments`, `/attachments`, `/assign`, `/status`), `/api/v1/implementations` (+ `/stages/{id}/complete`), `/api/v1/tasks`, `/api/v1/clients`, `/api/v1/users`, `/api/v1/products`, `/api/v1/templates`, `/api/v1/reports/*`, `/api/v1/integrations/*`, `/api/v1/settings`, `/api/v1/me/preferences` (idioma, modo, tema). La consola de instancias tiene su propia API, separada de las instancias.
+`/api/v1/auth/*`, `/api/v1/me`, `/api/v1/work-items` (+ `/comments`, `/attachments`, `/assign`, `/transition`, `/participants`, `/links`), `/api/v1/stages/{id}` (+ `/start`, `/complete`, `/approve`), `/api/v1/client-requests` (+ `/submit`, `/accept`, `/reject`, `/remind`), `/api/v1/catalog/*` (tipos, flujos, estados, prioridades, categorías, campos extra), `/api/v1/clients`, `/api/v1/users`, `/api/v1/products`, `/api/v1/templates`, `/api/v1/reports/*`, `/api/v1/integrations/*`, `/api/v1/settings`, `/api/v1/me/preferences` (idioma, modo, tema). La consola de instancias tiene su propia API, separada de las instancias.
 
 Todas las respuestas de error devuelven un **código estable** (ej. `TICKET_NOT_FOUND`) más un mensaje traducido según `Accept-Language` o el idioma del usuario.
 
@@ -415,9 +565,9 @@ El helpdesk es un **servicio independiente** que funciona solo, y se conecta con
 
 - **Conectores como contenedores separados** (ej. `connector-erpsyschat`, `connector-erpsys`): se activan o desactivan por empresa desde la configuración, se despliegan y actualizan sin tocar el núcleo, y si uno falla el helpdesk sigue funcionando.
 - **Idempotencia**: todo mensaje entre sistemas lleva un ID único (`Idempotency-Key` / `event_id`) para no duplicar tickets o comentarios.
-- **Correlación**: cada ticket guarda referencias externas (`external_refs`: sistema, tipo, ID, URL) para saber de qué conversación, pedido o usuario vino.
+- **Correlación**: cada caso guarda referencias externas (`external_refs`: sistema, tipo, ID, URL) para saber de qué conversación, pedido o usuario vino.
 - **Catálogo de eventos** documentado y versionado, para que cualquier sistema nuevo pueda suscribirse.
-- **Colección nueva** `external_refs`: ticket → sistema (`erpsyschat`, `erpsys`, `email`…), tipo de objeto, ID externo, URL.
+- **Colección** `external_refs` (ver 7.3 F): caso (`work_items`) → sistema (`erpsyschat`, `erpsys`, `email`…), tipo de objeto, ID externo, URL.
 
 ### 10.6 Integración con erpsyschat
 
@@ -435,7 +585,7 @@ sequenceDiagram
   C-->>X: webhook message.created
   T->>C: Botón "Convertir en ticket" (o el bot detecta /ticket)
   C->>X: crear ticket con la conversación
-  X->>H: POST /public/v1/tickets (título, mensajes, adjuntos, usuario, external_ref)
+  X->>H: POST /public/v1/work-items (título, mensajes, adjuntos, usuario, external_ref)
   H-->>X: ticket HD-0123 creado
   X->>C: Mensaje en la conversación: "Se creó el ticket HD-0123"
   T->>H: Cambia estado / comenta / completa etapa
@@ -467,7 +617,8 @@ Lo mismo sirve para conectar más adelante otros chats o canales (WhatsApp, Tele
 
 - Eventos de dominio → **reglas de notificación** → destinatarios → canales → **outbox** con reintentos.
 - Destinatarios típicos: solicitante, admin del cliente, técnico asignado, equipo, jefe, observadores.
-- Eventos: ticket creado, asignado, cambio de estado, comentario público, etapa completada, etapa atrasada, implementación completada, SLA por vencer / vencido, resumen diario para jefes.
+- Eventos: caso creado, asignado, cambio de estado, comentario público, etapa iniciada, etapa completada, **siguiente etapa desbloqueada**, etapa atrasada, implementación completada, **requerimiento al cliente creado / por vencer / vencido / entregado / aceptado / rechazado**, **aprobación solicitada**, SLA por vencer / vencido, resumen diario para jefes y **resumen semanal de avance para el cliente**.
+- El cliente se entera de todo lo que le corresponde: avance de etapas, lo que se le pide y lo que se recibió, por correo, portal y (fase 2) erpsyschat.
 - Canales: **correo** (MVP), **erpsyschat** con push a la app y webhooks (fase 2), Slack/Teams/Telegram/WhatsApp (fase 3).
 - Preferencias por usuario (qué recibir y por dónde). Plantillas de correo con la marca y el color de la empresa, enviadas **en el idioma de cada destinatario** (es/en/pt).
 - Los correos de etapas de una implementación pueden limitarse al contacto principal del cliente (configurable por regla).
@@ -487,7 +638,9 @@ Lo mismo sirve para conectar más adelante otros chats o canales (WhatsApp, Tele
 - **Usuarios**: quién levanta más tickets, por tipo y producto.
 - **Empresas cliente**: qué empresa levanta más tickets, por producto, tendencia mensual.
 - **Atrasos**: tickets vencidos (SLA), tickets sin asignar, implementaciones con etapas atrasadas, días de retraso y fecha estimada de término.
-- **Implementaciones**: % de avance, etapas por estado, tiempo real vs planificado por etapa (para mejorar las plantillas).
+- **Implementaciones**: % de avance, etapas por estado, tiempo real vs planificado por etapa (para mejorar las plantillas), **días de retraso atribuibles al cliente vs a nuestro equipo**.
+- **Requerimientos al cliente**: pendientes y vencidos por cliente, tiempo promedio de entrega, entregas rechazadas.
+- **Por tipo de caso**: volumen, tiempos y cumplimiento por cada tipo (incluidos los tipos nuevos que cree la empresa).
 - Filtros por período, producto, cliente, equipo y técnico; exportación CSV/Excel; envío programado por correo.
 - Implementación técnica: *view collections* de PocketBase con SQL de agregación + instantáneas diarias (`metrics_daily`) para gráficas rápidas.
 
@@ -525,13 +678,13 @@ Un mismo tablero que se reorganiza según lo que se necesite, como en las refere
 
 - Cada columna tiene **borde superior de color**, título y contador; botón "+" para crear directamente en esa columna (ej. una tarea para "Hoy").
 - **Tarjeta de ticket**: título, número `#HD-0123`, solicitante y empresa, fecha/hora, **etiqueta de estado con menú desplegable** para cambiarlo sin abrir el ticket, etiqueta de prioridad, **avatar del técnico** (o iniciales; clic para **asignar al instante**), iconos con número de adjuntos y comentarios, y **barras de SLA** (primera respuesta y resolución) que pasan de verde a ámbar a rojo.
-- **Tarjeta de implementación**: además, barra de avance de etapas, etapa actual y "faltan X días" o "atrasada X días".
+- **Tarjeta de implementación**: además, barra de avance de etapas, etapa actual, "faltan X días" o "atrasada X días", y un aviso **"Esperando al cliente: 2 pendientes"** cuando aplica.
 - **Densidad**: clásica (con detalles) o compacta (solo título, número y estado).
 - **Vista Lista** con columnas configurables, selección múltiple y acciones masivas (asignar, cambiar estado, etiquetar).
 
 ### 13.2 "Mi trabajo" (inicio de cada usuario)
 
-- **Fichas de contadores** arriba: *Esperando mi respuesta*, *Asignados a mí*, *Aprobaciones*, *Tareas*, *Atrasados*, *Resueltos hoy*; al hacer clic filtran las tarjetas de abajo.
+- **Fichas de contadores** arriba: *Esperando mi respuesta*, *Asignados a mí*, *Entregas del cliente por revisar*, *Esperando al cliente*, *Tareas*, *Atrasados*, *Resueltos hoy*; al hacer clic filtran las tarjetas de abajo.
 - **Cuadrícula de tarjetas** con etiqueta de tipo (soporte, implementación, tarea, aprobación), prioridad, barras de SLA, persona y número.
 - **Panel derecho**:
   - *Acciones pendientes*: aprobar/rechazar, completar, posponer, sin abrir el ticket.
@@ -544,7 +697,9 @@ Un mismo tablero que se reorganiza según lo que se necesite, como en las refere
 - **Detalle de ticket**: panel lateral con datos, conversación (pública/interna), adjuntos con vista previa (imágenes y video), historial, conversación de erpsyschat vinculada, botones de acción claros (Asignar, Iniciar, Resolver).
 - **Implementaciones**: línea de tiempo/Gantt de etapas, barra de avance, "faltan X días", responsables por etapa.
 - **Panel del jefe**: carga por técnico, asignación por arrastre, atrasos, KPIs.
-- **Portal del cliente**: crear ticket en un paso (título + adjuntos opcionales), mis tickets, avance de implementaciones de su empresa, comentarios.
+- **Portal del cliente**: crear ticket en un paso (título + adjuntos opcionales), mis casos, avance de implementaciones de su empresa en línea de tiempo (mostrando qué etapas dependen de ellos), comentarios, y una sección destacada **"Pendientes de tu parte"** con cada requerimiento: qué se necesita, archivo modelo para descargar, fecha límite, botón para subir o responder, y estado de la revisión (aceptado / rechazado con motivo).
+- **Revisión de entregas** (técnico): bandeja con lo que el cliente entregó, vista previa de archivos y botones Aceptar / Rechazar con motivo.
+- **Configuración de tipos de caso**: crear y editar tipos, flujos de estados (con editor visual de transiciones), campos extra y plantillas con sus etapas, dependencias y requerimientos al cliente.
 - **Administración**: usuarios y roles, empresas cliente y sus usuarios, productos, equipos, plantillas, SLA, canales, buzones, integraciones, API keys, marca (ver sección 14).
 - **Preferencias del usuario**: idioma, modo claro/oscuro/sistema y tema de color, accesibles desde el menú de usuario y desde la pantalla de inicio de sesión.
 - **Consola de instancias** (nosotros, aplicación aparte): alta de empresas con creación automática de su instancia en su dominio, versión, actualizaciones, respaldos, licencia y estado.
@@ -603,7 +758,7 @@ La primera vez que entra el dueño aparece un asistente paso a paso (se puede re
 4. **Correo entrante** (opcional): buzón del que se crearán tickets.
 5. **Equipo**: invitar técnicos y jefes, crear equipos.
 6. **Integraciones** (opcional): conectar erpsys, erpsyschat u otra fuente de clientes y usuarios, con botón **"Probar conexión"**.
-7. **Tickets**: prefijo de numeración (ej. `HD-`, `SOP-`), categorías, productos, plantilla de implementación inicial.
+7. **Tipos de caso**: activar los tipos de fábrica (soporte, implementación, tarea), prefijos de numeración (ej. `SOP-`, `IMP-`), categorías, productos y una plantilla de implementación inicial con sus requerimientos al cliente.
 8. **Listo**: resumen con lo que falta configurar.
 
 ### 14.2 Pantalla de configuración (siempre disponible para el dueño)
@@ -616,8 +771,8 @@ La primera vez que entra el dueño aparece un asistente paso a paso (se puede re
 | **Correo saliente** | Remitente, proveedor, credenciales, respuesta a, firma, prueba de envío, estado de SPF/DKIM. |
 | **Correo entrante** | Buzones, reglas de asignación por buzón, remitentes bloqueados. |
 | **Notificaciones** | Qué eventos avisan a quién y por qué canal; plantillas de correo por idioma con vista previa. |
-| **Tickets** | Prefijo y numeración, estados, prioridades, categorías, campos personalizados, cierre automático tras N días. |
-| **Implementaciones** | Plantillas de etapas, días hábiles, evidencia obligatoria al completar etapa. |
+| **Tipos de caso y flujos** | Tipos (soporte, implementación, tarea y nuevos), prefijo y numeración por tipo, flujos de estados y transiciones, prioridades, categorías, campos extra, cierre automático tras N días. |
+| **Plantillas e implementaciones** | Plantillas de etapas con dependencias, checklists y requerimientos al cliente (con archivos modelo), días hábiles, evidencia o aprobación obligatoria al completar etapa, recordatorios y escalamiento de requerimientos vencidos. |
 | **SLA** | Metas por prioridad y por cliente, escalamientos. |
 | **Integraciones** | Conectores (erpsys, erpsyschat, REST, CSV) con sus credenciales, mapeo de campos y frecuencia de sincronización; estado de la última sincronización. |
 | **API y webhooks** | API keys, webhooks salientes, dominios permitidos para el widget (CORS). |
@@ -708,21 +863,23 @@ Para otra empresa es lo mismo con sus dominios: `support.empresa-a.com` → su `
 1. **Instancias por empresa**: CLI `create-instance` que levanta una instancia completa (programa + PocketBase) en el dominio de la empresa, con vhosts de Apache, certificados, migraciones, dueño inicial, idioma y tema por defecto; más `upgrade-instance` y `backup-instance`.
 2. **Autenticación y roles**: login con JWT + refresh token, recuperación de contraseña, login delegado a erpsys, límite de intentos; roles `owner`, `manager`, `technician`, `client_admin`, `client_user`.
 3. **Administración**: usuarios y roles, empresas cliente, productos, equipos; **sincronización de clientes y usuarios desde erpsys** (manual y programada).
-4. **Tickets de soporte**: alta con solo título (fecha, hora, usuario, cliente registrados automáticamente), descripción, adjuntos (imágenes, videos, documentos con límite de tamaño), estados, prioridad, producto, asignación, comentarios públicos/internos, historial.
-5. **Implementaciones**: creación desde plantilla con etapas y fechas en días hábiles, responsable por etapa, completar etapa (con evidencia opcional), % de avance, etapas atrasadas, fecha estimada de término; visible para dueño, jefe, técnicos y usuarios del cliente.
-6. **Tareas internas** asignadas por el jefe con fecha límite.
-7. **Interfaz**: estructura de la sección 13 (barra lateral, panel de vistas, Tablero/Lista), tablero con modos **Estado**, **Vencimiento** y **Asignación**, tarjetas con cambio rápido de estado y asignación instantánea, "Mi trabajo" con contadores y "Mi día", detalle de ticket, vista de implementación, portal del cliente, pantallas de administración.
-8. **Configuración fácil**: asistente inicial y pantalla de configuración (general, apariencia, idioma, **correo saliente con proveedores predefinidos y correo de prueba**, notificaciones, tickets, integraciones, archivos), `instance.yaml` para crear instancias ya configuradas.
-9. **Idiomas, modo y temas**: toda la aplicación y los correos en español, inglés y portugués; modo claro/oscuro/sistema; base visual azul de erpsys con temas de color intercambiables y color de marca por empresa; preferencias por usuario.
-10. **Notificaciones por correo**: ticket creado, asignado, cambio de estado, comentario público, etapa completada, implementación completada; plantillas con la marca de la empresa, en el idioma de cada destinatario.
-11. **API pública v1** con API keys: crear ticket (con adjuntos y referencia externa), consultar estado, comentar; documentación OpenAPI. Base para que erpsyschat y otros sistemas creen tickets desde el día uno.
-12. **Eventos y outbox internos** listos para los conectores (aunque los webhooks salientes y el conector de erpsyschat lleguen en la fase 2).
-13. **Dashboard básico**: contadores, tickets vencidos, implementaciones atrasadas con fecha estimada, top técnicos, top usuarios y top empresas (últimos 30 días).
-14. **Infraestructura**: todo en Docker, nuestra instancia publicada en `https://support.erpsys.pro/` y `https://pb-support.erpsys.pro/_/#/`, respaldos diarios, logs centralizados.
+4. **Modelo normalizado de casos**: `work_items` con catálogos de tipos, flujos, estados (con categoría), prioridades, categorías y canales; historial de estados y asignaciones; participantes. Tipos de fábrica soporte, implementación y tarea, y **creación de tipos nuevos** desde la configuración (nombre, prefijo, flujo, con o sin etapas). Campos extra por tipo pasan a la fase 2.
+5. **Tickets de soporte**: alta con solo título (fecha, hora, usuario, cliente registrados automáticamente), descripción, adjuntos (imágenes, videos, documentos con límite de tamaño), estados, prioridad, producto, asignación, comentarios públicos/internos, historial.
+6. **Implementaciones**: creación desde plantilla con etapas, dependencias y fechas en días hábiles, responsable por etapa, de quién depende cada etapa, completar etapa (con evidencia o aprobación del cliente), desbloqueo automático de la siguiente etapa, % de avance, etapas atrasadas, fecha estimada de término; visible para dueño, jefe, técnicos y usuarios del cliente.
+7. **Requerimientos al cliente**: crear desde plantilla o manualmente, aviso al contacto del cliente, "Pendientes de tu parte" en el portal con subida de archivos, revisión (aceptar/rechazar con motivo), recordatorios automáticos, estado "Esperando cliente" con pausa del SLA y retraso atribuido al cliente.
+8. **Tareas internas** asignadas por el jefe con fecha límite.
+9. **Interfaz**: estructura de la sección 13 (barra lateral, panel de vistas, Tablero/Lista), tablero con modos **Estado**, **Vencimiento** y **Asignación**, tarjetas con cambio rápido de estado y asignación instantánea, "Mi trabajo" con contadores (incluidos *Esperando al cliente* y *Entregas por revisar*) y "Mi día", detalle de caso, vista de implementación con línea de tiempo, portal del cliente con **"Pendientes de tu parte"**, pantallas de administración y de tipos de caso/plantillas.
+10. **Configuración fácil**: asistente inicial y pantalla de configuración (general, apariencia, idioma, **correo saliente con proveedores predefinidos y correo de prueba**, notificaciones, tipos de caso y plantillas, integraciones, archivos), `instance.yaml` para crear instancias ya configuradas.
+11. **Idiomas, modo y temas**: toda la aplicación y los correos en español, inglés y portugués; modo claro/oscuro/sistema; base visual azul de erpsys con temas de color intercambiables y color de marca por empresa; preferencias por usuario.
+12. **Notificaciones por correo**: caso creado, asignado, cambio de estado, comentario público, etapa completada, siguiente etapa desbloqueada, implementación completada, requerimiento al cliente creado / recordatorio / vencido / entregado / aceptado / rechazado; plantillas con la marca de la empresa, en el idioma de cada destinatario.
+13. **API pública v1** con API keys: crear caso (con adjuntos y referencia externa), consultar estado y avance, comentar, listar y entregar requerimientos al cliente; documentación OpenAPI. Base para que erpsyschat y otros sistemas trabajen con el helpdesk desde el día uno.
+14. **Eventos y outbox internos** listos para los conectores (aunque los webhooks salientes y el conector de erpsyschat lleguen en la fase 2).
+15. **Dashboard básico**: contadores, casos vencidos, implementaciones atrasadas con fecha estimada, **retraso por cliente vs por nuestro equipo**, requerimientos al cliente vencidos, top técnicos, top usuarios y top empresas (últimos 30 días).
+16. **Infraestructura**: todo en Docker, nuestra instancia publicada en `https://support.erpsys.pro/` y `https://pb-support.erpsys.pro/_/#/`, respaldos diarios, logs centralizados.
 
 ### No incluye (pasa a fases siguientes)
 
-Correo entrante → ticket, SLA con horario laboral, widget/plugin y SSO por token, webhooks salientes, conector de erpsyschat, 2FA, Slack/Teams/WhatsApp, base de conocimiento, encuestas de satisfacción, consola web de instancias (en el MVP es CLI), facturación.
+Correo entrante → ticket, SLA con horario laboral, campos extra por tipo de caso, editor visual de flujos (en el MVP los flujos se eligen entre los de fábrica y se editan en forma de lista), dependencias en paralelo complejas (en el MVP las etapas son secuenciales con dependencias simples), widget/plugin y SSO por token, webhooks salientes, conector de erpsyschat, 2FA, Slack/Teams/WhatsApp, base de conocimiento, encuestas de satisfacción, consola web de instancias (en el MVP es CLI), facturación.
 
 ### Criterios de aceptación
 
@@ -732,7 +889,10 @@ Correo entrante → ticket, SLA con horario laboral, widget/plugin y SSO por tok
 - Un usuario de erpsys se registra con su seraph_id y correo, entra con su contraseña del ERP y queda vinculado a su empresa cliente.
 - Un usuario crea un ticket escribiendo solo el título; el ticket guarda fecha, hora, usuario y cliente, y el equipo técnico recibe el correo.
 - El jefe crea una implementación desde una plantilla, asigna técnicos por etapa; cada técnico marca su etapa y el jefe y los usuarios del cliente ven el % de avance y la fecha estimada.
-- Un usuario de un cliente nunca ve tickets de otro cliente (pruebas automáticas de permisos).
+- Al iniciar la etapa "Carga de información", el contacto del cliente recibe un correo con lo que se necesita y lo ve en "Pendientes de tu parte"; la implementación pasa a **Esperando cliente** y la etapa siguiente queda bloqueada. Si no entrega a tiempo, recibe recordatorios. Cuando sube los archivos, el técnico los acepta (o los rechaza con motivo y el cliente vuelve a entregar); al aceptar todos los obligatorios, la etapa se completa, la siguiente se desbloquea y el cliente recibe el aviso. El dashboard muestra los días de espera atribuidos al cliente.
+- El dueño crea un tipo de caso nuevo (ej. "Capacitación" con prefijo `CAP-`) desde la configuración, sin tocar código ni la base de datos, y ya se pueden crear casos de ese tipo con su propio flujo de estados.
+- Todas las relaciones (tipo, estado, prioridad, cliente, etapas, requerimientos) son relaciones reales en PocketBase; renombrar un estado no modifica ningún caso, y el historial permite reconstruir quién cambió qué y cuándo.
+- Un usuario de un cliente nunca ve casos ni requerimientos de otro cliente (pruebas automáticas de permisos).
 - Un sistema externo (por ejemplo erpsyschat, con una prueba manual) crea un ticket por la API con su API key y referencia externa, y consulta su estado.
 - El dueño de una empresa nueva configura desde el asistente el correo desde el que se envía todo, recibe el correo de prueba y, a partir de ahí, todos los avisos salen con ese remitente.
 - En el tablero se puede cambiar entre los modos Estado, Vencimiento y Asignación; arrastrar una tarjeta cambia el estado, la fecha límite o el técnico según el modo.
@@ -747,8 +907,8 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 | Fase | Duración estimada | Contenido |
 |---|---|---|
 | **0. Fundaciones** | 2 semanas | Monorepo, Docker Compose de una instancia, CI con imágenes versionadas, esquema PocketBase con migraciones, estructura de la API (config, routes, controllers, services, models, middlewares, validators, types, utils), auth JWT, RBAC base, **i18n es/en/pt y sistema de temas (claro/oscuro, colores) desde el primer componente**, layout del frontend con la base visual de erpsys. |
-| **1. MVP** | 6–8 semanas | Todo lo de la sección 16, en este orden: auth y roles → configuración y asistente inicial → clientes/usuarios/productos y conector erpsys → tickets de soporte y adjuntos → implementaciones y etapas → UI (Mi trabajo, tablero con modos, portal) → correos → API pública y eventos → dashboard → CLI de instancias con `instance.yaml` → endurecimiento y despliegue en `support.erpsys.pro`. |
-| **2. v1.0 operación completa** | 5–7 semanas | **Integración con erpsyschat** (`connector-erpsyschat`: convertir conversación en ticket, avisos y push en el chat, respuestas en ambos sentidos, "mis tickets" en el chat, SSO), correo entrante → ticket y respuestas por correo, SLA con horario laboral y escalamiento, widget embebible y SSO por token (modo plugin), SDK JS/PHP, webhooks salientes, 2FA, **consola web de instancias** (alta, actualizaciones, respaldos, licencias, monitoreo), reportes avanzados con exportación y envío programado, antivirus de adjuntos. |
+| **1. MVP** | 6–8 semanas | Todo lo de la sección 16, en este orden: auth y roles → configuración y asistente inicial → clientes/usuarios/productos y conector erpsys → catálogos (tipos, flujos, estados) y casos normalizados → tickets de soporte y adjuntos → implementaciones, etapas con dependencias y requerimientos al cliente → UI (Mi trabajo, tablero con modos, portal) → correos → API pública y eventos → dashboard → CLI de instancias con `instance.yaml` → endurecimiento y despliegue en `support.erpsys.pro`. |
+| **2. v1.0 operación completa** | 5–7 semanas | **Integración con erpsyschat** (`connector-erpsyschat`: convertir conversación en ticket, avisos y push en el chat, respuestas en ambos sentidos, "mis tickets" en el chat, SSO), correo entrante → ticket y respuestas por correo, SLA con horario laboral y escalamiento, widget embebible y SSO por token (modo plugin), SDK JS/PHP, webhooks salientes, 2FA, **consola web de instancias** (alta, actualizaciones, respaldos, licencias, monitoreo), reportes avanzados con exportación y envío programado, antivirus de adjuntos, **campos extra por tipo de caso, editor visual de flujos, etapas en paralelo, aprobaciones formales del cliente con firma** y resumen semanal de avance para el cliente. |
 | **3. Canales y experiencia** | 4–6 semanas | Slack, Microsoft Teams, Telegram, WhatsApp Business; base de conocimiento con sugerencias al crear ticket; encuestas de satisfacción (CSAT); respuestas rápidas; PWA con notificaciones push; Gantt editable. |
 | **4. Inteligencia** | continuo | Clasificación y prioridad sugeridas por IA, detección de duplicados, resumen de conversaciones, respuesta sugerida, predicción de retrasos en implementaciones. |
 | **5. Negocio y escala** | continuo | Planes y facturación automática, límites por plan, autoservicio de alta de empresas, instancias repartidas en varios servidores, instalación en servidor del cliente (*on-premise*) con licencia, marketplace de conectores, más idiomas. |
@@ -792,7 +952,9 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 3. **Dónde corren las instancias de otras empresas**: en nuestro servidor (con su dominio apuntando aquí), en el servidor de cada empresa, o ambas opciones.
 4. **Proveedor de correo** (ZeptoMail, SES, Mailgun…) y dominio remitente por empresa.
 5. **Límites de adjuntos** (tamaño máximo de video, almacenamiento por plan) y si se usa almacenamiento S3 externo.
-6. **Primer conjunto de estados** (fijos o configurables por empresa desde el MVP).
+6. **Flujos de fábrica**: confirmar los estados de soporte, implementación y tarea, y la plantilla inicial de implementación con sus etapas y requerimientos al cliente (ej. Kickoff → Carga de información → Configuración → Capacitación → Pruebas → Salida a producción). Los estados ya son configurables por empresa (sección 8).
 7. **Alcance de la integración con erpsyschat**: solo crear tickets y avisar en el chat, o también sincronizar respuestas en ambos sentidos; y si erpsyschat expone webhooks o hay que agregarlos.
 8. **Temas de color incluidos** además del azul erpsys (propuesta: naranja, verde, morado, rosa y gris pizarra, como en erpsys).
 9. **Migración de datos** del helpdesk actual a v2 o empezar limpio.
+10. **Requerimientos al cliente**: cada cuántos días se envían recordatorios, a partir de cuándo se escala al jefe, y si al vencer se pausa la fecha estimada de la implementación o solo se registra el retraso del cliente.
+11. **Tipos de caso adicionales** que conviene traer de fábrica además de soporte, implementación y tarea (ej. capacitación, desarrollo a medida, visita técnica).
