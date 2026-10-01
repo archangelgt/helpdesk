@@ -35,6 +35,8 @@ Con ella:
 - Interfaz en **español, inglés y portugués**, con **modo claro/oscuro** y **cambio de color de tema**.
 - Funciona **solo** (aplicación web completa) o **como plugin** dentro de otros productos (widget, iframe, API, SDK).
 - Toda la información externa (clientes, usuarios) llega **por APIs** (ej. erpsys) y los productos de los clientes pueden **crear tickets por API**.
+- Trabaja **de la mano con erpsyschat** como microservicios: una conversación de chat se convierte en ticket y el usuario recibe los avisos del ticket en el chat. Se puede conectar a otros sistemas y canales con conectores.
+- **Configuración fácil por empresa** (correo desde el que se envía todo, marca, idioma, integraciones) desde un asistente, sin tocar código.
 
 ---
 
@@ -169,6 +171,7 @@ El navegador y los productos externos **nunca hablan directo con PocketBase**: t
 | Validación | Zod (esquemas compartidos con el frontend) | Un solo esquema para validar y tipar. |
 | Base de datos | PocketBase (una por instancia) | Requisito; archivos, auth collections, *view collections* para estadísticas. |
 | Colas y tareas | BullMQ + Redis | Correos, notificaciones, sincronizaciones, SLA, correo entrante. |
+| Eventos entre servicios | Redis Streams + outbox + webhooks firmados | Conexión desacoplada con erpsyschat, erpsys y otros sistemas. |
 | Frontend | React + Vite + TypeScript, TanStack Query, dnd-kit | UI tipo ToDo/Kanban con arrastrar y soltar. |
 | UI | Tailwind CSS sobre variables CSS (design tokens) + componentes accesibles (Radix/shadcn) | Base visual de erpsys, modo claro/oscuro y temas de color intercambiables. |
 | Traducción (i18n) | i18next + react-i18next (web), i18next (api y correos), `Intl` para fechas y números | Español, inglés y portugués desde el día uno. |
@@ -208,7 +211,7 @@ v2/
 │   │       ├── utils/             ← fechas hábiles, cifrado, paginación, logger
 │   │       ├── i18n/              ← mensajes de la API y correos en es / en / pt
 │   │       ├── db/                ← cliente PocketBase, migraciones, semillas
-│   │       ├── connectors/        ← fuentes externas: erpsys, CSV, genérico REST
+│   │       ├── connectors/        ← interfaz común de conectores (erpsys, erpsyschat, CSV, REST)
 │   │       ├── channels/          ← salida: email, webhook, slack, teams, whatsapp
 │   │       ├── inbound/           ← entrada: correo (IMAP / webhook), API, widget
 │   │       ├── events/            ← eventos de dominio (ticket.created, stage.completed…)
@@ -224,7 +227,9 @@ v2/
 │   │       ├── theme/             ← tokens de diseño, temas de color, modo claro/oscuro
 │   │       ├── i18n/              ← locales/es, locales/en, locales/pt
 │   │       ├── hooks/ services/ stores/ types/ utils/
-│   └── widget/                    ← Web Component embebible <helpdesk-widget>
+│   ├── widget/                    ← Web Component embebible <helpdesk-widget>
+│   ├── connector-erpsyschat/      ← microservicio de integración con erpsyschat
+│   └── connector-erpsys/          ← microservicio de sincronización con erpsys
 ├── packages/
 │   ├── shared/                    ← esquemas Zod, tipos y claves de traducción compartidos
 │   ├── ui-theme/                  ← tokens de diseño y temas reutilizables por web y widget
@@ -266,13 +271,18 @@ Es la base que se ve en `https://pb-support.erpsys.pro/_/#/` para nuestra instan
 | `user_notification_prefs` | usuario, evento, canales activos, resumen diario |
 | `inbound_mailboxes` | dirección, tipo (IMAP / webhook del proveedor), credenciales cifradas, producto y equipo por defecto |
 | `email_threads` | Message-ID ↔ ticket, para que las respuestas por correo se agreguen como comentarios |
-| `integrations` | tipo (`erpsys`, `rest`, `csv`), URL, credenciales cifradas, mapeo de campos, frecuencia de sincronización |
-| `sync_runs` | integración, inicio, fin, creados, actualizados, errores |
+| `sync_runs` | conector → `connectors`, inicio, fin, creados, actualizados, errores |
 | `api_keys` | nombre, hash, prefijo, scopes, cliente (opcional), expiración, último uso |
 | `webhooks` / `webhook_deliveries` | URL, eventos, secreto de firma; entregas con estado y reintentos |
 | `sessions` | usuario, hash del refresh token, IP, user agent, expiración, revocado |
 | `audit_logs` | actor, acción, entidad, id, IP, cambios JSON |
 | `canned_responses` | respuestas rápidas para técnicos |
+| `external_refs` | ticket → `tickets`, sistema (`erpsyschat`, `erpsys`, `email`…), tipo de objeto (conversación, pedido, usuario), ID externo, URL |
+| `connectors` | tipo (`erpsys`, `erpsyschat`, `rest`, `csv`), activo, URL, credenciales cifradas, mapeo de campos, frecuencia de sincronización, eventos suscritos, estado de salud, último error |
+| `event_outbox` | evento, carga JSON, destino, estado, intentos, próximo reintento (garantiza que ningún aviso se pierda) |
+| `email_senders` | nombre, correo remitente, responder a, proveedor, credenciales cifradas, estado de verificación SPF/DKIM, por defecto (sí/no), tipos de aviso que usa |
+| `settings_history` | sección, valor anterior y nuevo (sin secretos), quién y cuándo |
+| `saved_views` | usuario o equipo, nombre, modo del tablero, filtros, orden, densidad, favorito |
 | `settings` | nombre y logo de la empresa, **idioma por defecto**, **modo y tema de color por defecto** (o color de marca propio), zona horaria, estados personalizados, límites de archivos |
 | `translations_overrides` | clave, idioma, texto: permite a cada empresa ajustar textos (ej. llamar "Casos" a los tickets) sin tocar el código |
 | *Vistas de estadísticas* | `stats_by_technician`, `stats_by_requester`, `stats_by_client`, `stats_overdue`, `stats_implementation_progress` (view collections con SQL `GROUP BY`) |
@@ -389,6 +399,66 @@ Patrón **conector**: cada fuente implementa la misma interfaz (`listClients`, `
 
 Todas las respuestas de error devuelven un **código estable** (ej. `TICKET_NOT_FOUND`) más un mensaje traducido según `Accept-Language` o el idioma del usuario.
 
+### 10.5 Microservicios: cómo se conecta con otros sistemas
+
+El helpdesk es un **servicio independiente** que funciona solo, y se conecta con otros productos (erpsyschat, erpsys, sistemas de clientes) **sin acoplarse a su código ni a sus bases de datos**. Cada sistema conserva su base y se comunican solo por contratos públicos:
+
+| Mecanismo | Dirección | Uso |
+|---|---|---|
+| **API REST pública** (OpenAPI, versionada `/public/v1`) | otros → helpdesk | Crear y consultar tickets, comentar, adjuntar, consultar avance de implementaciones. |
+| **Webhooks salientes firmados** (HMAC + marca de tiempo, reintentos) | helpdesk → otros | Avisar `ticket.created`, `ticket.status_changed`, `comment.created`, `stage.completed`, etc. |
+| **Webhooks entrantes** | otros → helpdesk | Recibir eventos de otros sistemas (mensaje nuevo en chat, usuario creado en el ERP). |
+| **Conectores** (adaptadores) | ambos | Código que traduce entre el helpdesk y un sistema concreto (erpsys, erpsyschat, CRM…). |
+| **Bus de eventos interno** (Redis Streams) | interno | Los servicios del helpdesk publican eventos; los conectores y el worker los consumen. |
+| **Patrón outbox** | interno | Cada evento se guarda antes de enviarse; si el otro sistema está caído, se reintenta sin perder nada. |
+| **Identidad compartida** | ambos | El mismo usuario se reconoce en todos los sistemas por `seraph_id` + correo (o ID externo), y con SSO por token firmado no vuelve a iniciar sesión. |
+
+- **Conectores como contenedores separados** (ej. `connector-erpsyschat`, `connector-erpsys`): se activan o desactivan por empresa desde la configuración, se despliegan y actualizan sin tocar el núcleo, y si uno falla el helpdesk sigue funcionando.
+- **Idempotencia**: todo mensaje entre sistemas lleva un ID único (`Idempotency-Key` / `event_id`) para no duplicar tickets o comentarios.
+- **Correlación**: cada ticket guarda referencias externas (`external_refs`: sistema, tipo, ID, URL) para saber de qué conversación, pedido o usuario vino.
+- **Catálogo de eventos** documentado y versionado, para que cualquier sistema nuevo pueda suscribirse.
+- **Colección nueva** `external_refs`: ticket → sistema (`erpsyschat`, `erpsys`, `email`…), tipo de objeto, ID externo, URL.
+
+### 10.6 Integración con erpsyschat
+
+erpsyschat (Seraph Chat) es el chat donde los usuarios hablan con soporte: widget flotante en el ERP, app móvil, notificaciones push y su propio hub en PocketBase. El helpdesk y el chat trabajan **de la mano** como dos microservicios:
+
+```mermaid
+sequenceDiagram
+  participant U as Usuario (chat / app)
+  participant C as erpsyschat
+  participant X as connector-erpsyschat
+  participant H as Helpdesk
+  participant T as Técnico
+
+  U->>C: Escribe un problema en el chat
+  C-->>X: webhook message.created
+  T->>C: Botón "Convertir en ticket" (o el bot detecta /ticket)
+  C->>X: crear ticket con la conversación
+  X->>H: POST /public/v1/tickets (título, mensajes, adjuntos, usuario, external_ref)
+  H-->>X: ticket HD-0123 creado
+  X->>C: Mensaje en la conversación: "Se creó el ticket HD-0123"
+  T->>H: Cambia estado / comenta / completa etapa
+  H-->>X: webhook ticket.status_changed / comment.created (públicos)
+  X->>C: Mensaje del sistema + notificación push al usuario
+  U->>C: Responde en el chat
+  C-->>X: webhook message.created
+  X->>H: Comentario en el ticket vinculado
+```
+
+Funciones de la integración:
+
+- **Convertir una conversación en ticket** desde el chat (botón del agente o comando del usuario), con el historial de mensajes y los archivos adjuntos.
+- **Vinculación**: el ticket queda ligado a la conversación (y la conversación muestra el número y estado del ticket).
+- **Avisos del ticket dentro del chat**: cambios de estado, comentarios públicos y etapas completadas llegan como mensajes del sistema y **notificaciones push** de la app.
+- **Respuestas en ambos sentidos** (configurable): lo que el usuario responde en el chat se agrega como comentario del ticket, y los comentarios públicos del técnico aparecen en el chat.
+- **"Mis tickets" dentro del chat**: el usuario consulta sus tickets e implementaciones sin salir del chat.
+- **Desde el helpdesk**: botón "Abrir conversación" para continuar por chat con el usuario del ticket.
+- **Mismo usuario**: ambos sistemas reconocen al usuario por `seraph_id` + correo, con SSO por token firmado.
+- **Cada sistema sigue funcionando solo**: si el chat no está disponible, el helpdesk sigue operando y los eventos se envían al volver.
+
+Lo mismo sirve para conectar más adelante otros chats o canales (WhatsApp, Telegram, Slack, Teams) con un conector nuevo, sin cambiar el núcleo.
+
 ---
 
 ## 11. Notificaciones y canales
@@ -398,7 +468,7 @@ Todas las respuestas de error devuelven un **código estable** (ej. `TICKET_NOT_
 - Eventos de dominio → **reglas de notificación** → destinatarios → canales → **outbox** con reintentos.
 - Destinatarios típicos: solicitante, admin del cliente, técnico asignado, equipo, jefe, observadores.
 - Eventos: ticket creado, asignado, cambio de estado, comentario público, etapa completada, etapa atrasada, implementación completada, SLA por vencer / vencido, resumen diario para jefes.
-- Canales: **correo** (MVP), webhooks (fase 2), Slack/Teams/Telegram/WhatsApp (fase 3).
+- Canales: **correo** (MVP), **erpsyschat** con push a la app y webhooks (fase 2), Slack/Teams/Telegram/WhatsApp (fase 3).
 - Preferencias por usuario (qué recibir y por dónde). Plantillas de correo con la marca y el color de la empresa, enviadas **en el idioma de cada destinatario** (es/en/pt).
 - Los correos de etapas de una implementación pueden limitarse al contacto principal del cliente (configurable por regla).
 
@@ -425,18 +495,62 @@ Todas las respuestas de error devuelven un **código estable** (ej. `TICKET_NOT_
 
 ## 13. Interfaz
 
-- **Mi día (tipo ToDo)**: lista para técnicos agrupada en *Atrasado / Hoy / Próximo / Sin fecha*, con casillas para completar tareas y etapas, prioridad por colores, alta rápida con una línea, atajos de teclado.
-- **Tablero Kanban**: columnas por estado con arrastrar y soltar, filtros por producto, cliente, técnico y prioridad, vistas guardadas.
-- **Detalle de ticket**: panel lateral con datos, conversación (pública/interna), adjuntos con vista previa (imágenes y video), historial, botones de acción claros (Asignar, Iniciar, Resolver).
+Referencias visuales aportadas (en `v2/referencias-ui/`): tablero tipo ToDo por vencimiento (Zoho ToDo), tablero de tickets por estado con modos de trabajo (Zoho Desk) y panel "Mi trabajo" con contadores, barras de SLA y acciones pendientes. Se adoptan sus patrones con la identidad azul de erpsys.
+
+| ToDo por vencimiento | Tickets por estado |
+|---|---|
+| ![ToDo por vencimiento](referencias-ui/01-todo-por-vencimiento.png) | ![Tablero por estado](referencias-ui/02-tablero-tickets-por-estado.png) |
+| **Modos de trabajo y cambio rápido** | **Mi trabajo** |
+| ![Modos de trabajo](referencias-ui/03-modos-de-trabajo.png) | ![Mi trabajo](referencias-ui/04-mi-trabajo.png) |
+
+### 13.0 Estructura de pantalla
+
+- **Barra lateral izquierda oscura** (azul erpsys `#001f45` / `#002c60`) con iconos de módulos: Inicio, Tickets, Tareas, Implementaciones, Clientes, Reportes, Chat (erpsyschat), Configuración. Se puede contraer.
+- **Panel de vistas** junto a la barra: botón grande **"Nuevo"** con menú (ticket, tarea, implementación) y lista de vistas:
+  *Agenda*, *Mi día*, *Asignados a mí*, *Creados por mí*, *Compartidos conmigo*, *De mi equipo*, *Sin asignar*, *Vista unificada*; luego **Grupos** (equipos/productos) y **Etiquetas**, cada uno con su contador.
+- **Barra superior**: buscador global (atajo `/`), notificaciones, selector de idioma, interruptor claro/oscuro y avatar con preferencias.
+- **Encabezado de la vista**: nombre de la vista con favorito (★), chips de filtros activos (ej. "Vencimiento · más recientes primero"), selector **Tablero / Lista**, ordenar, densidad y menú "⋯".
+
+### 13.1 Tablero de tickets con "modos de trabajo"
+
+Un mismo tablero que se reorganiza según lo que se necesite, como en las referencias:
+
+| Modo | Columnas | Arrastrar una tarjeta… |
+|---|---|---|
+| **Estado** | Nuevo, Abierto, En espera, Escalado, En progreso, Resuelto… | cambia el estado |
+| **Vencimiento** (tipo ToDo) | Atrasados, Hoy, Mañana, Esta semana, Próxima semana, Después, Sin fecha | cambia la fecha límite |
+| **Asignación** | Sin asignar + una columna por técnico | asigna al técnico (con su carga visible) |
+| **Prioridad** | Crítica, Alta, Media, Baja | cambia la prioridad |
+| **Cliente / Producto** | una columna por cliente o producto | reclasifica |
+
+- Cada columna tiene **borde superior de color**, título y contador; botón "+" para crear directamente en esa columna (ej. una tarea para "Hoy").
+- **Tarjeta de ticket**: título, número `#HD-0123`, solicitante y empresa, fecha/hora, **etiqueta de estado con menú desplegable** para cambiarlo sin abrir el ticket, etiqueta de prioridad, **avatar del técnico** (o iniciales; clic para **asignar al instante**), iconos con número de adjuntos y comentarios, y **barras de SLA** (primera respuesta y resolución) que pasan de verde a ámbar a rojo.
+- **Tarjeta de implementación**: además, barra de avance de etapas, etapa actual y "faltan X días" o "atrasada X días".
+- **Densidad**: clásica (con detalles) o compacta (solo título, número y estado).
+- **Vista Lista** con columnas configurables, selección múltiple y acciones masivas (asignar, cambiar estado, etiquetar).
+
+### 13.2 "Mi trabajo" (inicio de cada usuario)
+
+- **Fichas de contadores** arriba: *Esperando mi respuesta*, *Asignados a mí*, *Aprobaciones*, *Tareas*, *Atrasados*, *Resueltos hoy*; al hacer clic filtran las tarjetas de abajo.
+- **Cuadrícula de tarjetas** con etiqueta de tipo (soporte, implementación, tarea, aprobación), prioridad, barras de SLA, persona y número.
+- **Panel derecho**:
+  - *Acciones pendientes*: aprobar/rechazar, completar, posponer, sin abrir el ticket.
+  - *Vence pronto*: lista de lo que vence en las próximas horas.
+  - *Participaciones*: tickets donde me mencionaron o soy observador.
+- **Mi día**: lista tipo ToDo agrupada en *Atrasado / Hoy / Próximo / Sin fecha*, con casillas para completar tareas y etapas, alta rápida con una línea y atajos de teclado.
+
+### 13.3 Otras vistas
+
+- **Detalle de ticket**: panel lateral con datos, conversación (pública/interna), adjuntos con vista previa (imágenes y video), historial, conversación de erpsyschat vinculada, botones de acción claros (Asignar, Iniciar, Resolver).
 - **Implementaciones**: línea de tiempo/Gantt de etapas, barra de avance, "faltan X días", responsables por etapa.
 - **Panel del jefe**: carga por técnico, asignación por arrastre, atrasos, KPIs.
 - **Portal del cliente**: crear ticket en un paso (título + adjuntos opcionales), mis tickets, avance de implementaciones de su empresa, comentarios.
-- **Administración**: usuarios y roles, empresas cliente y sus usuarios, productos, equipos, plantillas, SLA, canales, buzones, integraciones, API keys, marca.
+- **Administración**: usuarios y roles, empresas cliente y sus usuarios, productos, equipos, plantillas, SLA, canales, buzones, integraciones, API keys, marca (ver sección 14).
 - **Preferencias del usuario**: idioma, modo claro/oscuro/sistema y tema de color, accesibles desde el menú de usuario y desde la pantalla de inicio de sesión.
 - **Consola de instancias** (nosotros, aplicación aparte): alta de empresas con creación automática de su instancia en su dominio, versión, actualizaciones, respaldos, licencia y estado.
 - Responsive (usable en celular) y accesible (contraste AA, navegación con teclado).
 
-### 13.1 Idiomas (i18n): español, inglés y portugués
+### 13.4 Idiomas (i18n): español, inglés y portugués
 
 - **Todo traducido** desde el MVP: interfaz, mensajes de error de la API, correos, plantillas de implementación por defecto, estados, prioridades, widget y documentación de la API.
 - **Idioma aplicado**: preferencia del usuario → idioma por defecto de la empresa → idioma del navegador → español.
@@ -448,7 +562,7 @@ Todas las respuestas de error devuelven un **código estable** (ej. `TICKET_NOT_
 - El contenido que escriben los usuarios (títulos, comentarios) no se traduce; traducción automática opcional en la fase de inteligencia.
 - Preparado para agregar más idiomas solo añadiendo una carpeta de traducción.
 
-### 13.2 Diseño, modo claro/oscuro y temas de color
+### 13.5 Diseño, modo claro/oscuro y temas de color
 
 **Base visual: la de erpsys** (`v1.erpsys.pro`), en tonos azules:
 
@@ -475,7 +589,93 @@ Todas las respuestas de error devuelven un **código estable** (ej. `TICKET_NOT_
 
 ---
 
-## 14. Despliegue (Docker)
+## 14. Configuración de cada empresa (fácil y global)
+
+Objetivo: que cualquier empresa nueva quede configurada **sin tocar código ni el servidor**, desde pantallas sencillas, y que nosotros podamos dejarla preconfigurada al crear su instancia.
+
+### 14.1 Asistente de configuración inicial
+
+La primera vez que entra el dueño aparece un asistente paso a paso (se puede retomar después):
+
+1. **Empresa**: nombre, logo, zona horaria, idioma por defecto (es/en/pt).
+2. **Apariencia**: tema de color o color de marca, modo claro/oscuro por defecto (con vista previa en vivo).
+3. **Correo saliente**: desde qué correo se envía todo (ver 14.3), con botón **"Enviar correo de prueba"**.
+4. **Correo entrante** (opcional): buzón del que se crearán tickets.
+5. **Equipo**: invitar técnicos y jefes, crear equipos.
+6. **Integraciones** (opcional): conectar erpsys, erpsyschat u otra fuente de clientes y usuarios, con botón **"Probar conexión"**.
+7. **Tickets**: prefijo de numeración (ej. `HD-`, `SOP-`), categorías, productos, plantilla de implementación inicial.
+8. **Listo**: resumen con lo que falta configurar.
+
+### 14.2 Pantalla de configuración (siempre disponible para el dueño)
+
+| Sección | Qué se configura |
+|---|---|
+| **General** | Nombre, logo, favicon, zona horaria, horario laboral y feriados, dominio público. |
+| **Apariencia** | Tema de color o color de marca, modo por defecto, textos personalizados (`translations_overrides`). |
+| **Idioma y región** | Idioma por defecto, idiomas habilitados, formato de fecha y hora. |
+| **Correo saliente** | Remitente, proveedor, credenciales, respuesta a, firma, prueba de envío, estado de SPF/DKIM. |
+| **Correo entrante** | Buzones, reglas de asignación por buzón, remitentes bloqueados. |
+| **Notificaciones** | Qué eventos avisan a quién y por qué canal; plantillas de correo por idioma con vista previa. |
+| **Tickets** | Prefijo y numeración, estados, prioridades, categorías, campos personalizados, cierre automático tras N días. |
+| **Implementaciones** | Plantillas de etapas, días hábiles, evidencia obligatoria al completar etapa. |
+| **SLA** | Metas por prioridad y por cliente, escalamientos. |
+| **Integraciones** | Conectores (erpsys, erpsyschat, REST, CSV) con sus credenciales, mapeo de campos y frecuencia de sincronización; estado de la última sincronización. |
+| **API y webhooks** | API keys, webhooks salientes, dominios permitidos para el widget (CORS). |
+| **Seguridad** | Política de contraseñas, 2FA obligatoria por rol, duración de sesión, restricción por IP. |
+| **Archivos** | Tamaño máximo por tipo (imagen, video, documento), tipos permitidos. |
+
+Cada sección tiene **"Probar"** donde aplica (correo, conectores, webhooks) y un indicador de **salud de la configuración** en el panel ("El correo saliente no está verificado", "La integración con erpsys falló hace 2 horas").
+
+### 14.3 Correo saliente: "desde qué correo se envía todo"
+
+- **Remitente principal**: nombre y correo (ej. "Soporte Empresa A" `<soporte@empresa-a.com>`), dirección de respuesta y firma.
+- **Remitentes por tipo de aviso** (opcional): por ejemplo implementaciones desde `implementaciones@…` y soporte desde `soporte@…`.
+- **Proveedores con valores predefinidos**: ZeptoMail, Google Workspace / Gmail, Microsoft 365, Amazon SES, Mailgun, SendGrid o SMTP propio. Al elegir uno se rellenan servidor, puerto y cifrado; solo se escriben usuario y contraseña o token.
+- **Verificación**: envío de prueba, y guía de los registros DNS (SPF, DKIM, DMARC) con verificación automática.
+- **Respaldo**: si la empresa aún no configura su correo, se usa el remitente por defecto de la plataforma (`notificaciones@…`) con el nombre de la empresa.
+- Las credenciales se guardan **cifradas** y nunca se muestran completas en pantalla.
+
+### 14.4 Capas de configuración
+
+De más general a más específica; cada capa puede sobrescribir a la anterior:
+
+1. **Valores por defecto del producto** (en el código): estados, plantillas de correo, temas, idiomas.
+2. **Plantilla global de la plataforma** (la mantenemos nosotros): valores comunes a todas las empresas, por ejemplo plantillas de correo mejoradas o un nuevo tema; se aplican a las instancias que no los hayan personalizado.
+3. **Archivo de instancia** (`instance.yaml`, lo usa el CLI al crearla): dominios, empresa, idioma, tema, correo saliente, conectores y dueño. Así, al vender, se llena un solo archivo y se crea la instancia ya configurada.
+4. **Configuración de la empresa** (pantallas de la sección 14.2, guardada en `settings` y colecciones relacionadas).
+5. **Preferencias de cada usuario**: idioma, modo, tema, notificaciones.
+
+Además: **exportar e importar la configuración** en JSON (para clonar la configuración de una empresa a otra, sin credenciales), historial de cambios de configuración (quién cambió qué y cuándo), y validación de cada valor antes de guardar.
+
+Ejemplo de `instance.yaml`:
+
+```yaml
+company:
+  name: "Empresa A"
+  language: es
+  timezone: America/Guatemala
+domains:
+  app: support.empresa-a.com
+  database: pb-support.empresa-a.com
+appearance:
+  theme: erpsys-blue      # o color de marca: "#0b5cab"
+  mode: system            # light | dark | system
+email:
+  provider: zeptomail
+  from_name: "Soporte Empresa A"
+  from_address: soporte@empresa-a.com
+  reply_to: soporte@empresa-a.com
+owner:
+  name: "Ana López"
+  email: ana@empresa-a.com
+connectors:
+  erpsys: { enabled: true, base_url: "https://v1.erpsys.pro/API/v1/files" }
+  erpsyschat: { enabled: false }
+```
+
+---
+
+## 15. Despliegue (Docker)
 
 Contenedores de **cada instancia** (un proyecto Docker Compose por empresa, `helpdesk-<slug>`):
 
@@ -486,6 +686,7 @@ Contenedores de **cada instancia** (un proyecto Docker Compose por empresa, `hel
 | `worker` | colas, correos, SLA, sincronizaciones, correo entrante | interna |
 | `redis` | colas, caché, rate limit | interna |
 | `pocketbase` | base de datos y archivos de la empresa | 127.0.0.1:puerto → Apache `https://pb-support.erpsys.pro/_/#/` (restringir por IP) |
+| `connector-erpsyschat`, `connector-erpsys`… (opcionales) | microservicios de integración, se activan por empresa | interna (reciben webhooks a través de `web`) |
 | `mailpit` (solo dev) | bandeja de correo de prueba | local |
 
 Para otra empresa es lo mismo con sus dominios: `support.empresa-a.com` → su `web`, `pb-support.empresa-a.com` → su `pocketbase`.
@@ -498,7 +699,7 @@ Para otra empresa es lo mismo con sus dominios: `support.empresa-a.com` → su `
 
 ---
 
-## 15. MVP
+## 16. MVP
 
 **Objetivo**: que Seraph Systems atienda soporte e implementaciones de sus clientes de erpsys en v2 desde `https://support.erpsys.pro/` (base en `https://pb-support.erpsys.pro/_/#/`), con datos de clientes y usuarios traídos por API, y que se pueda crear la instancia de una segunda empresa, en su propio dominio, en minutos.
 
@@ -510,16 +711,18 @@ Para otra empresa es lo mismo con sus dominios: `support.empresa-a.com` → su `
 4. **Tickets de soporte**: alta con solo título (fecha, hora, usuario, cliente registrados automáticamente), descripción, adjuntos (imágenes, videos, documentos con límite de tamaño), estados, prioridad, producto, asignación, comentarios públicos/internos, historial.
 5. **Implementaciones**: creación desde plantilla con etapas y fechas en días hábiles, responsable por etapa, completar etapa (con evidencia opcional), % de avance, etapas atrasadas, fecha estimada de término; visible para dueño, jefe, técnicos y usuarios del cliente.
 6. **Tareas internas** asignadas por el jefe con fecha límite.
-7. **Interfaz**: Mi día (ToDo), Kanban, detalle de ticket, vista de implementación, portal del cliente, pantallas de administración.
-8. **Idiomas, modo y temas**: toda la aplicación y los correos en español, inglés y portugués; modo claro/oscuro/sistema; base visual azul de erpsys con temas de color intercambiables y color de marca por empresa; preferencias por usuario.
-9. **Notificaciones por correo**: ticket creado, asignado, cambio de estado, comentario público, etapa completada, implementación completada; plantillas con la marca de la empresa, en el idioma de cada destinatario.
-10. **API pública v1** con API keys: crear ticket (con adjuntos), consultar estado, comentar; documentación OpenAPI.
-11. **Dashboard básico**: contadores, tickets vencidos, implementaciones atrasadas con fecha estimada, top técnicos, top usuarios y top empresas (últimos 30 días).
-12. **Infraestructura**: todo en Docker, nuestra instancia publicada en `https://support.erpsys.pro/` y `https://pb-support.erpsys.pro/_/#/`, respaldos diarios, logs centralizados.
+7. **Interfaz**: estructura de la sección 13 (barra lateral, panel de vistas, Tablero/Lista), tablero con modos **Estado**, **Vencimiento** y **Asignación**, tarjetas con cambio rápido de estado y asignación instantánea, "Mi trabajo" con contadores y "Mi día", detalle de ticket, vista de implementación, portal del cliente, pantallas de administración.
+8. **Configuración fácil**: asistente inicial y pantalla de configuración (general, apariencia, idioma, **correo saliente con proveedores predefinidos y correo de prueba**, notificaciones, tickets, integraciones, archivos), `instance.yaml` para crear instancias ya configuradas.
+9. **Idiomas, modo y temas**: toda la aplicación y los correos en español, inglés y portugués; modo claro/oscuro/sistema; base visual azul de erpsys con temas de color intercambiables y color de marca por empresa; preferencias por usuario.
+10. **Notificaciones por correo**: ticket creado, asignado, cambio de estado, comentario público, etapa completada, implementación completada; plantillas con la marca de la empresa, en el idioma de cada destinatario.
+11. **API pública v1** con API keys: crear ticket (con adjuntos y referencia externa), consultar estado, comentar; documentación OpenAPI. Base para que erpsyschat y otros sistemas creen tickets desde el día uno.
+12. **Eventos y outbox internos** listos para los conectores (aunque los webhooks salientes y el conector de erpsyschat lleguen en la fase 2).
+13. **Dashboard básico**: contadores, tickets vencidos, implementaciones atrasadas con fecha estimada, top técnicos, top usuarios y top empresas (últimos 30 días).
+14. **Infraestructura**: todo en Docker, nuestra instancia publicada en `https://support.erpsys.pro/` y `https://pb-support.erpsys.pro/_/#/`, respaldos diarios, logs centralizados.
 
 ### No incluye (pasa a fases siguientes)
 
-Correo entrante → ticket, SLA con horario laboral, widget/plugin y SSO por token, webhooks salientes, 2FA, Slack/Teams/WhatsApp, base de conocimiento, encuestas de satisfacción, consola web de instancias (en el MVP es CLI), facturación.
+Correo entrante → ticket, SLA con horario laboral, widget/plugin y SSO por token, webhooks salientes, conector de erpsyschat, 2FA, Slack/Teams/WhatsApp, base de conocimiento, encuestas de satisfacción, consola web de instancias (en el MVP es CLI), facturación.
 
 ### Criterios de aceptación
 
@@ -530,27 +733,29 @@ Correo entrante → ticket, SLA con horario laboral, widget/plugin y SSO por tok
 - Un usuario crea un ticket escribiendo solo el título; el ticket guarda fecha, hora, usuario y cliente, y el equipo técnico recibe el correo.
 - El jefe crea una implementación desde una plantilla, asigna técnicos por etapa; cada técnico marca su etapa y el jefe y los usuarios del cliente ven el % de avance y la fecha estimada.
 - Un usuario de un cliente nunca ve tickets de otro cliente (pruebas automáticas de permisos).
-- Un sistema externo crea un ticket por la API con su API key y consulta su estado.
+- Un sistema externo (por ejemplo erpsyschat, con una prueba manual) crea un ticket por la API con su API key y referencia externa, y consulta su estado.
+- El dueño de una empresa nueva configura desde el asistente el correo desde el que se envía todo, recibe el correo de prueba y, a partir de ahí, todos los avisos salen con ese remitente.
+- En el tablero se puede cambiar entre los modos Estado, Vencimiento y Asignación; arrastrar una tarjeta cambia el estado, la fecha límite o el técnico según el modo.
 - El dashboard muestra top técnicos, top usuarios, top empresas y la lista de atrasados con datos correctos.
 
 ---
 
-## 16. Roadmap
+## 17. Roadmap
 
 Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el alcance.
 
 | Fase | Duración estimada | Contenido |
 |---|---|---|
 | **0. Fundaciones** | 2 semanas | Monorepo, Docker Compose de una instancia, CI con imágenes versionadas, esquema PocketBase con migraciones, estructura de la API (config, routes, controllers, services, models, middlewares, validators, types, utils), auth JWT, RBAC base, **i18n es/en/pt y sistema de temas (claro/oscuro, colores) desde el primer componente**, layout del frontend con la base visual de erpsys. |
-| **1. MVP** | 6–8 semanas | Todo lo de la sección 15, en este orden: auth y roles → clientes/usuarios/productos y conector erpsys → tickets de soporte y adjuntos → implementaciones y etapas → UI ToDo/Kanban/portal → correos → API pública → dashboard → CLI de instancias → endurecimiento y despliegue en `support.erpsys.pro`. |
-| **2. v1.0 operación completa** | 4–6 semanas | Correo entrante → ticket y respuestas por correo, SLA con horario laboral y escalamiento, widget embebible y SSO por token (modo plugin), SDK JS/PHP, webhooks salientes, 2FA, **consola web de instancias** (alta, actualizaciones, respaldos, licencias, monitoreo), reportes avanzados con exportación y envío programado, antivirus de adjuntos. |
+| **1. MVP** | 6–8 semanas | Todo lo de la sección 16, en este orden: auth y roles → configuración y asistente inicial → clientes/usuarios/productos y conector erpsys → tickets de soporte y adjuntos → implementaciones y etapas → UI (Mi trabajo, tablero con modos, portal) → correos → API pública y eventos → dashboard → CLI de instancias con `instance.yaml` → endurecimiento y despliegue en `support.erpsys.pro`. |
+| **2. v1.0 operación completa** | 5–7 semanas | **Integración con erpsyschat** (`connector-erpsyschat`: convertir conversación en ticket, avisos y push en el chat, respuestas en ambos sentidos, "mis tickets" en el chat, SSO), correo entrante → ticket y respuestas por correo, SLA con horario laboral y escalamiento, widget embebible y SSO por token (modo plugin), SDK JS/PHP, webhooks salientes, 2FA, **consola web de instancias** (alta, actualizaciones, respaldos, licencias, monitoreo), reportes avanzados con exportación y envío programado, antivirus de adjuntos. |
 | **3. Canales y experiencia** | 4–6 semanas | Slack, Microsoft Teams, Telegram, WhatsApp Business; base de conocimiento con sugerencias al crear ticket; encuestas de satisfacción (CSAT); respuestas rápidas; PWA con notificaciones push; Gantt editable. |
 | **4. Inteligencia** | continuo | Clasificación y prioridad sugeridas por IA, detección de duplicados, resumen de conversaciones, respuesta sugerida, predicción de retrasos en implementaciones. |
 | **5. Negocio y escala** | continuo | Planes y facturación automática, límites por plan, autoservicio de alta de empresas, instancias repartidas en varios servidores, instalación en servidor del cliente (*on-premise*) con licencia, marketplace de conectores, más idiomas. |
 
 ---
 
-## 17. Ideas adicionales
+## 18. Ideas adicionales
 
 - **Portal público de estado** del servicio (incidentes y mantenimientos) por producto.
 - **Tickets relacionados y problemas maestros**: agrupar muchos reportes del mismo bug en un incidente.
@@ -564,7 +769,7 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 
 ---
 
-## 18. Riesgos y mitigaciones
+## 19. Riesgos y mitigaciones
 
 | Riesgo | Mitigación |
 |---|---|
@@ -580,7 +785,7 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 
 ---
 
-## 19. Decisiones pendientes
+## 20. Decisiones pendientes
 
 1. **Stack del backend**: Node.js + TypeScript (propuesto) o Go.
 2. **Cuándo ocupar `support.erpsys.pro` y `pb-support.erpsys.pro`**: desde ya (reemplazando el helpdesk actual) o al terminar el MVP, usando mientras tanto un subdominio de pruebas.
@@ -588,5 +793,6 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 4. **Proveedor de correo** (ZeptoMail, SES, Mailgun…) y dominio remitente por empresa.
 5. **Límites de adjuntos** (tamaño máximo de video, almacenamiento por plan) y si se usa almacenamiento S3 externo.
 6. **Primer conjunto de estados** (fijos o configurables por empresa desde el MVP).
-7. **Temas de color incluidos** además del azul erpsys (propuesta: naranja, verde, morado, rosa y gris pizarra, como en erpsys).
-8. **Migración de datos** del helpdesk actual a v2 o empezar limpio.
+7. **Alcance de la integración con erpsyschat**: solo crear tickets y avisar en el chat, o también sincronizar respuestas en ambos sentidos; y si erpsyschat expone webhooks o hay que agregarlos.
+8. **Temas de color incluidos** además del azul erpsys (propuesta: naranja, verde, morado, rosa y gris pizarra, como en erpsys).
+9. **Migración de datos** del helpdesk actual a v2 o empezar limpio.
