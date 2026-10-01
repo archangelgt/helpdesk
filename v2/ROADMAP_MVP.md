@@ -3,9 +3,16 @@
 > Proyecto nuevo, independiente del helpdesk actual. Vive en la carpeta `v2/` del mismo repositorio
 > hasta que decidamos reemplazar la versión actual.
 >
-> - App: https://support.erpsys.pro
-> - Base de datos (PocketBase, consola): https://pb-support.erpsys.pro/_/
-> - Todo corre en contenedores Docker; Apache del servidor solo hace de proxy hacia los contenedores.
+> **Nuestra instancia (Seraph Systems / erpsys):**
+> - Programa: https://support.erpsys.pro/
+> - Base de datos (consola PocketBase): https://pb-support.erpsys.pro/_/#/
+>
+> **Cada empresa a la que se le venda** tendrá su propia instancia completa (programa + base de datos)
+> en su propio dominio, por ejemplo `https://support.empresa.com/` y `https://pb-support.empresa.com/_/`.
+>
+> Todo corre en contenedores Docker; Apache del servidor solo hace de proxy hacia los contenedores.
+> Toda la aplicación está traducida a **español, inglés y portugués**, con **modo claro/oscuro** y
+> **temas de color** (base visual de erpsys en tonos azules).
 
 ---
 
@@ -24,7 +31,8 @@ Con ella:
 - Los usuarios reportan **bugs/errores** con tickets de soporte (texto, imágenes, videos, documentos) y el equipo técnico los recibe al instante.
 - Todos se mantienen informados por **correo** (y luego otros canales) y pueden comentar el avance.
 - Se obtienen **estadísticas**: qué técnico resuelve más, qué usuario/empresa reporta más, qué está atrasado y cuánto falta para terminar.
-- Cada vez que se vende el servicio a una nueva empresa se **crea su propia base de datos** automáticamente.
+- Cada vez que se vende el servicio a una nueva empresa se **crea su propia instancia**: su programa y su base de datos, corriendo en **su propio dominio**, de forma automática.
+- Interfaz en **español, inglés y portugués**, con **modo claro/oscuro** y **cambio de color de tema**.
 - Funciona **solo** (aplicación web completa) o **como plugin** dentro de otros productos (widget, iframe, API, SDK).
 - Toda la información externa (clientes, usuarios) llega **por APIs** (ej. erpsys) y los productos de los clientes pueden **crear tickets por API**.
 
@@ -34,8 +42,8 @@ Con ella:
 
 | Ámbito | Rol | Qué puede hacer |
 |---|---|---|
-| Plataforma | `super_admin` | Crear/suspender empresas (tenants), planes, ver uso global. |
-| Empresa (tenant) | `owner` (dueño) | Todo dentro de su empresa: configuración, usuarios, integraciones, reportes. |
+| Plataforma (nosotros) | `platform_operator` | Crear, actualizar, respaldar y suspender instancias de empresas desde la consola de instancias. No entra a los datos de una empresa salvo acceso de soporte autorizado y auditado. |
+| Empresa (instancia) | `owner` (dueño) | Todo dentro de su instancia: configuración, marca, usuarios, integraciones, reportes. |
 | Empresa | `manager` (jefe) | Asignar tickets/tareas/implementaciones, ver progreso y reportes de su equipo. |
 | Empresa | `technician` (técnico) | Atender tickets asignados, marcar etapas, comentar, cambiar estados. |
 | Empresa | `agent` (opcional, mesa de ayuda) | Clasificar y despachar tickets entrantes. |
@@ -50,7 +58,7 @@ Los permisos se modelan como **RBAC** (rol → permisos) más **reglas de alcanc
 
 ## 3. Conceptos clave
 
-- **Tenant**: empresa que compra el helpdesk. Tiene su propia base PocketBase.
+- **Tenant / instancia**: empresa que compra el helpdesk. Tiene su propia instalación completa (programa, base PocketBase, colas) en su propio dominio.
 - **Cliente**: empresa cliente del tenant. Puede venir de una API externa (erpsys).
 - **Producto / servicio**: lo que el tenant vende (ej. "ERPsys", "Punto de venta"). Un cliente tiene uno o más productos contratados.
 - **Ticket**: unidad de trabajo. Tipos:
@@ -66,72 +74,90 @@ Los permisos se modelan como **RBAC** (rol → permisos) más **reglas de alcanc
 
 ## 4. Arquitectura
 
+### 4.1 Modelo multi-empresa: una instancia completa por empresa, en su dominio
+
+Cada empresa que compra el producto recibe **su propia instancia**: su programa, su base de datos PocketBase, sus colas y sus archivos, publicados en **su propio dominio**. Ninguna empresa comparte base ni proceso con otra.
+
+| Empresa | Programa | Base de datos (consola) |
+|---|---|---|
+| Seraph Systems (nosotros) | `https://support.erpsys.pro/` | `https://pb-support.erpsys.pro/_/#/` |
+| Empresa A | `https://support.empresa-a.com/` | `https://pb-support.empresa-a.com/_/` |
+| Empresa B | `https://soporte.empresa-b.com/` | `https://pb-soporte.empresa-b.com/_/` |
+
 ```mermaid
-flowchart LR
-  subgraph Internet
-    U[Usuarios / clientes / técnicos]
-    EXT[Productos de clientes<br/>ej. ERPsys]
-    MAIL[Correo entrante]
+flowchart TB
+  subgraph Plataforma["Nosotros (operación de la plataforma)"]
+    CTL[Consola de instancias<br/>crear, actualizar, respaldar, monitorear]
+    REG[(Registro de instancias<br/>dominios, versión, licencia, estado)]
+    IMG[Imágenes Docker versionadas<br/>web, api, worker, pocketbase]
+    CTL --> REG
   end
 
-  subgraph Servidor["Servidor (Apache como proxy)"]
-    AP[Apache<br/>support.erpsys.pro<br/>pb-support.erpsys.pro]
-    subgraph Docker
-      WEB[web<br/>SPA React]
-      API[api<br/>Node + TypeScript]
-      WK[worker<br/>colas y tareas programadas]
-      RD[(Redis<br/>colas, caché, rate limit)]
-      CORE[(PocketBase core<br/>registro de tenants)]
-      T1[(PocketBase<br/>tenant A)]
-      T2[(PocketBase<br/>tenant B)]
-      PROV[provisioner<br/>crea contenedores de tenants]
-    end
+  subgraph S1["Instancia Seraph — support.erpsys.pro"]
+    A1[Apache] --> W1[web] --> API1[api]
+    API1 --> PB1[(PocketBase<br/>pb-support.erpsys.pro)]
+    API1 --> R1[(Redis)]
+    WK1[worker] --> PB1
   end
 
-  ERP[(API erpsys<br/>clientes y usuarios)]
-  SMTP[Proveedor de correo<br/>SMTP / API]
-  CH[Slack / Teams / WhatsApp / Webhooks]
+  subgraph S2["Instancia Empresa A — support.empresa-a.com"]
+    A2[Apache] --> W2[web] --> API2[api]
+    API2 --> PB2[(PocketBase<br/>pb-support.empresa-a.com)]
+    API2 --> R2[(Redis)]
+    WK2[worker] --> PB2
+  end
 
-  U --> AP --> WEB --> API
-  EXT -- API key / JWT firmado --> AP --> API
-  MAIL --> SMTP --> API
-  API --> CORE
-  API --> T1
-  API --> T2
-  API --> RD
-  WK --> RD
-  WK --> T1
-  WK --> T2
-  WK --> SMTP
-  WK --> CH
-  API <--> ERP
-  API --> PROV --> T1
-  PROV --> T2
+  CTL -- crea / actualiza --> S1
+  CTL -- crea / actualiza --> S2
+  IMG -.-> S1
+  IMG -.-> S2
+
+  ERP[(API erpsys u otro sistema<br/>clientes y usuarios)] <--> API1
+  ERP2[(Sistema propio de la Empresa A)] <--> API2
 ```
 
-### 4.1 Multi-tenancy: una base de datos por empresa
+**Cómo se crea una instancia al vender el producto** (consola de instancias o CLI `create-instance`):
 
-- **PocketBase core** (`pb-core`): base central de la plataforma. Guarda tenants, planes, dominios, credenciales cifradas de cada base de tenant, trabajos de aprovisionamiento y métricas de uso. Es la que se ve en `https://pb-support.erpsys.pro/_/`.
-- **PocketBase por tenant** (`pb-<slug>`): un contenedor y un volumen por empresa, con el mismo esquema (migraciones versionadas). Aislamiento total, respaldos y borrado por empresa, sin riesgo de mezclar datos.
-- **Aprovisionamiento** (al vender el servicio), desde la consola de plataforma o un CLI:
-  1. Registrar el tenant en core (nombre, slug, plan, correo del dueño).
-  2. El *provisioner* crea el contenedor `pb-<slug>` con su volumen, en la red interna de Docker (sin puerto público).
-  3. Aplica las migraciones del esquema del tenant y crea el superusuario (credenciales aleatorias, guardadas cifradas en core).
-  4. Crea el usuario `owner`, la configuración inicial (estados, prioridades, SLA por defecto, plantilla de correo) y envía la invitación.
-  5. Marca el tenant como `active`.
-- **Resolución del tenant en cada petición**:
-  - MVP: el usuario elige o escribe el código de su empresa al iniciar sesión; el JWT lleva `tenant_id`.
-  - API externa: la API key identifica al tenant (prefijo `hk_<tenant>_...`).
-  - Fase 2: subdominio por empresa (`<slug>.support.erpsys.pro`) con DNS y certificado comodín.
-- **Pool de conexiones**: la API mantiene un cliente PocketBase autenticado por tenant (token de superusuario en caché, renovado automáticamente).
-- **Migraciones**: un comando aplica las migraciones pendientes a todos los tenants (o a uno), con registro en core.
-- **Consola de bases de tenants**: no se exponen públicamente. Para entrar a la consola de un tenant se usa un acceso temporal desde la consola de plataforma (o un túnel SSH). A validar: servirla en `pb-support.erpsys.pro/t/<slug>/_/`.
+1. Datos de entrada: nombre de la empresa, dominio del programa y de la base (ej. `support.empresa-a.com` y `pb-support.empresa-a.com`), correo del dueño, idioma y tema por defecto, servidor destino.
+2. Requisito previo: la empresa apunta sus registros DNS (A o CNAME) al servidor. La consola verifica que resuelvan antes de seguir.
+3. Se genera un proyecto Docker Compose propio (`helpdesk-<slug>`) con su `.env`, secretos aleatorios, volúmenes y puertos internos libres.
+4. Se crean los vhosts de Apache para ambos dominios con proxy hacia los contenedores, y los certificados HTTPS con Let's Encrypt.
+5. Se levantan los contenedores, se aplican las migraciones del esquema, se crea el superusuario de PocketBase y el usuario `owner` con su invitación por correo.
+6. Se carga la configuración inicial: estados, prioridades, SLA por defecto, plantillas de correo, idioma, tema y logo.
+7. Se registra la instancia (dominios, versión, servidor, estado) y queda `active`.
 
-> Alternativa evaluada: una sola base con campo `tenant` en cada tabla. Es más simple, pero se descarta por el requisito de crear una base por empresa y por aislamiento/respaldos.
+**Operación de todas las instancias:**
 
-### 4.2 Por qué la API está en medio
+- **Actualizaciones**: todas usan las mismas imágenes versionadas (`helpdesk-api:1.4.0`, etc.). Actualizar = cambiar la versión, aplicar migraciones y verificar salud; por lotes o una a una, con reversión.
+- **Respaldos**: diarios por instancia (respaldo de PocketBase + archivos) hacia almacenamiento externo.
+- **Monitoreo**: estado de salud, versión, espacio en disco y errores de cada instancia en la consola.
+- **Ubicación flexible**: una instancia puede correr en nuestro servidor o en el servidor del cliente (*on-premise*) con las mismas imágenes.
+- **Licencia**: cada instancia tiene una licencia (plan, límites, vencimiento) que valida contra el registro.
+- **Soporte**: si hace falta entrar a una instancia de un cliente, se usa un acceso temporal, autorizado por el dueño y auditado.
 
-El navegador y los productos externos **nunca hablan directo con PocketBase**: todo pasa por la API. Así centralizamos permisos, validaciones, auditoría, multi-tenancy, notificaciones e integraciones, y las bases de tenants quedan en la red interna. Las reglas de acceso de PocketBase se configuran igualmente como segunda línea de defensa.
+> Ventajas de este modelo: aislamiento total de datos, cada empresa con su dominio y su marca, respaldos y borrado independientes, y la posibilidad de instalarlo en el servidor del cliente. El costo es operar varias instancias, por eso la consola de instancias, las imágenes versionadas y las migraciones automáticas son parte del diseño desde el inicio.
+
+### 4.2 Arquitectura dentro de una instancia
+
+```mermaid
+flowchart LR
+  U[Usuarios / clientes / técnicos] --> AP[Apache<br/>support.dominio]
+  EXT[Productos de clientes<br/>widget / API] --> AP
+  AP --> WEB[web<br/>SPA React]
+  WEB --> API[api<br/>Node + TypeScript]
+  API --> PB[(PocketBase<br/>pb-support.dominio)]
+  API --> RD[(Redis<br/>colas, caché, rate limit)]
+  WK[worker] --> RD
+  WK --> PB
+  WK --> SMTP[Correo saliente]
+  WK --> CH[Slack / Teams / WhatsApp / Webhooks]
+  IN[Correo entrante] --> API
+  API <--> ERP[(APIs externas<br/>ej. erpsys)]
+```
+
+### 4.3 Por qué la API está en medio
+
+El navegador y los productos externos **nunca hablan directo con PocketBase**: todo pasa por la API. Así centralizamos permisos, validaciones, auditoría, notificaciones e integraciones. La consola de PocketBase se publica en su dominio (`pb-support.…`) solo para administración, con restricción por IP recomendada; la API de datos de PocketBase no se usa desde fuera. Las reglas de acceso de PocketBase se configuran igualmente como segunda línea de defensa.
 
 ---
 
@@ -141,10 +167,11 @@ El navegador y los productos externos **nunca hablan directo con PocketBase**: t
 |---|---|---|
 | Backend API | Node.js 22 + TypeScript + Fastify | Rápido, tipado, encaja con la estructura pedida (controllers, services, validators…). |
 | Validación | Zod (esquemas compartidos con el frontend) | Un solo esquema para validar y tipar. |
-| Base de datos | PocketBase (core + una por tenant) | Requisito; archivos, auth collections, *view collections* para estadísticas. |
+| Base de datos | PocketBase (una por instancia) | Requisito; archivos, auth collections, *view collections* para estadísticas. |
 | Colas y tareas | BullMQ + Redis | Correos, notificaciones, sincronizaciones, SLA, correo entrante. |
 | Frontend | React + Vite + TypeScript, TanStack Query, dnd-kit | UI tipo ToDo/Kanban con arrastrar y soltar. |
-| UI | Tailwind CSS + componentes accesibles (Radix/shadcn) | Interfaz amigable y consistente, modo claro/oscuro. |
+| UI | Tailwind CSS sobre variables CSS (design tokens) + componentes accesibles (Radix/shadcn) | Base visual de erpsys, modo claro/oscuro y temas de color intercambiables. |
+| Traducción (i18n) | i18next + react-i18next (web), i18next (api y correos), `Intl` para fechas y números | Español, inglés y portugués desde el día uno. |
 | Gráficas | Apache ECharts o Recharts | Dashboards de estadísticas. |
 | Correo | Nodemailer (SMTP) + plantillas MJML/Handlebars | Compatible con ZeptoMail, SES, Mailgun, etc. |
 | Docs de API | OpenAPI 3 (generado desde los esquemas Zod) + Swagger UI | Para que los clientes integren sus productos. |
@@ -160,9 +187,13 @@ El navegador y los productos externos **nunca hablan directo con PocketBase**: t
 v2/
 ├── ROADMAP_MVP.md                 ← este documento
 ├── docker/
-│   ├── docker-compose.yml         ← web, api, worker, redis, pb-core, provisioner
+│   ├── docker-compose.yml         ← una instancia: web, api, worker, redis, pocketbase
 │   ├── docker-compose.prod.yml
 │   └── docker-compose.dev.yml     ← + mailpit para probar correos
+├── ops/
+│   ├── instance-cli/              ← create-instance, upgrade, backup, restore, suspend
+│   ├── templates/                 ← plantillas de .env y vhosts de Apache por instancia
+│   └── control/                   ← consola y registro de instancias (fase 2)
 ├── apps/
 │   ├── api/
 │   │   └── src/
@@ -171,11 +202,12 @@ v2/
 │   │       ├── controllers/       ← reciben la petición, llaman servicios, responden
 │   │       ├── services/          ← lógica de negocio (tickets, etapas, SLA, reportes…)
 │   │       ├── models/            ← repositorios sobre PocketBase y mapeo de colecciones
-│   │       ├── middlewares/       ← auth JWT, tenant, RBAC, rate limit, errores, auditoría
+│   │       ├── middlewares/       ← auth JWT, RBAC, idioma, rate limit, errores, auditoría
 │   │       ├── validators/        ← esquemas Zod de entrada
 │   │       ├── types/             ← tipos de dominio y DTOs
 │   │       ├── utils/             ← fechas hábiles, cifrado, paginación, logger
-│   │       ├── tenancy/           ← resolución de tenant, pool de clientes PB, migraciones
+│   │       ├── i18n/              ← mensajes de la API y correos en es / en / pt
+│   │       ├── db/                ← cliente PocketBase, migraciones, semillas
 │   │       ├── connectors/        ← fuentes externas: erpsys, CSV, genérico REST
 │   │       ├── channels/          ← salida: email, webhook, slack, teams, whatsapp
 │   │       ├── inbound/           ← entrada: correo (IMAP / webhook), API, widget
@@ -189,18 +221,19 @@ v2/
 │   │       ├── pages/             ← vistas
 │   │       ├── features/          ← tickets, implementations, tasks, portal, admin, reports, platform
 │   │       ├── components/        ← UI reutilizable
-│   │       ├── hooks/ services/ stores/ types/ utils/ i18n/
+│   │       ├── theme/             ← tokens de diseño, temas de color, modo claro/oscuro
+│   │       ├── i18n/              ← locales/es, locales/en, locales/pt
+│   │       ├── hooks/ services/ stores/ types/ utils/
 │   └── widget/                    ← Web Component embebible <helpdesk-widget>
 ├── packages/
-│   ├── shared/                    ← esquemas Zod y tipos compartidos api/web/sdk
+│   ├── shared/                    ← esquemas Zod, tipos y claves de traducción compartidos
+│   ├── ui-theme/                  ← tokens de diseño y temas reutilizables por web y widget
 │   └── sdk-js/                    ← SDK para integrar productos (luego sdk-php para erpsys)
 ├── pocketbase/
 │   ├── Dockerfile
-│   ├── core/pb_migrations/        ← esquema de la base central
-│   └── tenant/
-│       ├── pb_migrations/         ← esquema de cada empresa
-│       └── pb_hooks/              ← numeración de tickets, validaciones de última línea
-└── scripts/                       ← create-tenant, migrate-all, backup, seed-demo
+│   ├── pb_migrations/             ← esquema de la base de cada instancia
+│   └── pb_hooks/                  ← numeración de tickets, validaciones de última línea
+└── scripts/                       ← seed-demo, check-i18n (claves faltantes), utilidades
 ```
 
 Reglas: los `controllers` no tocan PocketBase directamente (pasan por `services` → `models`); los `validators` se ejecutan en `routes` antes del controlador; los `services` emiten `events` y los `jobs` reaccionan (notificaciones, métricas), así una petición no espera a que se envíe un correo.
@@ -209,29 +242,18 @@ Reglas: los `controllers` no tocan PocketBase directamente (pasan por `services`
 
 ## 7. Modelo de datos (PocketBase)
 
-### 7.1 Base core (plataforma)
+### 7.1 Base de cada instancia (una por empresa)
+
+Es la base que se ve en `https://pb-support.erpsys.pro/_/#/` para nuestra instancia, y en `pb-support.<dominio>` para cada empresa. Todas las colecciones tienen `created` y `updated` automáticos. Las flechas indican relaciones.
 
 | Colección | Campos principales |
 |---|---|
-| `platform_users` (auth) | nombre, correo, rol `super_admin`, 2FA |
-| `plans` | nombre, límites (usuarios, técnicos, GB de archivos, tickets/mes), precio |
-| `tenants` | nombre, slug, estado (`provisioning`/`active`/`suspended`/`deleted`), plan → `plans`, correo del dueño, URL interna PB, contenedor, credenciales cifradas, versión de esquema |
-| `tenant_domains` | tenant → `tenants`, dominio, verificado |
-| `provisioning_jobs` | tenant, paso, estado, log, fechas |
-| `usage_daily` | tenant, fecha, tickets creados, usuarios activos, almacenamiento |
-
-### 7.2 Base de cada tenant
-
-Todas las colecciones tienen `created` y `updated` automáticos. Las flechas indican relaciones.
-
-| Colección | Campos principales |
-|---|---|
-| `users` (auth) | nombre, correo, teléfono, avatar, rol, cliente → `clients` (vacío si es personal interno), equipo(s) → `teams`, estado, idioma, zona horaria, `external_source`, `external_id`, último acceso |
+| `users` (auth) | nombre, correo, teléfono, avatar, rol, cliente → `clients` (vacío si es personal interno), equipo(s) → `teams`, estado, **idioma** (`es`/`en`/`pt`), zona horaria, **modo** (`light`/`dark`/`system`), **tema de color**, `external_source`, `external_id`, último acceso |
 | `teams` | nombre, líder → `users`, productos → `products` |
 | `clients` | nombre, NIT/ID fiscal, estado, SLA → `sla_policies`, ejecutivo → `users`, `external_source`, `external_id` |
 | `products` | código, nombre, descripción, activo |
 | `client_products` | cliente → `clients`, producto → `products`, plan/licencia, vigencia |
-| `tickets` | número (secuencial por tenant), tipo, título, descripción, estado, prioridad, severidad, producto, cliente, **solicitante** → `users`, **creado por** → `users`, **asignado a** → `users`, equipo → `teams`, **resuelto por** → `users`, cerrado por → `users`, canal (`web`/`email`/`api`/`widget`), referencia externa, ticket padre → `tickets`, plantilla, SLA, vencimientos (primera respuesta, resolución), fechas de primera respuesta / resuelto / cerrado, observadores → `users` (múltiple), etiquetas |
+| `tickets` | número (secuencial), tipo, título, descripción, estado, prioridad, severidad, producto, cliente, **solicitante** → `users`, **creado por** → `users`, **asignado a** → `users`, equipo → `teams`, **resuelto por** → `users`, cerrado por → `users`, canal (`web`/`email`/`api`/`widget`), referencia externa, ticket padre → `tickets`, plantilla, SLA, vencimientos (primera respuesta, resolución), fechas de primera respuesta / resuelto / cerrado, observadores → `users` (múltiple), etiquetas |
 | `ticket_stages` | ticket, nombre, orden, descripción, estado, responsable → `users`, inicio y fin planificados, inicio y fin reales, **completada por** → `users`, peso (para el % de avance), visible al cliente (sí/no) |
 | `implementation_templates` / `template_stages` | nombre, producto; etapas con orden, duración estimada en días hábiles, rol responsable sugerido |
 | `comments` | ticket, etapa (opcional), autor → `users`, cuerpo, visibilidad (`public`/`internal`), origen (`web`/`email`/`api`) |
@@ -251,7 +273,8 @@ Todas las colecciones tienen `created` y `updated` automáticos. Las flechas ind
 | `sessions` | usuario, hash del refresh token, IP, user agent, expiración, revocado |
 | `audit_logs` | actor, acción, entidad, id, IP, cambios JSON |
 | `canned_responses` | respuestas rápidas para técnicos |
-| `settings` | marca (logo, colores), idioma por defecto, estados personalizados, límites de archivos |
+| `settings` | nombre y logo de la empresa, **idioma por defecto**, **modo y tema de color por defecto** (o color de marca propio), zona horaria, estados personalizados, límites de archivos |
+| `translations_overrides` | clave, idioma, texto: permite a cada empresa ajustar textos (ej. llamar "Casos" a los tickets) sin tocar el código |
 | *Vistas de estadísticas* | `stats_by_technician`, `stats_by_requester`, `stats_by_client`, `stats_overdue`, `stats_implementation_progress` (view collections con SQL `GROUP BY`) |
 
 ```mermaid
@@ -322,15 +345,15 @@ Al crear el ticket, el sistema registra automáticamente **fecha, hora, usuario,
 - **Proveedores de login**: local (contraseña), **delegado a erpsys** (valida la contraseña contra la API del ERP), y más adelante OAuth (Google/Microsoft) y SSO por JWT firmado desde productos externos (para el modo plugin).
 - **Contraseñas**: hash fuerte (bcrypt/argon2), políticas mínimas, recuperación por enlace de un solo uso.
 - **Protección de login**: límite de intentos por IP y por cuenta, bloqueo temporal, CAPTCHA tras varios fallos, alertas de inicio de sesión nuevo.
-- **2FA (TOTP)** obligatorio para `super_admin` y opcional para el personal (fase 2).
+- **2FA (TOTP)** obligatorio para `owner` y operadores de plataforma, opcional para el resto del personal (fase 2).
 - **Autorización**: RBAC + alcance por cliente/equipo en cada servicio, y reglas de PocketBase como segunda capa.
 - **API keys**: guardadas con hash, prefijo visible, scopes, expiración, límite de peticiones por key, rotación.
 - **Webhooks**: firmados con HMAC y marca de tiempo.
 - **Archivos**: validación de tipo y tamaño, URLs firmadas de corta duración, antivirus (ClamAV) en fase 2.
 - **Secretos**: credenciales de integraciones y bases cifradas (AES-256-GCM) con clave maestra fuera de la base.
-- **Red**: PocketBase de tenants sin puertos públicos; consola core con restricción por IP; HTTPS con HSTS; CORS por tenant (dominios permitidos para el widget); cabeceras de seguridad.
-- **Auditoría**: registro de acciones sensibles (permisos, borrados, exportaciones, accesos de plataforma).
-- **Respaldos**: copia diaria por tenant (respaldos de PocketBase hacia almacenamiento S3 compatible) con retención y prueba de restauración.
+- **Red**: cada instancia aislada en su propia red Docker; PocketBase solo accesible por su dominio `pb-support.…` con restricción por IP recomendada; HTTPS con HSTS; CORS configurable (dominios permitidos para el widget); cabeceras de seguridad.
+- **Auditoría**: registro de acciones sensibles (permisos, borrados, exportaciones, accesos de soporte de plataforma).
+- **Respaldos**: copia diaria por instancia (respaldos de PocketBase y archivos hacia almacenamiento S3 compatible) con retención y prueba de restauración.
 
 ---
 
@@ -348,7 +371,7 @@ Patrón **conector**: cada fuente implementa la misma interfaz (`listClients`, `
 ### 10.2 Exponer APIs (para que los productos creen tickets)
 
 - `POST /public/v1/tickets` crear ticket (con adjuntos), `GET /public/v1/tickets/{ref}` estado, `POST /public/v1/tickets/{ref}/comments`, `GET /public/v1/tickets?requester=...`.
-- Autenticación con **API key** del tenant; opcionalmente "en nombre de" un usuario (se crea o vincula por correo/ID externo).
+- Autenticación con **API key** de la instancia; opcionalmente "en nombre de" un usuario (se crea o vincula por correo/ID externo).
 - **Idempotencia** con cabecera `Idempotency-Key` y referencia externa.
 - **Webhooks salientes**: `ticket.created`, `ticket.status_changed`, `ticket.assigned`, `comment.created`, `stage.completed`, `implementation.completed`.
 - Documentación OpenAPI pública y colección de ejemplos.
@@ -356,13 +379,15 @@ Patrón **conector**: cada fuente implementa la misma interfaz (`listClients`, `
 ### 10.3 Modo plugin
 
 1. **Widget embebible** (`<script>` + `<helpdesk-widget>`): botón "Reportar problema" dentro del producto del cliente (ej. erpsys) para crear tickets y ver "mis tickets". Captura automática de URL, navegador y captura de pantalla opcional.
-2. **SSO por token firmado**: el producto anfitrión firma un JWT con el secreto del tenant (usuario, correo, cliente); el helpdesk confía y crea o vincula al usuario sin otra contraseña.
+2. **SSO por token firmado**: el producto anfitrión firma un JWT con el secreto de la instancia (usuario, correo, cliente, idioma y tema); el helpdesk confía y crea o vincula al usuario sin otra contraseña.
 3. **Portal en iframe** con el mismo SSO.
 4. **SDKs**: JavaScript/TypeScript y PHP (para erpsys).
 
 ### 10.4 API interna (la usa el frontend)
 
-`/api/v1/auth/*`, `/api/v1/me`, `/api/v1/tickets` (+ `/comments`, `/attachments`, `/assign`, `/status`), `/api/v1/implementations` (+ `/stages/{id}/complete`), `/api/v1/tasks`, `/api/v1/clients`, `/api/v1/users`, `/api/v1/products`, `/api/v1/templates`, `/api/v1/reports/*`, `/api/v1/integrations/*`, `/api/v1/settings`, y `/platform/v1/tenants` solo para `super_admin`.
+`/api/v1/auth/*`, `/api/v1/me`, `/api/v1/tickets` (+ `/comments`, `/attachments`, `/assign`, `/status`), `/api/v1/implementations` (+ `/stages/{id}/complete`), `/api/v1/tasks`, `/api/v1/clients`, `/api/v1/users`, `/api/v1/products`, `/api/v1/templates`, `/api/v1/reports/*`, `/api/v1/integrations/*`, `/api/v1/settings`, `/api/v1/me/preferences` (idioma, modo, tema). La consola de instancias tiene su propia API, separada de las instancias.
+
+Todas las respuestas de error devuelven un **código estable** (ej. `TICKET_NOT_FOUND`) más un mensaje traducido según `Accept-Language` o el idioma del usuario.
 
 ---
 
@@ -374,12 +399,12 @@ Patrón **conector**: cada fuente implementa la misma interfaz (`listClients`, `
 - Destinatarios típicos: solicitante, admin del cliente, técnico asignado, equipo, jefe, observadores.
 - Eventos: ticket creado, asignado, cambio de estado, comentario público, etapa completada, etapa atrasada, implementación completada, SLA por vencer / vencido, resumen diario para jefes.
 - Canales: **correo** (MVP), webhooks (fase 2), Slack/Teams/Telegram/WhatsApp (fase 3).
-- Preferencias por usuario (qué recibir y por dónde) y plantillas por tenant con su marca e idioma.
+- Preferencias por usuario (qué recibir y por dónde). Plantillas de correo con la marca y el color de la empresa, enviadas **en el idioma de cada destinatario** (es/en/pt).
 - Los correos de etapas de una implementación pueden limitarse al contacto principal del cliente (configurable por regla).
 
 ### Entrada (correo → ticket)
 
-- Buzón por tenant (ej. `soporte@empresa.com`) leído por **IMAP** o por **webhook de correo entrante** del proveedor.
+- Buzón por instancia (ej. `soporte@empresa.com`) leído por **IMAP** o por **webhook de correo entrante** del proveedor.
 - Correo nuevo → se busca al usuario por remitente (o se crea como contacto del cliente según su dominio) → se crea el ticket con los adjuntos.
 - Respuesta a un correo del helpdesk → se agrega como comentario al ticket correcto (por `Message-ID`/`In-Reply-To` o `[#TCK-123]` en el asunto).
 - Filtros anti-bucle (respuestas automáticas, rebotes) y lista de remitentes bloqueados.
@@ -407,60 +432,104 @@ Patrón **conector**: cada fuente implementa la misma interfaz (`listClients`, `
 - **Panel del jefe**: carga por técnico, asignación por arrastre, atrasos, KPIs.
 - **Portal del cliente**: crear ticket en un paso (título + adjuntos opcionales), mis tickets, avance de implementaciones de su empresa, comentarios.
 - **Administración**: usuarios y roles, empresas cliente y sus usuarios, productos, equipos, plantillas, SLA, canales, buzones, integraciones, API keys, marca.
-- **Consola de plataforma** (super admin): alta de empresas con aprovisionamiento automático, planes, estado y uso.
-- Responsive (usable en celular), modo claro/oscuro, español/inglés/portugués.
+- **Preferencias del usuario**: idioma, modo claro/oscuro/sistema y tema de color, accesibles desde el menú de usuario y desde la pantalla de inicio de sesión.
+- **Consola de instancias** (nosotros, aplicación aparte): alta de empresas con creación automática de su instancia en su dominio, versión, actualizaciones, respaldos, licencia y estado.
+- Responsive (usable en celular) y accesible (contraste AA, navegación con teclado).
+
+### 13.1 Idiomas (i18n): español, inglés y portugués
+
+- **Todo traducido** desde el MVP: interfaz, mensajes de error de la API, correos, plantillas de implementación por defecto, estados, prioridades, widget y documentación de la API.
+- **Idioma aplicado**: preferencia del usuario → idioma por defecto de la empresa → idioma del navegador → español.
+- **Selector de idioma** en el menú de usuario y en la pantalla de inicio de sesión; el cambio es inmediato, sin recargar.
+- **Formatos locales** con `Intl`: fechas, horas (con la zona horaria del usuario), números y monedas.
+- **Archivos de traducción** por idioma y módulo (`locales/es/tickets.json`, `locales/en/tickets.json`, `locales/pt/tickets.json`…) compartidos entre web, API y correos.
+- **Control de calidad**: un script en CI falla si falta una clave en algún idioma; no se permiten textos fijos en los componentes.
+- **Textos de cada empresa**: la empresa puede ajustar etiquetas (`translations_overrides`) sin tocar el código.
+- El contenido que escriben los usuarios (títulos, comentarios) no se traduce; traducción automática opcional en la fase de inteligencia.
+- Preparado para agregar más idiomas solo añadiendo una carpeta de traducción.
+
+### 13.2 Diseño, modo claro/oscuro y temas de color
+
+**Base visual: la de erpsys** (`v1.erpsys.pro`), en tonos azules:
+
+| Token | Claro | Uso |
+|---|---|---|
+| `--primary` | `#00387a` (azul erpsys) | Botones principales, enlaces, barra superior |
+| `--primary-dark` | `#002c60` | Hover, encabezados, menú lateral |
+| `--primary-panel` | `#001f45` | Fondos del menú en modo oscuro |
+| `--primary-light` | `#3d6eaa` | Estados activos suaves, gráficas |
+| `--accent` | `#f26522` (naranja erpsys) | Llamadas a la acción destacadas, avisos |
+| `--bg` / `--bg-soft` | `#ffffff` / `#f5f8fb` | Fondos |
+| `--border` | `#d3d8dd` | Bordes |
+| `--text` / `--text-muted` | `#252525` / `#737373` | Textos |
+| `--success` / `--danger` | `#1f9d55` / `#c0392b` | Estados |
+| Tipografía | IBM Plex Sans (texto) e IBM Plex Serif (títulos) | Igual que erpsys |
+| Bordes y sombras | radio 6–10 px, sombras suaves azuladas | Igual que erpsys |
+
+- **Modo claro, oscuro o "según el sistema"**, con interruptor siempre visible en la barra superior. Sin parpadeo al cargar (la preferencia se aplica antes de pintar la página).
+- **Temas de color** intercambiables, siguiendo los de erpsys: **Azul erpsys** (por defecto), Naranja, Verde, Morado, Rosa y Gris pizarra, cada uno con su versión clara y oscura.
+- **Color de marca propio**: cada empresa puede elegir su color principal y su logo; el sistema genera la paleta completa (tonos claros y oscuros) y verifica que el contraste sea legible.
+- **Quién decide**: la empresa define el tema y el modo por defecto; cada usuario puede cambiarlos para sí mismo (se guarda en su perfil y se recuerda en todos sus dispositivos).
+- **Implementación**: todos los colores son variables CSS (*design tokens*) en un paquete compartido (`packages/ui-theme`) que usan la web, el portal, el widget y las plantillas de correo; cambiar de tema es cambiar atributos en `<html>` (`data-mode`, `data-theme`), sin recargar.
+- **Widget embebible**: hereda el idioma y el tema que le pase el producto anfitrión (o usa los de la empresa).
 
 ---
 
 ## 14. Despliegue (Docker)
 
-| Contenedor | Función | Exposición |
+Contenedores de **cada instancia** (un proyecto Docker Compose por empresa, `helpdesk-<slug>`):
+
+| Contenedor | Función | Exposición (ejemplo de nuestra instancia) |
 |---|---|---|
-| `web` | SPA compilada servida con Nginx; envía `/api` a `api` | 127.0.0.1:puerto → Apache `support.erpsys.pro` |
+| `web` | SPA compilada servida con Nginx; envía `/api` a `api` | 127.0.0.1:puerto → Apache `https://support.erpsys.pro/` |
 | `api` | API REST | solo red interna (vía `web`) |
 | `worker` | colas, correos, SLA, sincronizaciones, correo entrante | interna |
 | `redis` | colas, caché, rate limit | interna |
-| `pb-core` | base de plataforma | 127.0.0.1:puerto → Apache `pb-support.erpsys.pro` (restringir por IP) |
-| `pb-<slug>` | una por empresa, creada por el provisioner | interna |
-| `provisioner` | crea/borra contenedores de tenants mediante un proxy restringido del socket de Docker | interna |
+| `pocketbase` | base de datos y archivos de la empresa | 127.0.0.1:puerto → Apache `https://pb-support.erpsys.pro/_/#/` (restringir por IP) |
 | `mailpit` (solo dev) | bandeja de correo de prueba | local |
 
+Para otra empresa es lo mismo con sus dominios: `support.empresa-a.com` → su `web`, `pb-support.empresa-a.com` → su `pocketbase`.
+
 - Apache del host solo hace `ProxyPass` con HTTPS (Let's Encrypt) hacia los contenedores, como hoy.
-- Volúmenes por base de datos; respaldos diarios a almacenamiento externo.
-- Imágenes construidas en CI; despliegue con `docker compose up -d --build`.
-- Mientras se construye, v2 puede correr en puertos propios y un subdominio de pruebas; al terminar el MVP se cambian los vhosts de `support` y `pb-support` hacia v2 (ver decisiones pendientes).
+- El CLI de instancias genera automáticamente los vhosts de Apache, los certificados y los puertos libres de cada instancia nueva.
+- Volúmenes por instancia; respaldos diarios a almacenamiento externo.
+- Imágenes versionadas construidas en CI y publicadas en un registro de contenedores; cada instancia fija su versión.
+- Mientras se construye, v2 puede correr en puertos propios y un subdominio de pruebas; al terminar el MVP se cambian los vhosts de `support.erpsys.pro` y `pb-support.erpsys.pro` hacia v2 (ver decisiones pendientes).
 
 ---
 
 ## 15. MVP
 
-**Objetivo**: que Seraph Systems (primer tenant) atienda soporte e implementaciones de sus clientes de erpsys en v2, con datos de clientes y usuarios traídos por API, y que se pueda dar de alta una segunda empresa con su propia base en minutos.
+**Objetivo**: que Seraph Systems atienda soporte e implementaciones de sus clientes de erpsys en v2 desde `https://support.erpsys.pro/` (base en `https://pb-support.erpsys.pro/_/#/`), con datos de clientes y usuarios traídos por API, y que se pueda crear la instancia de una segunda empresa, en su propio dominio, en minutos.
 
 ### Incluye
 
-1. **Multi-tenant**: PocketBase core + aprovisionamiento automático de la base de cada empresa (CLI y pantalla básica en la consola de plataforma), migraciones versionadas.
-2. **Autenticación y roles**: login con JWT + refresh token, recuperación de contraseña, login delegado a erpsys, límite de intentos; roles `super_admin`, `owner`, `manager`, `technician`, `client_admin`, `client_user`.
+1. **Instancias por empresa**: CLI `create-instance` que levanta una instancia completa (programa + PocketBase) en el dominio de la empresa, con vhosts de Apache, certificados, migraciones, dueño inicial, idioma y tema por defecto; más `upgrade-instance` y `backup-instance`.
+2. **Autenticación y roles**: login con JWT + refresh token, recuperación de contraseña, login delegado a erpsys, límite de intentos; roles `owner`, `manager`, `technician`, `client_admin`, `client_user`.
 3. **Administración**: usuarios y roles, empresas cliente, productos, equipos; **sincronización de clientes y usuarios desde erpsys** (manual y programada).
 4. **Tickets de soporte**: alta con solo título (fecha, hora, usuario, cliente registrados automáticamente), descripción, adjuntos (imágenes, videos, documentos con límite de tamaño), estados, prioridad, producto, asignación, comentarios públicos/internos, historial.
 5. **Implementaciones**: creación desde plantilla con etapas y fechas en días hábiles, responsable por etapa, completar etapa (con evidencia opcional), % de avance, etapas atrasadas, fecha estimada de término; visible para dueño, jefe, técnicos y usuarios del cliente.
 6. **Tareas internas** asignadas por el jefe con fecha límite.
 7. **Interfaz**: Mi día (ToDo), Kanban, detalle de ticket, vista de implementación, portal del cliente, pantallas de administración.
-8. **Notificaciones por correo**: ticket creado, asignado, cambio de estado, comentario público, etapa completada, implementación completada; plantillas con la marca del tenant.
-9. **API pública v1** con API keys: crear ticket (con adjuntos), consultar estado, comentar; documentación OpenAPI.
-10. **Dashboard básico**: contadores, tickets vencidos, implementaciones atrasadas con fecha estimada, top técnicos, top usuarios y top empresas (últimos 30 días).
-11. **Infraestructura**: todo en Docker, publicado en `support.erpsys.pro` y `pb-support.erpsys.pro`, respaldos diarios, logs centralizados.
+8. **Idiomas, modo y temas**: toda la aplicación y los correos en español, inglés y portugués; modo claro/oscuro/sistema; base visual azul de erpsys con temas de color intercambiables y color de marca por empresa; preferencias por usuario.
+9. **Notificaciones por correo**: ticket creado, asignado, cambio de estado, comentario público, etapa completada, implementación completada; plantillas con la marca de la empresa, en el idioma de cada destinatario.
+10. **API pública v1** con API keys: crear ticket (con adjuntos), consultar estado, comentar; documentación OpenAPI.
+11. **Dashboard básico**: contadores, tickets vencidos, implementaciones atrasadas con fecha estimada, top técnicos, top usuarios y top empresas (últimos 30 días).
+12. **Infraestructura**: todo en Docker, nuestra instancia publicada en `https://support.erpsys.pro/` y `https://pb-support.erpsys.pro/_/#/`, respaldos diarios, logs centralizados.
 
 ### No incluye (pasa a fases siguientes)
 
-Correo entrante → ticket, SLA con horario laboral, widget/plugin y SSO por token, webhooks salientes, 2FA, Slack/Teams/WhatsApp, base de conocimiento, encuestas de satisfacción, subdominio por tenant, facturación.
+Correo entrante → ticket, SLA con horario laboral, widget/plugin y SSO por token, webhooks salientes, 2FA, Slack/Teams/WhatsApp, base de conocimiento, encuestas de satisfacción, consola web de instancias (en el MVP es CLI), facturación.
 
 ### Criterios de aceptación
 
-- Crear la empresa "Demo S.A." desde la consola deja lista su base, su dueño recibe la invitación y puede entrar en menos de 5 minutos, sin pasos manuales en el servidor.
+- Con un solo comando se crea la instancia de "Demo S.A." en un dominio de prueba (ej. `support-demo.erpsys.pro` y `pb-support-demo.erpsys.pro`) con HTTPS; su dueño recibe la invitación y puede entrar en menos de 10 minutos, sin pasos manuales en el servidor. Sus datos no son visibles desde ninguna otra instancia.
+- Toda pantalla y todo correo se ven correctamente en español, inglés y portugués; el script de traducciones no reporta claves faltantes.
+- Un usuario cambia a modo oscuro y a otro tema de color; la preferencia se mantiene al volver a entrar desde otro dispositivo. La empresa puede poner su logo y su color de marca.
 - Un usuario de erpsys se registra con su seraph_id y correo, entra con su contraseña del ERP y queda vinculado a su empresa cliente.
 - Un usuario crea un ticket escribiendo solo el título; el ticket guarda fecha, hora, usuario y cliente, y el equipo técnico recibe el correo.
 - El jefe crea una implementación desde una plantilla, asigna técnicos por etapa; cada técnico marca su etapa y el jefe y los usuarios del cliente ven el % de avance y la fecha estimada.
-- Un usuario de un cliente nunca ve tickets de otro cliente ni de otra empresa (pruebas automáticas de aislamiento).
+- Un usuario de un cliente nunca ve tickets de otro cliente (pruebas automáticas de permisos).
 - Un sistema externo crea un ticket por la API con su API key y consulta su estado.
 - El dashboard muestra top técnicos, top usuarios, top empresas y la lista de atrasados con datos correctos.
 
@@ -472,12 +541,12 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 
 | Fase | Duración estimada | Contenido |
 |---|---|---|
-| **0. Fundaciones** | 2 semanas | Monorepo, Docker Compose, CI, PocketBase core y esquema de tenant con migraciones, provisioner, estructura de la API (config, routes, controllers, services, models, middlewares, validators, types, utils), auth JWT, RBAC base, layout del frontend. |
-| **1. MVP** | 6–8 semanas | Todo lo de la sección 15, en este orden: tenants y auth → clientes/usuarios/productos y conector erpsys → tickets de soporte y adjuntos → implementaciones y etapas → UI ToDo/Kanban/portal → correos → API pública → dashboard → endurecimiento y despliegue. |
-| **2. v1.0 operación completa** | 4–6 semanas | Correo entrante → ticket y respuestas por correo, SLA con horario laboral y escalamiento, widget embebible y SSO por token (modo plugin), SDK JS/PHP, webhooks salientes, 2FA, subdominio por tenant, reportes avanzados con exportación y envío programado, antivirus de adjuntos. |
+| **0. Fundaciones** | 2 semanas | Monorepo, Docker Compose de una instancia, CI con imágenes versionadas, esquema PocketBase con migraciones, estructura de la API (config, routes, controllers, services, models, middlewares, validators, types, utils), auth JWT, RBAC base, **i18n es/en/pt y sistema de temas (claro/oscuro, colores) desde el primer componente**, layout del frontend con la base visual de erpsys. |
+| **1. MVP** | 6–8 semanas | Todo lo de la sección 15, en este orden: auth y roles → clientes/usuarios/productos y conector erpsys → tickets de soporte y adjuntos → implementaciones y etapas → UI ToDo/Kanban/portal → correos → API pública → dashboard → CLI de instancias → endurecimiento y despliegue en `support.erpsys.pro`. |
+| **2. v1.0 operación completa** | 4–6 semanas | Correo entrante → ticket y respuestas por correo, SLA con horario laboral y escalamiento, widget embebible y SSO por token (modo plugin), SDK JS/PHP, webhooks salientes, 2FA, **consola web de instancias** (alta, actualizaciones, respaldos, licencias, monitoreo), reportes avanzados con exportación y envío programado, antivirus de adjuntos. |
 | **3. Canales y experiencia** | 4–6 semanas | Slack, Microsoft Teams, Telegram, WhatsApp Business; base de conocimiento con sugerencias al crear ticket; encuestas de satisfacción (CSAT); respuestas rápidas; PWA con notificaciones push; Gantt editable. |
 | **4. Inteligencia** | continuo | Clasificación y prioridad sugeridas por IA, detección de duplicados, resumen de conversaciones, respuesta sugerida, predicción de retrasos en implementaciones. |
-| **5. Negocio y escala** | continuo | Planes y facturación automática, límites por plan, autoservicio de alta de empresas, varios servidores para bases de tenants, marketplace de conectores, dominios propios por empresa (`soporte.cliente.com`). |
+| **5. Negocio y escala** | continuo | Planes y facturación automática, límites por plan, autoservicio de alta de empresas, instancias repartidas en varios servidores, instalación en servidor del cliente (*on-premise*) con licencia, marketplace de conectores, más idiomas. |
 
 ---
 
@@ -499,12 +568,14 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 
 | Riesgo | Mitigación |
 |---|---|
-| Muchas empresas = muchos contenedores PocketBase (memoria) | Medir consumo por tenant, límites de memoria por contenedor, plan para repartir tenants en varios servidores. |
-| Migraciones de esquema en muchas bases | Migraciones versionadas e idempotentes, ejecución por lotes con registro en core y reversión. |
+| Muchas empresas = muchas instancias (memoria, puertos, vhosts) | Imágenes livianas, límites de memoria por contenedor, CLI que asigna puertos y vhosts automáticamente, plan para repartir instancias en varios servidores. |
+| Actualizar y migrar muchas instancias | Imágenes versionadas, migraciones idempotentes, actualización por lotes con verificación de salud y reversión, registro de la versión de cada instancia. |
+| Dominios y certificados de cada empresa | Verificación de DNS antes de crear la instancia, renovación automática de Let's Encrypt, alertas de vencimiento. |
+| Traducciones incompletas | Claves obligatorias en los tres idiomas verificadas en CI; revisión por un hablante nativo antes de cada entrega. |
 | PocketBase no tiene consultas de agregación por API | Usar *view collections* con SQL y métricas diarias precalculadas. |
 | Dependencia de la API de erpsys | Caché local de clientes/usuarios, reintentos, y el login delegado degrada con mensaje claro si el ERP no responde. |
-| Correos que no llegan (SPF/DKIM) | Proveedor transaccional, dominios verificados por tenant, monitoreo de rebotes. |
-| Seguridad del socket de Docker en el provisioner | Proxy de socket con permisos mínimos, provisioner aislado y sin exposición. |
+| Correos que no llegan (SPF/DKIM) | Proveedor transaccional, dominio remitente verificado por empresa, monitoreo de rebotes. |
+| Consola de PocketBase publicada en un dominio | Restricción por IP en Apache, contraseñas fuertes y 2FA del superusuario, alertas de inicio de sesión. |
 | Alcance grande | MVP estricto, entregas cada 2 semanas con demo. |
 
 ---
@@ -512,8 +583,10 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 ## 19. Decisiones pendientes
 
 1. **Stack del backend**: Node.js + TypeScript (propuesto) o Go.
-2. **Cuándo ocupar `support.erpsys.pro`**: desde ya (reemplazando el helpdesk actual) o al terminar el MVP, usando mientras tanto un subdominio de pruebas.
-3. **Proveedor de correo** (ZeptoMail, SES, Mailgun…) y dominio remitente por tenant.
-4. **Límites de adjuntos** (tamaño máximo de video, almacenamiento por plan) y si se usa almacenamiento S3 externo.
-5. **Primer conjunto de estados** (fijos o configurables por tenant desde el MVP).
-6. **Migración de datos** del helpdesk actual a v2 o empezar limpio.
+2. **Cuándo ocupar `support.erpsys.pro` y `pb-support.erpsys.pro`**: desde ya (reemplazando el helpdesk actual) o al terminar el MVP, usando mientras tanto un subdominio de pruebas.
+3. **Dónde corren las instancias de otras empresas**: en nuestro servidor (con su dominio apuntando aquí), en el servidor de cada empresa, o ambas opciones.
+4. **Proveedor de correo** (ZeptoMail, SES, Mailgun…) y dominio remitente por empresa.
+5. **Límites de adjuntos** (tamaño máximo de video, almacenamiento por plan) y si se usa almacenamiento S3 externo.
+6. **Primer conjunto de estados** (fijos o configurables por empresa desde el MVP).
+7. **Temas de color incluidos** además del azul erpsys (propuesta: naranja, verde, morado, rosa y gris pizarra, como en erpsys).
+8. **Migración de datos** del helpdesk actual a v2 o empezar limpio.
