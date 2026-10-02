@@ -280,7 +280,7 @@ Es la base que se ve en `https://pb-support.erpsys.pro/_/#/` para nuestra instan
 | `clients` | nombre, NIT/ID fiscal, estado, política SLA → `sla_policies`, ejecutivo de cuenta → `users` |
 | `client_contacts` | cliente → `clients`, usuario → `users`, tipo de contacto (`primary`, `technical`, `approver`, `billing`), recibe avisos (sí/no) |
 | `products` / `client_products` | producto (código, nombre, activo); contratación: cliente, producto, plan, estado de licencia, vigencia |
-| `external_identities` | usuario → `users` **o** cliente → `clients`, sistema (`erpsys`, `erpsyschat`…), ID externo, último sincronizado (único por sistema + ID) |
+| `external_identities` | conector → `connectors`, entidad (`user`/`client`), usuario → `users` **o** cliente → `clients`, ID externo, copia de los datos, último sincronizado (único por conector + entidad + ID) |
 
 **B. Catálogos configurables del trabajo**
 
@@ -289,7 +289,9 @@ Es la base que se ve en `https://pb-support.erpsys.pro/_/#/` para nuestra instan
 | `work_item_types` | código, nombre, `label_key`, icono, color, prefijo de numeración, flujo por defecto → `workflows`, **tiene etapas** (sí/no), **visible al cliente** (sí/no), requiere producto (sí/no), prioridad por defecto → `priorities`, activo |
 | `workflows` | nombre, aplica a (`work_item` / `stage`) |
 | `statuses` | flujo → `workflows`, código, nombre, `label_key`, **categoría** (`new`, `open`, `in_progress`, `waiting_client`, `waiting_internal`, `resolved`, `closed`, `cancelled`), color, orden, inicial (sí/no), final (sí/no), **pausa SLA** (sí/no), nombre que ve el cliente |
-| `workflow_transitions` | flujo, estado origen → `statuses`, estado destino → `statuses`, roles permitidos → `roles` (múltiple), exige comentario, exige evidencia |
+| `workflow_transitions` | estado origen → `statuses`, estado destino → `statuses` (el flujo se deduce de los estados; ambos deben ser del mismo flujo), roles permitidos → `roles` (múltiple; vacío = personal con permiso), exige comentario, exige evidencia |
+| `event_types` | catálogo de eventos (`work_item.created`, `stage.unlocked`, `client_request.submitted`…): módulo, `label_key`, visible al cliente. Lo usan historial, notificaciones, outbox y webhooks |
+| `connectors` | sistemas externos (`erpsys`, `erpsyschat`, REST, CSV): URL, credenciales cifradas, mapeo, frecuencia, salud. Lo usan identidades y referencias externas |
 | `priorities` | código, nombre, `label_key`, nivel, color |
 | `categories` | tipo → `work_item_types`, nombre, categoría padre → `categories` (árbol) |
 | `channels` | código (`web`, `portal`, `email`, `api`, `widget`, `chat`), nombre |
@@ -405,6 +407,36 @@ erDiagram
   TEMPLATE_STAGES ||--o{ TEMPLATE_CLIENT_REQUESTS : "requerimientos modelo"
   TEMPLATES ||--o{ WORK_ITEMS : "origen"
 ```
+
+### 7.5 Implementación en PocketBase (hecho, 2026-10-02)
+
+El esquema ya está creado en `https://pb-support.erpsys.pro/_/` con **68 colecciones** relacionadas.
+
+- **Migraciones versionadas** en `v2/pocketbase/pb_migrations/`, una por dominio: `catalogs`, `sla_calendar`, `organization`, `templates`, `work_items`, `notifications_integrations`, `system` y `seed_defaults`. Todas se pueden revertir (`migrate down`) y volver a aplicar.
+- **Datos de fábrica**:
+  - 7 roles y 26 permisos;
+  - 20 tipos de evento;
+  - 4 flujos (soporte, implementación, etapas, tareas) con 25 estados y sus transiciones;
+  - 3 tipos de caso (`SOP`, `IMP`, `TAR`) y categorías de soporte;
+  - calendario laboral de Guatemala con feriados, y SLA "Estándar";
+  - equipos Soporte e Implementaciones;
+  - la plantilla **"Implementación ERPSYS"**: 6 etapas secuenciales con checklists y 7 requerimientos al cliente, 5 de ellos en "Carga de información";
+  - 16 reglas de aviso por correo y la configuración inicial de la empresa.
+- **Hooks de integridad** (`v2/pocketbase/pb_hooks/`), que se aplican también a lo que se edita desde el panel:
+  - numeración por tipo (`SOP-0001`, `IMP-0001`) con una secuencia atómica;
+  - el estado de un caso debe ser del flujo de su tipo, y el de una etapa, del flujo de etapas;
+  - dependencias sin ciclos y dentro del mismo caso o plantilla;
+  - un requerimiento o comentario solo puede ligarse a etapas de su mismo caso;
+  - adjuntos y checklists con un único dueño;
+  - el solicitante y los contactos deben pertenecer al cliente del caso;
+  - un solo estado inicial por flujo y un solo valor "por defecto" en cada catálogo.
+- **Cachés mantenidas automáticamente**:
+  - `status_category`;
+  - `resolved_at`, `resolved_by` y `closed_at`, que se limpian al reabrir;
+  - `progress_percent`, que es el peso de las etapas cerradas sobre el total, sin contar las omitidas.
+- **Historial de estados automático** con quién cambió (`updated_by`) y cuántos segundos pasó el caso en el estado anterior.
+- **Reglas de acceso**: todas las colecciones están cerradas (solo superusuarios). La API de v2 aplicará los permisos por rol y cliente.
+- **Prueba de integración**: `v2/scripts/test-schema.py`, con 41 comprobaciones del flujo completo y de cada regla de integridad. Debe correrse contra una base desechable.
 
 ---
 

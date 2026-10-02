@@ -26,7 +26,8 @@ export const SAMPLE_IMPLEMENTATIONS: Implementation[] = [
           { title: "Idiomas español, inglés y portugués", status: "in_progress" },
           { title: "Docker Compose de una instancia (web, api, worker, redis, pocketbase)", status: "in_progress" },
           { title: "Monorepo (apps/api, apps/web, packages)", status: "in_progress" },
-          { title: "Esquema normalizado en PocketBase con migraciones", status: "pending" },
+          { title: "Esquema normalizado en PocketBase con migraciones (68 colecciones)", status: "done" },
+          { title: "Hooks de integridad, numeración e historial automático", status: "done" },
           { title: "Estructura de la API (config, routes, controllers, services, models, middlewares, validators, types, utils)", status: "pending" },
           { title: "Login con JWT y refresh token", status: "pending" },
           { title: "Roles y permisos base", status: "pending" },
@@ -89,6 +90,7 @@ export const SAMPLE_IMPLEMENTATIONS: Implementation[] = [
       { id: "r2", stageId: "s1", title: "Proveedor de correo y remitente para los avisos", status: "pending", blocking: false, dueDate: "2026-10-30" },
     ],
     log: [
+      { date: "2026-10-02", text: "Base de datos normalizada en pb-support.erpsys.pro: 68 colecciones relacionadas, datos de fábrica (flujos, tipos, plantilla de implementación con requerimientos al cliente) y reglas de integridad probadas." },
       { date: "2026-10-02", text: "La app web v2 ya se ve en support.erpsys.pro con la base visual de erpsys, idiomas y temas. La vista de implementación usa el diseño aprobado." },
       { date: "2026-10-02", text: "Se creó la rama v2, un PocketBase nuevo en pb-support.erpsys.pro y se respaldaron los datos del helpdesk v1." },
       { date: "2026-10-01", text: "Roadmap: modelo de datos normalizado, tipos de caso configurables y requerimientos al cliente." },
