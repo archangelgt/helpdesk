@@ -8,6 +8,16 @@
     "darkMode": "Dark mode",
     "lightMode": "Light mode"
   },
+  "auth": {
+    "subtitle": "Sign in to continue",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "logout": "Sign out",
+    "loading": "Loading your session…",
+    "networkError": "Could not reach the server. Please try again."
+  },
   "nav": {
     "home": "My work",
     "tickets": "Tickets",
@@ -38,6 +48,7 @@
   },
   "home": {
     "title": "My work",
+    "greeting": "Hi, {{name}}.",
     "subtitle": "What needs your attention today.",
     "counters": {
       "waitingMe": "Awaiting my reply",

@@ -1,10 +1,12 @@
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../auth/AuthProvider";
 import { SAMPLE_IMPLEMENTATIONS } from "../features/implementations/sampleData";
 import { ImplementationCard } from "../features/implementations/ImplementationCard";
 import { daysUntil, openClientRequests, requestsToReview } from "../utils/progress";
 
 export function HomePage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const impls = SAMPLE_IMPLEMENTATIONS;
   const counters = [
     { key: "waitingMe", value: 0 },
@@ -18,7 +20,9 @@ export function HomePage() {
     <div className="stack">
       <header className="page-head">
         <h1>{t("home.title")}</h1>
-        <p className="muted">{t("home.subtitle")}</p>
+        <p className="muted">
+          {t("home.greeting", { name: user?.name.split(" ")[0] ?? "" })} {t("home.subtitle")}
+        </p>
       </header>
       <div className="counters">
         {counters.map((c) => (

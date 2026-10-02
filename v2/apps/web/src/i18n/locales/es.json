@@ -8,6 +8,16 @@
     "darkMode": "Modo oscuro",
     "lightMode": "Modo claro"
   },
+  "auth": {
+    "subtitle": "Inicia sesión para continuar",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Iniciar sesión",
+    "submitting": "Entrando…",
+    "logout": "Cerrar sesión",
+    "loading": "Cargando tu sesión…",
+    "networkError": "No se pudo conectar con el servidor. Intenta de nuevo."
+  },
   "nav": {
     "home": "Mi trabajo",
     "tickets": "Tickets",
@@ -38,6 +48,7 @@
   },
   "home": {
     "title": "Mi trabajo",
+    "greeting": "Hola, {{name}}.",
     "subtitle": "Lo que necesita tu atención hoy.",
     "counters": {
       "waitingMe": "Esperando mi respuesta",

@@ -7,22 +7,35 @@ export type Mode = "light" | "dark";
 const root = document.documentElement;
 const key = (k: string) => `hd2-${k}`;
 
-export function usePreferences() {
+/** Aplica tema y modo al documento sin pasar por React (p. ej. al restaurar la sesión). */
+export function applyAppearance(theme: Theme, mode: Mode) {
+  root.dataset.theme = theme;
+  root.dataset.mode = mode;
+  localStorage.setItem(key("theme"), theme);
+  localStorage.setItem(key("mode"), mode);
+}
+
+export function usePreferences(onChange?: (patch: { theme?: Theme; colorMode?: Mode }) => void) {
   const [theme, setThemeState] = useState<Theme>((root.dataset.theme as Theme) || "blue");
   const [mode, setModeState] = useState<Mode>((root.dataset.mode as Mode) || "light");
 
-  const setTheme = useCallback((t: Theme) => {
-    root.dataset.theme = t;
-    localStorage.setItem(key("theme"), t);
-    setThemeState(t);
-  }, []);
+  const setTheme = useCallback(
+    (t: Theme) => {
+      root.dataset.theme = t;
+      localStorage.setItem(key("theme"), t);
+      setThemeState(t);
+      onChange?.({ theme: t });
+    },
+    [onChange],
+  );
 
   const toggleMode = useCallback(() => {
     const next: Mode = root.dataset.mode === "dark" ? "light" : "dark";
     root.dataset.mode = next;
     localStorage.setItem(key("mode"), next);
     setModeState(next);
-  }, []);
+    onChange?.({ colorMode: next });
+  }, [onChange]);
 
   return { theme, setTheme, mode, toggleMode };
 }

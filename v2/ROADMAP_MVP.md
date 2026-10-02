@@ -547,6 +547,31 @@ La empresa crea un tipo (ej. "Capacitación") desde la configuración: nombre, i
 - **Auditoría**: registro de acciones sensibles (permisos, borrados, exportaciones, accesos de soporte de plataforma).
 - **Respaldos**: copia diaria por instancia (respaldos de PocketBase y archivos hacia almacenamiento S3 compatible) con retención y prueba de restauración.
 
+### 9.1 API y autenticación (hecho, 2026-10-02)
+
+La API (`v2/apps/api`, Node.js 22 + TypeScript + Fastify) corre en el contenedor `helpdesk-v2-api`, sin puerto publicado. La web la expone en `https://support.erpsys.pro/api/`.
+
+- **Capas**: `config`, `routes`, `controllers`, `services`, `models`, `middlewares`, `validators` (zod), `types`, `utils` e `i18n`. Solo los `models` hablan con PocketBase, como superusuario interno.
+- **Access token**: JWT EdDSA (Ed25519) de 15 minutos, con `kid` y la clave pública en `/api/v1/auth/jwks.json`, de modo que otros servicios (erpsyschat) pueden validar tokens sin pedirle nada a la API.
+- **Refresh token**: aleatorio, en cookie `hd_refresh` (`httpOnly`, `Secure`, `SameSite=Strict`, ruta `/api/v1/auth`) y guardado con hash en `sessions`. Rota en cada uso; un token ya usado o revocado deja de servir.
+- **Protección del login**: 10 intentos por minuto por IP. La IP real se toma de `X-Forwarded-For` confiando solo en los 2 proxies propios (Apache y nginx), para que no se pueda falsificar.
+- **Permisos**: middleware `requirePermission("work_item.view")` que lee `role_permissions`, con caché de 60 segundos.
+- **Errores** con forma `{ error: { code, message } }`, con el mensaje en el idioma de `Accept-Language` (es, en o pt).
+- **Endpoints actuales**:
+
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET | `/api/health` | público |
+| POST | `/api/v1/auth/login`, `/refresh`, `/logout` | público |
+| POST | `/api/v1/auth/logout-all` | sesión |
+| GET | `/api/v1/auth/jwks.json` | público |
+| GET | `/api/v1/me` | sesión |
+| PATCH | `/api/v1/me/preferences` (idioma, modo, tema) | sesión |
+| GET | `/api/v1/catalog/work-item-types`, `/statuses?workflow=`, `/priorities` | `work_item.view` |
+| GET | `/api/v1/catalog/roles` | `user.manage` |
+
+- **Web**: pantalla de login con idioma, tema y modo. El access token vive solo en memoria; la sesión se recupera al recargar con la cookie de refresh y se renueva sola ante un 401. Las preferencias del usuario se aplican al entrar y se guardan al cambiarlas.
+
 ---
 
 ## 10. Integraciones y APIs
@@ -986,7 +1011,7 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 
 ## 20. Decisiones pendientes
 
-1. **Stack del backend**: Node.js + TypeScript (propuesto) o Go.
+1. ~~**Stack del backend**~~ **Resuelto (2026-10-02)**: Node.js 22 + TypeScript con Fastify (sección 9.1).
 2. ~~**Cuándo ocupar `support.erpsys.pro` y `pb-support.erpsys.pro`**~~ **Resuelto (2026-10-02)**: v2 los ocupa desde ya. `support.erpsys.pro` muestra la página de avance (luego la aplicación) y `pb-support.erpsys.pro` es el PocketBase de v2. El desarrollo va en la rama `v2`. Los datos del helpdesk v1 quedaron respaldados.
 3. **Dónde corren las instancias de otras empresas**: en nuestro servidor (con su dominio apuntando aquí), en el servidor de cada empresa, o ambas opciones.
 4. **Proveedor de correo** (ZeptoMail, SES, Mailgun…) y dominio remitente por empresa.

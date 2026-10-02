@@ -1,5 +1,6 @@
-# Helpdesk v2: una instancia (por ahora: web + PocketBase).
-# Se irán sumando api, worker y redis según el roadmap (sección 4.2).
+# Helpdesk v2: una instancia (web + api + PocketBase).
+# Se irán sumando worker y redis según el roadmap (sección 4.2).
+# La API no publica puerto: la web la expone en /api/ por la red interna.
 #
 #   cp .env.example .env   # rellenar secretos
 #   docker compose up -d --build
@@ -19,6 +20,25 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+
+  api:
+    build:
+      context: ../apps/api
+    image: helpdesk-v2-api
+    container_name: helpdesk-v2-api
+    restart: always
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    environment:
+      POCKETBASE_URL: http://pocketbase:8090
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:?Set PB_ADMIN_EMAIL in .env}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:?Set PB_ADMIN_PASSWORD in .env}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?Set JWT_PRIVATE_KEY in .env}
+      JWT_ISSUER: ${JWT_ISSUER:-helpdesk-v2}
+      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
 
   pocketbase:
     build:

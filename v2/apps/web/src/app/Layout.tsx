@@ -6,15 +6,14 @@ import {
   Home,
   Layers,
   ListTodo,
+  LogOut,
   MessageSquare,
-  Moon,
   Search,
   Settings,
-  Sun,
   Ticket,
 } from "lucide-react";
-import { LANGUAGES, type Language } from "../i18n";
-import { THEMES, type Theme, usePreferences } from "../theme/preferences";
+import { useAuth } from "../auth/AuthProvider";
+import { AppearanceControls } from "../components/AppearanceControls";
 
 const NAV = [
   { to: "/", key: "home", icon: Home, end: true },
@@ -27,11 +26,14 @@ const NAV = [
   { to: "/configuracion", key: "settings", icon: Settings },
 ] as const;
 
-const LANGUAGE_NAMES: Record<Language, string> = { es: "Español", en: "English", pt: "Português" };
+function initials(name: string, email: string): string {
+  const parts = (name || email).trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+}
 
 export function Layout() {
-  const { t, i18n } = useTranslation();
-  const { theme, setTheme, mode, toggleMode } = usePreferences();
+  const { t } = useTranslation();
+  const { user, logout, savePreferences } = useAuth();
 
   return (
     <div className="shell">
@@ -57,36 +59,24 @@ export function Layout() {
             <input type="search" placeholder={t("app.search")} aria-label={t("app.search")} />
           </label>
           <div className="topbar-tools">
-            <select
-              aria-label={t("app.language")}
-              value={i18n.resolvedLanguage}
-              onChange={(e) => i18n.changeLanguage(e.target.value)}
-            >
-              {LANGUAGES.map((l) => (
-                <option key={l} value={l}>
-                  {LANGUAGE_NAMES[l]}
-                </option>
-              ))}
-            </select>
-            <select aria-label={t("app.theme")} value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
-              {THEMES.map((th) => (
-                <option key={th} value={th}>
-                  {t(`themes.${th}`)}
-                </option>
-              ))}
-            </select>
+            <AppearanceControls onChange={savePreferences} />
+            {user && (
+              <span className="user-chip" title={`${user.name} · ${user.role?.name ?? ""}`}>
+                <span className="avatar" aria-hidden="true">
+                  {initials(user.name, user.email)}
+                </span>
+                <span className="user-name">{user.name || user.email}</span>
+              </span>
+            )}
             <button
               type="button"
               className="icon-btn"
-              onClick={toggleMode}
-              title={mode === "dark" ? t("app.lightMode") : t("app.darkMode")}
-              aria-label={mode === "dark" ? t("app.lightMode") : t("app.darkMode")}
+              onClick={() => void logout()}
+              title={t("auth.logout")}
+              aria-label={t("auth.logout")}
             >
-              {mode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              <LogOut size={18} />
             </button>
-            <span className="avatar" aria-hidden="true">
-              SS
-            </span>
           </div>
         </header>
         <div className="preview-banner">{t("app.preview")}</div>

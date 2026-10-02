@@ -114,8 +114,33 @@ h1, h2 { margin: 0; }
 .soon strong { color: var(--text); }
 .soon p { margin: 4px 0 0; }
 
+/* Sesión */
+.user-chip { display: flex; align-items: center; gap: 8px; padding-left: 4px; }
+.user-name { font-size: 13px; font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.splash { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+.splash .logo { color: #fff; font-weight: 700; width: 44px; height: 44px; border-radius: 10px; }
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 72px 16px 24px; position: relative;
+  background: linear-gradient(160deg, var(--primary) 0 34%, var(--bg) 34%); }
+.login-tools { position: absolute; top: 14px; right: 16px; display: flex; gap: 8px; }
+.login-tools select, .login-tools .icon-btn { font: inherit; font-size: 13px; background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.3); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.login-tools select option { color: #1d2733; }
+.login-card { width: 100%; max-width: 400px; padding: 28px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 12px 40px rgba(0, 31, 69, .18); }
+.login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.login-brand .logo { color: #fff; font-weight: 700; width: 42px; height: 42px; border-radius: 10px; font-size: 15px; }
+.login-brand h1 { font-size: 20px; color: var(--primary); }
+[data-mode="dark"] .login-brand h1 { color: var(--text); }
+.login-brand p { margin: 2px 0 0; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.field input { font: inherit; font-size: 15px; font-weight: 400; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+.field input:focus { outline: 2px solid color-mix(in srgb, var(--primary-soft) 45%, transparent); border-color: var(--primary-soft); }
+.form-error { margin: 0; font-size: 14px; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); padding: 8px 12px; border-radius: 8px; }
+.btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-weight: 600; font-size: 15px; padding: 11px 16px; border: 0; border-radius: 8px; background: var(--primary); color: #fff; cursor: pointer; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-strong); }
+.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
 /* Celular */
 @media (max-width: 820px) {
+  .user-name { display: none; }
   .sidebar { width: 64px; padding: 14px 8px; }
   .brand-text, .nav-item span { display: none; }
   .nav-item { justify-content: center; padding: 10px; }
