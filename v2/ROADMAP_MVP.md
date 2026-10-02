@@ -948,7 +948,7 @@ Estimaciones para un equipo de 1–2 desarrolladores; se ajustan al confirmar el
 ## 20. Decisiones pendientes
 
 1. **Stack del backend**: Node.js + TypeScript (propuesto) o Go.
-2. **Cuándo ocupar `support.erpsys.pro` y `pb-support.erpsys.pro`**: desde ya (reemplazando el helpdesk actual) o al terminar el MVP, usando mientras tanto un subdominio de pruebas.
+2. ~~**Cuándo ocupar `support.erpsys.pro` y `pb-support.erpsys.pro`**~~ **Resuelto (2026-10-02)**: v2 los ocupa desde ya. `support.erpsys.pro` muestra la página de avance (luego la aplicación) y `pb-support.erpsys.pro` es el PocketBase de v2. El desarrollo va en la rama `v2`. Los datos del helpdesk v1 quedaron respaldados.
 3. **Dónde corren las instancias de otras empresas**: en nuestro servidor (con su dominio apuntando aquí), en el servidor de cada empresa, o ambas opciones.
 4. **Proveedor de correo** (ZeptoMail, SES, Mailgun…) y dominio remitente por empresa.
 5. **Límites de adjuntos** (tamaño máximo de video, almacenamiento por plan) y si se usa almacenamiento S3 externo.
