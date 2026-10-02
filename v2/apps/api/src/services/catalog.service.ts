@@ -1,5 +1,6 @@
-import { catalogModel } from "../models/catalog.model.js";
 import { rolesModel } from "../models/roles.model.js";
+import { catalogCache } from "./catalog-cache.service.js";
+import { toPriorityDto, toStatusDto, toTypeDto } from "./mappers.js";
 
 export const catalogService = {
   async roles() {
@@ -7,48 +8,34 @@ export const catalogService = {
   },
 
   async workItemTypes() {
-    const rows = await catalogModel.workItemTypes();
-    return rows.map((r) => ({
-      id: r.id,
-      code: r.code,
-      name: r.name,
-      labelKey: r.label_key,
-      icon: r.icon,
-      color: r.color,
-      numberPrefix: r.number_prefix,
-      hasStages: r.has_stages,
-      clientVisible: r.client_visible,
-    }));
+    const catalog = await catalogCache.get();
+    return catalog.types.filter((t) => t.active).map(toTypeDto);
   },
 
   async statuses(workflowCode?: string) {
-    const rows = await catalogModel.statuses(workflowCode);
-    return rows.map((r) => ({
-      id: r.id,
-      workflow: r.expand?.workflow?.code ?? null,
-      code: r.code,
-      name: r.name,
-      labelKey: r.label_key,
-      category: r.category,
-      clientLabel: r.client_label || null,
-      color: r.color,
-      order: r.sort_order,
-      isInitial: r.is_initial,
-      isFinal: r.is_final,
-      pausesSla: r.pauses_sla,
-    }));
+    const catalog = await catalogCache.get();
+    const workflowById = new Map(catalog.workflows.map((w) => [w.id, w.code]));
+    return catalog.statuses
+      .filter((s) => s.active && (!workflowCode || workflowById.get(s.workflow) === workflowCode))
+      .map((s) => ({ ...toStatusDto(s), workflow: workflowById.get(s.workflow) ?? null }));
   },
 
   async priorities() {
-    const rows = await catalogModel.priorities();
-    return rows.map((r) => ({
-      id: r.id,
-      code: r.code,
-      name: r.name,
-      labelKey: r.label_key,
-      level: r.level,
-      color: r.color,
-      isDefault: r.is_default,
-    }));
+    const catalog = await catalogCache.get();
+    return catalog.priorities.filter((p) => p.active).map(toPriorityDto);
+  },
+
+  async categories(typeCode?: string) {
+    const catalog = await catalogCache.get();
+    const type = typeCode ? catalog.typeByCode(typeCode) : undefined;
+    if (typeCode && !type) return [];
+    return catalog.categories
+      .filter((c) => c.active && (!type || c.type === type.id))
+      .map((c) => ({ id: c.id, name: c.name, typeId: c.type ?? null }));
+  },
+
+  async products() {
+    const catalog = await catalogCache.get();
+    return catalog.products.filter((p) => p.active).map((p) => ({ id: p.id, code: p.code ?? null, name: p.name }));
   },
 };

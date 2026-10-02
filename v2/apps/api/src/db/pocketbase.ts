@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import PocketBase from "pocketbase";
 import { env } from "../config/env.js";
 
@@ -17,6 +18,36 @@ export async function ensureAdminAuth(): Promise<void> {
       connecting = null;
     });
   return connecting;
+}
+
+const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+/**
+ * Id de registro con el formato de PocketBase (15 caracteres [a-z0-9]).
+ * Permite relacionar registros creados dentro del mismo batch.
+ */
+export function newRecordId(): string {
+  const bytes = randomBytes(15);
+  let id = "";
+  for (const b of bytes) id += ID_ALPHABET[b % ID_ALPHABET.length];
+  return id;
+}
+
+/** Batch transaccional: o se aplican todas las operaciones o ninguna. */
+export async function newBatch() {
+  await ensureAdminAuth();
+  return pb.createBatch();
+}
+
+/** Filtro `campo = a || campo = b …` con parámetros escapados. Con lista vacía no coincide con nada. */
+export function anyOf(field: string, values: string[]): string {
+  if (!values.length) return 'id = "" && id != ""';
+  return `(${values.map((v) => pb.filter(`${field} = {:v}`, { v })).join(" || ")})`;
+}
+
+/** Formato de fecha que entienden los filtros y campos date de PocketBase. */
+export function pbDate(date: Date): string {
+  return date.toISOString().replace("T", " ");
 }
 
 /** Cliente sin sesión para verificar contraseñas de usuarios sin tocar la sesión de superusuario. */

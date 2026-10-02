@@ -9,4 +9,13 @@ export default {
   "common.not_found": "No se encontró el recurso solicitado.",
   "common.too_many_requests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
   "common.internal_error": "Ocurrió un error inesperado. Inténtalo de nuevo.",
+  "common.configuration_error": "Falta configuración en el sistema. Contacta al administrador.",
+  "workflow.invalid_transition": "Ese cambio de estado no está permitido desde el estado actual.",
+  "workflow.comment_required": "Este cambio de estado requiere un comentario.",
+  "work_item.without_stages": "Este tipo de caso no usa etapas.",
+  "work_item.stages_pending": "La implementación se completa al cerrar todas sus etapas.",
+  "stage.dependencies_pending": "La etapa no puede iniciar: faltan etapas anteriores por terminar.",
+  "stage.client_requests_pending": "La etapa no puede completarse: hay requerimientos obligatorios del cliente sin aceptar.",
+  "stage.requires_client_approval": "Esta etapa necesita la aprobación del cliente: envíala a revisión.",
+  "client_request.invalid_state": "El requerimiento no está en un estado que permita esta acción.",
 } as const;

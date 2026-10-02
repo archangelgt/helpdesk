@@ -1,12 +1,23 @@
 {
   "app": {
     "name": "ERPSYS Helpdesk",
-    "preview": "Development preview: the data shown is sample data.",
+    "preview": "Helpdesk v2 in development: it now works with real data.",
     "search": "Search (/)",
     "language": "Language",
     "theme": "Theme",
     "darkMode": "Dark mode",
     "lightMode": "Light mode"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Retry",
+    "notFound": "We couldn't find it or you don't have access.",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "choose": "Choose…",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{page}} of {{total}}"
   },
   "auth": {
     "subtitle": "Sign in to continue",
@@ -30,38 +41,148 @@
   },
   "themes": { "blue": "Blue", "orange": "Orange", "green": "Green", "purple": "Purple", "pink": "Pink", "slate": "Slate" },
   "status": {
-    "done": "Done",
-    "in_progress": "In progress",
-    "pending": "Pending",
-    "waiting_client": "Waiting on client",
-    "completed": "Completed"
+    "support": {
+      "nuevo": "New",
+      "asignado": "Assigned",
+      "en_progreso": "In progress",
+      "en_espera_cliente": "Waiting on client",
+      "en_espera_cliente_client": "Waiting for your reply",
+      "resuelto": "Resolved",
+      "reabierto": "Reopened",
+      "cerrado": "Closed",
+      "cancelado": "Cancelled"
+    },
+    "implementation": {
+      "planificada": "Planned",
+      "en_curso": "In progress",
+      "esperando_cliente": "Waiting on client",
+      "esperando_cliente_client": "Waiting for your information",
+      "en_pausa": "Paused",
+      "completada": "Completed",
+      "cancelada": "Cancelled"
+    },
+    "stage": {
+      "pendiente": "Pending",
+      "en_curso": "In progress",
+      "esperando_cliente": "Waiting on client",
+      "esperando_cliente_client": "Pending on your side",
+      "en_revision": "Client review",
+      "en_revision_client": "Pending your approval",
+      "bloqueada": "Blocked",
+      "completada": "Completed",
+      "omitida": "Skipped"
+    },
+    "task": {
+      "pendiente": "To do",
+      "en_progreso": "In progress",
+      "hecha": "Done",
+      "cancelada": "Cancelled"
+    }
   },
+  "priority": { "critical": "Critical", "high": "High", "medium": "Medium", "low": "Low" },
   "side": { "internal": "Our team", "client": "Client", "shared": "Both" },
+  "work": {
+    "ticketsLead": "Support requests from clients.",
+    "tasksLead": "Internal team work.",
+    "ticketsNewPlaceholder": "New ticket: describe the problem in one line",
+    "tasksNewPlaceholder": "New task: what needs to be done?",
+    "create": "Create",
+    "views": { "open": "Open", "waiting_client": "Waiting on client", "done": "Done", "all": "All" },
+    "onlyMine": "Assigned to me only",
+    "search": "Search by number or title",
+    "empty": "No cases in this view.",
+    "unassigned": "Unassigned",
+    "noDueDate": "No due date",
+    "noDescription": "No description.",
+    "checklist": "Checklist",
+    "addChecklist": "Add an item and press Enter",
+    "commentFor": "Comment to move to “{{status}}”",
+    "back": { "tickets": "Back to tickets", "tasks": "Back to tasks" },
+    "fields": {
+      "number": "Number",
+      "title": "Title",
+      "client": "Client",
+      "status": "Status",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "due": "Due date",
+      "requester": "Requester",
+      "created": "Created",
+      "description": "Description"
+    }
+  },
+  "activity": {
+    "title": "Conversation and history",
+    "empty": "No activity yet.",
+    "system": "System",
+    "public": "Public",
+    "internal": "Internal",
+    "placeholder": "Write a comment…",
+    "internalPlaceholder": "Internal note: the client can't see it",
+    "send": "Send",
+    "statusChanged": "Changed status from “{{from}}” to “{{to}}”",
+    "statusSet": "Status: “{{to}}”",
+    "work_item": { "created": "Created the case", "assigned": "Changed the assignee" },
+    "stage": {
+      "started": "Started stage “{{stage}}”",
+      "completed": "Completed stage “{{stage}}”",
+      "unlocked": "Stage “{{stage}}” was unlocked"
+    },
+    "implementation": { "completed": "The implementation was completed" },
+    "client_request": {
+      "created": "New client request: “{{request}}”",
+      "submitted": "The client delivered “{{request}}”",
+      "accepted": "“{{request}}” was accepted",
+      "rejected": "“{{request}}” was returned: {{reason}}"
+    }
+  },
   "request": {
     "pending": "Pending",
-    "submitted": "Submitted",
+    "submitted": "Delivered",
     "in_review": "In review",
     "accepted": "Accepted",
-    "rejected": "Rejected",
+    "rejected": "Returned",
+    "cancelled": "Cancelled",
     "blocking": "Blocks the stage",
-    "due": "Due {{date}}"
+    "due": "Due {{date}}",
+    "submit": "Deliver",
+    "submitNote": "Note for the team (optional)",
+    "accept": "Accept",
+    "reject": "Return",
+    "rejectReason": "What is missing or needs fixing?",
+    "rejectedBecause": "Returned: {{reason}}"
   },
   "home": {
     "title": "My work",
     "greeting": "Hi, {{name}}.",
     "subtitle": "What needs your attention today.",
     "counters": {
-      "waitingMe": "Awaiting my reply",
+      "waitingMe": "New and assigned to me",
       "assigned": "Assigned to me",
       "toReview": "Deliveries to review",
       "waitingClient": "Waiting on client",
       "overdue": "Overdue"
     },
+    "clientCounters": {
+      "waitingMe": "Pending on your side",
+      "waitingClient": "Open requests",
+      "overdue": "Overdue"
+    },
+    "assignedToMe": "Assigned to me",
+    "myTickets": "My open tickets",
     "myImplementations": "Implementations in progress"
   },
   "impl": {
     "title": "Implementations",
     "subtitle": "Progress of each implementation, stage by stage.",
+    "new": "New implementation",
+    "template": "Template",
+    "noTemplate": "No template (manual stages)",
+    "templateOption_one": "{{name}} ({{count}} stage)",
+    "templateOption_other": "{{name}} ({{count}} stages)",
+    "plannedStart": "Start date",
+    "dueHint": "Leave empty to calculate it from the template.",
+    "details": "Implementation details",
     "client": "Client",
     "due": "Estimated date: {{date}}",
     "daysLeft_one": "{{count}} day left",
@@ -69,19 +190,36 @@
     "daysLate_one": "{{count}} day late",
     "daysLate_other": "{{count}} days late",
     "currentStage": "Current stage: {{order}} · {{name}}",
+    "selectedStage": "Stage {{order}} · {{name}}",
+    "stagesDone": "{{done}} of {{total}} stages completed",
     "stages": "Stages",
+    "noStages": "This implementation has no stages yet.",
     "log": "Changelog",
     "tasksCount": "{{done}} of {{total}} tasks",
-    "days_one": "{{count}} day",
-    "days_other": "{{count}} days",
-    "ongoing": "ongoing",
+    "ongoing": "No dates",
     "waitingTitle_one": "Waiting on client: {{count}} pending",
     "waitingTitle_other": "Waiting on client: {{count}} pending",
     "waitingLead": "The implementation continues once the client delivers the following:",
+    "waitingLeadClient": "To continue we need you to deliver the following:",
+    "reviewTitle_one": "{{count}} delivery to review",
+    "reviewTitle_other": "{{count}} deliveries to review",
+    "deliveredTitle_one": "{{count}} delivery under review by our team",
+    "deliveredTitle_other": "{{count}} deliveries under review by our team",
     "clientRequests": "Client requests",
     "dependsOn": "Depends on: {{side}}",
-    "back": "Back to implementations",
-    "notFound": "Implementation not found."
+    "back": "Back to implementations"
+  },
+  "clients": {
+    "lead": "Companies we support and implement.",
+    "new": "New client",
+    "name": "Name",
+    "legalName": "Legal name",
+    "taxId": "Tax ID",
+    "status": "Status",
+    "openItems": "Open cases",
+    "search": "Search client",
+    "empty": "No clients.",
+    "statuses": { "active": "Active", "inactive": "Inactive", "prospect": "Prospect" }
   },
   "soon": {
     "title": "Under construction",

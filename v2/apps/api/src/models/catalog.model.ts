@@ -1,59 +1,42 @@
-import type { RecordModel } from "pocketbase";
 import { ensureAdminAuth, pb } from "../db/pocketbase.js";
+import type {
+  EventTypeRow,
+  NamedRow,
+  PriorityRow,
+  StatusRow,
+  TransitionRow,
+  WorkflowRow,
+  WorkItemTypeRow,
+} from "../types/records.js";
 
-export interface WorkItemTypeRow extends RecordModel {
-  code: string;
-  name: string;
-  label_key: string;
-  icon: string;
-  color: string;
-  number_prefix: string;
-  has_stages: boolean;
-  client_visible: boolean;
-  workflow: string;
-  stage_workflow: string;
-  default_priority: string;
-}
-
-export interface StatusRow extends RecordModel {
-  code: string;
-  name: string;
-  label_key: string;
-  category: string;
-  client_label: string;
-  color: string;
-  sort_order: number;
-  is_initial: boolean;
-  is_final: boolean;
-  pauses_sla: boolean;
-  expand?: { workflow?: { code: string } };
-}
-
-export interface PriorityRow extends RecordModel {
-  code: string;
-  name: string;
-  label_key: string;
-  level: number;
-  color: string;
-  is_default: boolean;
+export interface CatalogRows {
+  workflows: WorkflowRow[];
+  types: WorkItemTypeRow[];
+  statuses: StatusRow[];
+  transitions: TransitionRow[];
+  priorities: PriorityRow[];
+  categories: NamedRow[];
+  products: NamedRow[];
+  channels: NamedRow[];
+  eventTypes: EventTypeRow[];
 }
 
 export const catalogModel = {
-  async workItemTypes(): Promise<WorkItemTypeRow[]> {
+  /** Todos los catálogos de una vez: son pocos registros y casi todas las operaciones los necesitan. */
+  async loadAll(): Promise<CatalogRows> {
     await ensureAdminAuth();
-    return pb.collection("work_item_types").getFullList<WorkItemTypeRow>({ filter: "active = true", sort: "sort_order" });
-  },
-
-  async statuses(workflowCode?: string): Promise<StatusRow[]> {
-    await ensureAdminAuth();
-    const filter = workflowCode
-      ? pb.filter("active = true && workflow.code = {:code}", { code: workflowCode })
-      : "active = true";
-    return pb.collection("statuses").getFullList<StatusRow>({ filter, sort: "workflow,sort_order", expand: "workflow" });
-  },
-
-  async priorities(): Promise<PriorityRow[]> {
-    await ensureAdminAuth();
-    return pb.collection("priorities").getFullList<PriorityRow>({ filter: "active = true", sort: "-level" });
+    const [workflows, types, statuses, transitions, priorities, categories, products, channels, eventTypes] =
+      await Promise.all([
+        pb.collection("workflows").getFullList<WorkflowRow>({ sort: "code" }),
+        pb.collection("work_item_types").getFullList<WorkItemTypeRow>({ sort: "sort_order" }),
+        pb.collection("statuses").getFullList<StatusRow>({ sort: "workflow,sort_order" }),
+        pb.collection("workflow_transitions").getFullList<TransitionRow>(),
+        pb.collection("priorities").getFullList<PriorityRow>({ sort: "-level" }),
+        pb.collection("categories").getFullList<NamedRow>({ sort: "type,sort_order" }),
+        pb.collection("products").getFullList<NamedRow>({ sort: "name" }),
+        pb.collection("channels").getFullList<NamedRow>({ sort: "code" }),
+        pb.collection("event_types").getFullList<EventTypeRow>({ fields: "id,code,client_visible" }),
+      ]);
+    return { workflows, types, statuses, transitions, priorities, categories, products, channels, eventTypes };
   },
 };

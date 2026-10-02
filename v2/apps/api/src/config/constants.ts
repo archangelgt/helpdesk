@@ -9,3 +9,7 @@ export const REFRESH_COOKIE = "hd_refresh";
 export const REFRESH_COOKIE_PATH = "/api/v1/auth";
 
 export const PERMISSION_CACHE_TTL_MS = 60_000;
+export const CATALOG_CACHE_TTL_MS = 60_000;
+
+export const DEFAULT_PAGE_SIZE = 25;
+export const MAX_PAGE_SIZE = 100;

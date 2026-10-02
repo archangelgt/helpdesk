@@ -1,12 +1,23 @@
 {
   "app": {
     "name": "ERPSYS Helpdesk",
-    "preview": "Prévia de desenvolvimento: os dados exibidos são de exemplo.",
+    "preview": "Helpdesk v2 em desenvolvimento: já trabalha com dados reais.",
     "search": "Buscar (/)",
     "language": "Idioma",
     "theme": "Tema",
     "darkMode": "Modo escuro",
     "lightMode": "Modo claro"
+  },
+  "common": {
+    "loading": "Carregando…",
+    "retry": "Tentar novamente",
+    "notFound": "Não encontramos o que você procura ou você não tem acesso.",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "choose": "Escolha…",
+    "previous": "Anterior",
+    "next": "Próxima",
+    "pageOf": "Página {{page}} de {{total}}"
   },
   "auth": {
     "subtitle": "Entre para continuar",
@@ -30,38 +41,148 @@
   },
   "themes": { "blue": "Azul", "orange": "Laranja", "green": "Verde", "purple": "Roxo", "pink": "Rosa", "slate": "Ardósia" },
   "status": {
-    "done": "Concluído",
-    "in_progress": "Em andamento",
-    "pending": "Pendente",
-    "waiting_client": "Aguardando cliente",
-    "completed": "Concluída"
+    "support": {
+      "nuevo": "Novo",
+      "asignado": "Atribuído",
+      "en_progreso": "Em andamento",
+      "en_espera_cliente": "Aguardando cliente",
+      "en_espera_cliente_client": "Aguardando sua resposta",
+      "resuelto": "Resolvido",
+      "reabierto": "Reaberto",
+      "cerrado": "Fechado",
+      "cancelado": "Cancelado"
+    },
+    "implementation": {
+      "planificada": "Planejada",
+      "en_curso": "Em andamento",
+      "esperando_cliente": "Aguardando cliente",
+      "esperando_cliente_client": "Aguardando suas informações",
+      "en_pausa": "Pausada",
+      "completada": "Concluída",
+      "cancelada": "Cancelada"
+    },
+    "stage": {
+      "pendiente": "Pendente",
+      "en_curso": "Em andamento",
+      "esperando_cliente": "Aguardando cliente",
+      "esperando_cliente_client": "Pendente da sua parte",
+      "en_revision": "Revisão do cliente",
+      "en_revision_client": "Aguardando sua aprovação",
+      "bloqueada": "Bloqueada",
+      "completada": "Concluída",
+      "omitida": "Omitida"
+    },
+    "task": {
+      "pendiente": "A fazer",
+      "en_progreso": "Em andamento",
+      "hecha": "Feita",
+      "cancelada": "Cancelada"
+    }
   },
+  "priority": { "critical": "Crítica", "high": "Alta", "medium": "Média", "low": "Baixa" },
   "side": { "internal": "Nossa equipe", "client": "Cliente", "shared": "Ambos" },
+  "work": {
+    "ticketsLead": "Solicitações de suporte dos clientes.",
+    "tasksLead": "Trabalho interno da equipe.",
+    "ticketsNewPlaceholder": "Novo ticket: descreva o problema em uma linha",
+    "tasksNewPlaceholder": "Nova tarefa: o que precisa ser feito?",
+    "create": "Criar",
+    "views": { "open": "Abertos", "waiting_client": "Aguardando cliente", "done": "Concluídos", "all": "Todos" },
+    "onlyMine": "Só atribuídos a mim",
+    "search": "Buscar por número ou título",
+    "empty": "Não há casos nesta visão.",
+    "unassigned": "Sem responsável",
+    "noDueDate": "Sem prazo",
+    "noDescription": "Sem descrição.",
+    "checklist": "Checklist",
+    "addChecklist": "Adicione um item e pressione Enter",
+    "commentFor": "Comentário para passar a “{{status}}”",
+    "back": { "tickets": "Voltar aos tickets", "tasks": "Voltar às tarefas" },
+    "fields": {
+      "number": "Número",
+      "title": "Título",
+      "client": "Cliente",
+      "status": "Status",
+      "priority": "Prioridade",
+      "assignee": "Responsável",
+      "due": "Prazo",
+      "requester": "Solicitante",
+      "created": "Criado",
+      "description": "Descrição"
+    }
+  },
+  "activity": {
+    "title": "Conversa e histórico",
+    "empty": "Ainda não há atividade.",
+    "system": "Sistema",
+    "public": "Público",
+    "internal": "Interno",
+    "placeholder": "Escreva um comentário…",
+    "internalPlaceholder": "Nota interna: o cliente não a vê",
+    "send": "Enviar",
+    "statusChanged": "Mudou o status de “{{from}}” para “{{to}}”",
+    "statusSet": "Status: “{{to}}”",
+    "work_item": { "created": "Criou o caso", "assigned": "Mudou o responsável" },
+    "stage": {
+      "started": "Iniciou a etapa “{{stage}}”",
+      "completed": "Concluiu a etapa “{{stage}}”",
+      "unlocked": "A etapa “{{stage}}” foi desbloqueada"
+    },
+    "implementation": { "completed": "A implantação foi concluída" },
+    "client_request": {
+      "created": "Nova solicitação ao cliente: “{{request}}”",
+      "submitted": "O cliente entregou “{{request}}”",
+      "accepted": "“{{request}}” foi aceito",
+      "rejected": "“{{request}}” foi devolvido: {{reason}}"
+    }
+  },
   "request": {
     "pending": "Pendente",
     "submitted": "Entregue",
     "in_review": "Em revisão",
     "accepted": "Aceito",
-    "rejected": "Rejeitado",
+    "rejected": "Devolvido",
+    "cancelled": "Cancelado",
     "blocking": "Bloqueia a etapa",
-    "due": "Vence {{date}}"
+    "due": "Vence {{date}}",
+    "submit": "Entregar",
+    "submitNote": "Nota para a equipe (opcional)",
+    "accept": "Aceitar",
+    "reject": "Devolver",
+    "rejectReason": "O que falta ou precisa ser corrigido?",
+    "rejectedBecause": "Devolvido: {{reason}}"
   },
   "home": {
     "title": "Meu trabalho",
     "greeting": "Olá, {{name}}.",
     "subtitle": "O que precisa da sua atenção hoje.",
     "counters": {
-      "waitingMe": "Aguardando minha resposta",
+      "waitingMe": "Novos atribuídos a mim",
       "assigned": "Atribuídos a mim",
       "toReview": "Entregas para revisar",
       "waitingClient": "Aguardando cliente",
       "overdue": "Atrasados"
     },
+    "clientCounters": {
+      "waitingMe": "Pendentes da sua parte",
+      "waitingClient": "Solicitações abertas",
+      "overdue": "Atrasados"
+    },
+    "assignedToMe": "Atribuídos a mim",
+    "myTickets": "Meus tickets abertos",
     "myImplementations": "Implantações em andamento"
   },
   "impl": {
     "title": "Implantações",
-    "subtitle": "Progresso de cada implantação, etapa por etapa.",
+    "subtitle": "Andamento de cada implantação, etapa por etapa.",
+    "new": "Nova implantação",
+    "template": "Modelo",
+    "noTemplate": "Sem modelo (etapas manuais)",
+    "templateOption_one": "{{name}} ({{count}} etapa)",
+    "templateOption_other": "{{name}} ({{count}} etapas)",
+    "plannedStart": "Data de início",
+    "dueHint": "Se deixar vazio, é calculado pelo modelo.",
+    "details": "Dados da implantação",
     "client": "Cliente",
     "due": "Data estimada: {{date}}",
     "daysLeft_one": "Falta {{count}} dia",
@@ -69,19 +190,36 @@
     "daysLate_one": "Atrasada {{count}} dia",
     "daysLate_other": "Atrasada {{count}} dias",
     "currentStage": "Etapa atual: {{order}} · {{name}}",
+    "selectedStage": "Etapa {{order}} · {{name}}",
+    "stagesDone": "{{done}} de {{total}} etapas concluídas",
     "stages": "Etapas",
-    "log": "Registro",
+    "noStages": "Esta implantação ainda não tem etapas.",
+    "log": "Histórico",
     "tasksCount": "{{done}} de {{total}} tarefas",
-    "days_one": "{{count}} dia",
-    "days_other": "{{count}} dias",
-    "ongoing": "contínuo",
+    "ongoing": "Sem datas",
     "waitingTitle_one": "Aguardando cliente: {{count}} pendente",
     "waitingTitle_other": "Aguardando cliente: {{count}} pendentes",
     "waitingLead": "A implantação continua quando o cliente entregar o seguinte:",
+    "waitingLeadClient": "Para continuar precisamos que você entregue o seguinte:",
+    "reviewTitle_one": "{{count}} entrega para revisar",
+    "reviewTitle_other": "{{count}} entregas para revisar",
+    "deliveredTitle_one": "{{count}} entrega em revisão pela nossa equipe",
+    "deliveredTitle_other": "{{count}} entregas em revisão pela nossa equipe",
     "clientRequests": "Solicitações ao cliente",
     "dependsOn": "Depende de: {{side}}",
-    "back": "Voltar para implantações",
-    "notFound": "Implantação não encontrada."
+    "back": "Voltar às implantações"
+  },
+  "clients": {
+    "lead": "Empresas que atendemos e implantamos.",
+    "new": "Novo cliente",
+    "name": "Nome",
+    "legalName": "Razão social",
+    "taxId": "CNPJ / NIT",
+    "status": "Status",
+    "openItems": "Casos abertos",
+    "search": "Buscar cliente",
+    "empty": "Não há clientes.",
+    "statuses": { "active": "Ativo", "inactive": "Inativo", "prospect": "Prospecto" }
   },
   "soon": {
     "title": "Em construção",

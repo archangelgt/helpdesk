@@ -572,6 +572,42 @@ La API (`v2/apps/api`, Node.js 22 + TypeScript + Fastify) corre en el contenedor
 
 - **Web**: pantalla de login con idioma, tema y modo. El access token vive solo en memoria; la sesión se recupera al recargar con la cookie de refresh y se renueva sola ante un 401. Las preferencias del usuario se aplican al entrar y se guardan al cambiarlas.
 
+### 9.2 Núcleo de casos (fase 1, primera entrega, 2026-10-02)
+
+Tickets, tareas e implementaciones ya funcionan de punta a punta sobre la base normalizada. `support.erpsys.pro` trabaja con datos reales y la implementación **IMP-0001 "Helpdesk v2"** (cliente Seraph Systems) es este mismo proyecto.
+
+- **Escrituras atómicas**: toda operación que toca varios registros (crear una implementación desde plantilla, completar una etapa, revisar una entrega) va en un solo **batch transaccional** de PocketBase (`unitOfWork.commit`, migración `1790950009_batch_api`). Los ids se generan en la API para relacionar registros dentro del mismo batch. Cada cambio escribe su evento en `work_item_events` y en `event_outbox` (pendiente de enviar) en la misma transacción.
+- **Visibilidad**: un usuario de cliente solo ve los casos de su empresa y de tipos visibles al cliente; con `work_item.view_all` se ve todo; el resto del personal ve lo que tiene asignado, creó, solicitó o donde es dueño de una etapa. Los casos borrados (borrado lógico) no aparecen. Lo ajeno responde 404.
+- **Transiciones**: salen del flujo configurado (`workflow_transitions`). Sin roles en la transición, la puede usar el personal con permiso; los clientes solo donde están listados explícitamente. Las que lo piden exigen comentario.
+- **Motor de implementación**:
+  - Una etapa empieza solo cuando sus dependencias están completas; al completarse, desbloquea e inicia las siguientes.
+  - Si una etapa iniciada tiene requerimientos obligatorios abiertos, pasa a "Esperando cliente"; al aceptarse el último, vuelve a "En curso".
+  - No se completa una etapa con requerimientos obligatorios sin aceptar. Las etapas con aprobación del cliente pasan por "En revisión del cliente" y las aprueba el admin del cliente (`stage.approve`).
+  - El estado de la implementación se deriva de sus etapas (todas cerradas → completada; alguna esperando → esperando cliente). No se puede completar a mano con etapas abiertas.
+  - Desde plantilla: fechas planificadas en días hábiles con el calendario y feriados de la instancia; la fecha límite sale de la plantilla si no se indica.
+  - Avance mostrado: etapa cerrada = 100 %, si no, proporción del checklist, ponderado por el peso de cada etapa.
+- **"Mi trabajo"** (`/work-items/summary`): nuevos y asignados a mí, entregas por revisar, esperando al cliente y atrasados. Para el cliente cuenta solo lo accionable (requerimientos de etapas ya iniciadas).
+- **Pruebas**: `v2/scripts/test-api.sh` levanta un PocketBase y una API desechables y corre 91 comprobaciones (aislamiento entre clientes, permisos, flujos de soporte, implementación completa desde plantilla con fechas y feriados, entregas y revisiones, aprobación del cliente, outbox, mensajes traducidos).
+- **Endpoints nuevos** (todos con sesión y `work_item.view`; los permisos finos se validan en los services):
+
+| Método | Ruta | Uso |
+|---|---|---|
+| GET / POST | `/api/v1/work-items` | listar (tipo, vista abiertos/esperando cliente/terminados/todos, responsable, cliente, búsqueda, orden, página) y crear (opcional: plantilla y fecha de inicio) |
+| GET | `/api/v1/work-items/summary` | contadores de "Mi trabajo" |
+| GET / PATCH / DELETE | `/api/v1/work-items/:id` | detalle con etapas, checklist, requerimientos y transiciones posibles; editar; borrado lógico |
+| POST | `/api/v1/work-items/:id/transition` | cambiar de estado (con comentario si se exige) |
+| GET / POST | `/api/v1/work-items/:id/activity`, `/comments` | bitácora (comentarios, estados y eventos) y comentar (público o interno) |
+| POST | `/api/v1/work-items/:id/stages`, `/checklist`, `/client-requests` | agregar etapa manual, punto de checklist o requerimiento al cliente |
+| PATCH / POST | `/api/v1/stages/:id`, `/stages/:id/transition`, `/stages/:id/checklist` | editar etapa, cambiarla de estado, agregar checklist |
+| PATCH | `/api/v1/checklist-items/:id` | marcar o renombrar |
+| POST | `/api/v1/client-requests/:id/submit`, `/review` | el cliente entrega; el equipo acepta o devuelve con motivo |
+| GET / POST / PATCH | `/api/v1/clients` | clientes (`client.manage` para crear y editar) |
+| GET | `/api/v1/users/assignable`, `/users/client-contacts?clientId=` | personal asignable y contactos de un cliente |
+| GET | `/api/v1/templates?type=`, `/catalog/categories`, `/catalog/products` | plantillas y catálogos |
+
+- **Web**: Mi trabajo con contadores reales; Tickets y Tareas con vistas, "solo asignados a mí", búsqueda y alta rápida por título; detalle de caso con transiciones, responsable, prioridad, fecha límite, checklist y conversación (pública o interna); Implementaciones con el diseño aprobado, ahora con acciones (estado de etapas, checklist, entregar, aceptar o devolver requerimientos, bitácora) y formulario de nueva implementación desde plantilla; Clientes (lista y alta). Los clientes solo ven Mi trabajo, Tickets e Implementaciones.
+- **Sigue en la fase 1**: adjuntos, configuración y asistente inicial, conector erpsys, tablero con modos, portal del cliente, correos, API pública, dashboard, CLI de instancias y cambio de contraseña.
+
 ---
 
 ## 10. Integraciones y APIs

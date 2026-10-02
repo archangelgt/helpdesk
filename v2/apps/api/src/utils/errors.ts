@@ -19,4 +19,8 @@ export const Errors = {
   accountWithoutRole: () => new AppError(403, "auth.account_without_role"),
   forbidden: () => new AppError(403, "auth.forbidden"),
   notFound: () => new AppError(404, "common.not_found"),
+  /** Regla de negocio que impide la operación (409): el `code` explica cuál. */
+  conflict: (code: string, details?: unknown) => new AppError(409, code, details),
+  /** Falta configuración en la instancia (ej. un flujo sin estado inicial). */
+  configuration: (detail: string) => new AppError(500, "common.configuration_error", { detail }),
 };

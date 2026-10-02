@@ -16,14 +16,14 @@ import { useAuth } from "../auth/AuthProvider";
 import { AppearanceControls } from "../components/AppearanceControls";
 
 const NAV = [
-  { to: "/", key: "home", icon: Home, end: true },
-  { to: "/tickets", key: "tickets", icon: Ticket },
-  { to: "/tareas", key: "tasks", icon: ListTodo },
-  { to: "/implementaciones", key: "implementations", icon: Layers },
-  { to: "/clientes", key: "clients", icon: Building2 },
-  { to: "/reportes", key: "reports", icon: BarChart3 },
-  { to: "/chat", key: "chat", icon: MessageSquare },
-  { to: "/configuracion", key: "settings", icon: Settings },
+  { to: "/", key: "home", icon: Home, end: true, client: true },
+  { to: "/tickets", key: "tickets", icon: Ticket, client: true },
+  { to: "/tareas", key: "tasks", icon: ListTodo, client: false },
+  { to: "/implementaciones", key: "implementations", icon: Layers, client: true },
+  { to: "/clientes", key: "clients", icon: Building2, client: false },
+  { to: "/reportes", key: "reports", icon: BarChart3, client: false },
+  { to: "/chat", key: "chat", icon: MessageSquare, client: false },
+  { to: "/configuracion", key: "settings", icon: Settings, client: false },
 ] as const;
 
 function initials(name: string, email: string): string {
@@ -34,6 +34,7 @@ function initials(name: string, email: string): string {
 export function Layout() {
   const { t } = useTranslation();
   const { user, logout, savePreferences } = useAuth();
+  const isClient = user?.role?.scope === "client";
 
   return (
     <div className="shell">
@@ -43,7 +44,7 @@ export function Layout() {
           <span className="brand-text">{t("app.name")}</span>
         </div>
         <nav>
-          {NAV.map(({ to, key, icon: Icon, ...rest }) => (
+          {NAV.filter((item) => !isClient || item.client).map(({ to, key, icon: Icon, ...rest }) => (
             <NavLink key={to} to={to} end={"end" in rest} className="nav-item">
               <Icon size={18} aria-hidden="true" />
               <span>{t(`nav.${key}`)}</span>

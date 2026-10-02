@@ -1,12 +1,23 @@
 {
   "app": {
     "name": "ERPSYS Helpdesk",
-    "preview": "Vista previa de desarrollo: los datos que ves son de ejemplo.",
+    "preview": "Helpdesk v2 en desarrollo: ya trabaja con datos reales.",
     "search": "Buscar (/)",
     "language": "Idioma",
     "theme": "Tema",
     "darkMode": "Modo oscuro",
     "lightMode": "Modo claro"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "notFound": "No se encontró lo que buscas o no tienes acceso.",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "choose": "Elige…",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "pageOf": "Página {{page}} de {{total}}"
   },
   "auth": {
     "subtitle": "Inicia sesión para continuar",
@@ -29,39 +40,109 @@
     "settings": "Configuración"
   },
   "themes": { "blue": "Azul", "orange": "Naranja", "green": "Verde", "purple": "Morado", "pink": "Rosa", "slate": "Pizarra" },
-  "status": {
-    "done": "Hecho",
-    "in_progress": "En curso",
-    "pending": "Pendiente",
-    "waiting_client": "Esperando cliente",
-    "completed": "Completada"
-  },
   "side": { "internal": "Nuestro equipo", "client": "Cliente", "shared": "Ambos" },
+  "work": {
+    "ticketsLead": "Solicitudes de soporte de los clientes.",
+    "tasksLead": "Trabajo interno del equipo.",
+    "ticketsNewPlaceholder": "Nuevo ticket: describe el problema en una línea",
+    "tasksNewPlaceholder": "Nueva tarea: ¿qué hay que hacer?",
+    "create": "Crear",
+    "views": { "open": "Abiertos", "waiting_client": "Esperando cliente", "done": "Terminados", "all": "Todos" },
+    "onlyMine": "Solo asignados a mí",
+    "search": "Buscar por número o título",
+    "empty": "No hay casos en esta vista.",
+    "unassigned": "Sin asignar",
+    "noDueDate": "Sin fecha límite",
+    "noDescription": "Sin descripción.",
+    "checklist": "Checklist",
+    "addChecklist": "Agregar un punto y presionar Enter",
+    "commentFor": "Comentario para pasar a «{{status}}»",
+    "back": { "tickets": "Volver a tickets", "tasks": "Volver a tareas" },
+    "fields": {
+      "number": "Número",
+      "title": "Título",
+      "client": "Cliente",
+      "status": "Estado",
+      "priority": "Prioridad",
+      "assignee": "Responsable",
+      "due": "Fecha límite",
+      "requester": "Solicitante",
+      "created": "Creado",
+      "description": "Descripción"
+    }
+  },
+  "activity": {
+    "title": "Conversación e historial",
+    "empty": "Todavía no hay actividad.",
+    "system": "Sistema",
+    "public": "Público",
+    "internal": "Interno",
+    "placeholder": "Escribe un comentario…",
+    "internalPlaceholder": "Nota interna: el cliente no la ve",
+    "send": "Enviar",
+    "statusChanged": "Cambió el estado de «{{from}}» a «{{to}}»",
+    "statusSet": "Estado: «{{to}}»",
+    "work_item": { "created": "Creó el caso", "assigned": "Cambió el responsable" },
+    "stage": {
+      "started": "Inició la etapa «{{stage}}»",
+      "completed": "Completó la etapa «{{stage}}»",
+      "unlocked": "Se desbloqueó la etapa «{{stage}}»"
+    },
+    "implementation": { "completed": "La implementación quedó completada" },
+    "client_request": {
+      "created": "Nuevo requerimiento al cliente: «{{request}}»",
+      "submitted": "El cliente entregó «{{request}}»",
+      "accepted": "Se aceptó «{{request}}»",
+      "rejected": "Se devolvió «{{request}}»: {{reason}}"
+    }
+  },
   "request": {
     "pending": "Pendiente",
     "submitted": "Entregado",
     "in_review": "En revisión",
     "accepted": "Aceptado",
-    "rejected": "Rechazado",
+    "rejected": "Devuelto",
+    "cancelled": "Cancelado",
     "blocking": "Bloquea la etapa",
-    "due": "Vence {{date}}"
+    "due": "Vence {{date}}",
+    "submit": "Entregar",
+    "submitNote": "Nota para el equipo (opcional)",
+    "accept": "Aceptar",
+    "reject": "Devolver",
+    "rejectReason": "¿Qué falta o qué hay que corregir?",
+    "rejectedBecause": "Devuelto: {{reason}}"
   },
   "home": {
     "title": "Mi trabajo",
     "greeting": "Hola, {{name}}.",
     "subtitle": "Lo que necesita tu atención hoy.",
     "counters": {
-      "waitingMe": "Esperando mi respuesta",
+      "waitingMe": "Nuevos asignados a mí",
       "assigned": "Asignados a mí",
       "toReview": "Entregas por revisar",
       "waitingClient": "Esperando al cliente",
       "overdue": "Atrasados"
     },
+    "clientCounters": {
+      "waitingMe": "Pendientes de tu parte",
+      "waitingClient": "Requerimientos abiertos",
+      "overdue": "Atrasados"
+    },
+    "assignedToMe": "Asignados a mí",
+    "myTickets": "Mis tickets abiertos",
     "myImplementations": "Implementaciones en curso"
   },
   "impl": {
     "title": "Implementaciones",
     "subtitle": "Avance de cada implementación, etapa por etapa.",
+    "new": "Nueva implementación",
+    "template": "Plantilla",
+    "noTemplate": "Sin plantilla (etapas manuales)",
+    "templateOption_one": "{{name}} ({{count}} etapa)",
+    "templateOption_other": "{{name}} ({{count}} etapas)",
+    "plannedStart": "Fecha de inicio",
+    "dueHint": "Si la dejas vacía, se calcula con la plantilla.",
+    "details": "Datos de la implementación",
     "client": "Cliente",
     "due": "Fecha estimada: {{date}}",
     "daysLeft_one": "Falta {{count}} día",
@@ -69,19 +150,36 @@
     "daysLate_one": "Atrasada {{count}} día",
     "daysLate_other": "Atrasada {{count}} días",
     "currentStage": "Etapa actual: {{order}} · {{name}}",
+    "selectedStage": "Etapa {{order}} · {{name}}",
+    "stagesDone": "{{done}} de {{total}} etapas completadas",
     "stages": "Etapas",
+    "noStages": "Esta implementación todavía no tiene etapas.",
     "log": "Bitácora",
     "tasksCount": "{{done}} de {{total}} tareas",
-    "days_one": "{{count}} día",
-    "days_other": "{{count}} días",
-    "ongoing": "continuo",
+    "ongoing": "Sin fechas",
     "waitingTitle_one": "Esperando al cliente: {{count}} pendiente",
     "waitingTitle_other": "Esperando al cliente: {{count}} pendientes",
     "waitingLead": "La implementación continúa cuando el cliente entregue lo siguiente:",
+    "waitingLeadClient": "Para continuar necesitamos que nos entregues lo siguiente:",
+    "reviewTitle_one": "{{count}} entrega por revisar",
+    "reviewTitle_other": "{{count}} entregas por revisar",
+    "deliveredTitle_one": "{{count}} entrega en revisión de nuestro equipo",
+    "deliveredTitle_other": "{{count}} entregas en revisión de nuestro equipo",
     "clientRequests": "Requerimientos al cliente",
     "dependsOn": "Depende de: {{side}}",
-    "back": "Volver a implementaciones",
-    "notFound": "No se encontró la implementación."
+    "back": "Volver a implementaciones"
+  },
+  "clients": {
+    "lead": "Empresas a las que damos soporte e implementamos.",
+    "new": "Nuevo cliente",
+    "name": "Nombre",
+    "legalName": "Razón social",
+    "taxId": "NIT",
+    "status": "Estado",
+    "openItems": "Casos abiertos",
+    "search": "Buscar cliente",
+    "empty": "No hay clientes.",
+    "statuses": { "active": "Activo", "inactive": "Inactivo", "prospect": "Prospecto" }
   },
   "soon": {
     "title": "En construcción",

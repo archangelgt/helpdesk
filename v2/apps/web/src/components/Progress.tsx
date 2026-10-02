@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { ChecklistStatus } from "../types/implementation";
 
 export function ProgressRing({ value, size = 96 }: { value: number; size?: number }) {
   const style = { "--p": value, "--size": `${size}px` } as CSSProperties;
@@ -16,10 +15,6 @@ export function ProgressBar({ value }: { value: number }) {
       <i style={{ width: `${value}%` }} />
     </div>
   );
-}
-
-export function StatusDot({ status }: { status: ChecklistStatus }) {
-  return <span className={`dot ${status}`} aria-hidden="true" />;
 }
 
 export type PillTone = "ok" | "warn" | "client" | "muted" | "danger" | "info";
