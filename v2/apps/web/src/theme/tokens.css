@@ -1,0 +1,38 @@
+:root {
+  --primary: #00387a;
+  --primary-strong: #002c60;
+  --primary-deep: #001f45;
+  --primary-soft: #3d6eaa;
+  --accent: #f26522;
+  --bg: #f5f8fb;
+  --surface: #ffffff;
+  --surface-2: #eef3f8;
+  --border: #d3d8dd;
+  --text: #1d2733;
+  --muted: #5d6b7a;
+  --ok: #1f8a4c;
+  --warn: #c27c0e;
+  --danger: #c0392b;
+  --client: #7b4fd6;
+  --idle: #9aa6b2;
+  --sidebar: var(--primary-deep);
+  --radius: 12px;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+[data-theme="orange"] { --primary: #c4501a; --primary-strong: #a3410f; --primary-deep: #5e2508; --primary-soft: #e07a45; --accent: #00387a; }
+[data-theme="green"]  { --primary: #1f7a4a; --primary-strong: #17633b; --primary-deep: #0c3a22; --primary-soft: #4fa676; }
+[data-theme="purple"] { --primary: #5b3aa6; --primary-strong: #4a2e8a; --primary-deep: #2a1953; --primary-soft: #8a6bd1; }
+[data-theme="pink"]   { --primary: #b0306e; --primary-strong: #922659; --primary-deep: #551535; --primary-soft: #d9619b; }
+[data-theme="slate"]  { --primary: #3c4a5a; --primary-strong: #2f3b48; --primary-deep: #1b232c; --primary-soft: #6b7c8f; }
+
+[data-mode="dark"] {
+  --bg: #0f1722;
+  --surface: #172231;
+  --surface-2: #1e2c3e;
+  --border: #2b3b50;
+  --text: #e4ebf3;
+  --muted: #9aabbd;
+  --primary-soft: #7fa6d6;
+  --sidebar: #0a111b;
+}

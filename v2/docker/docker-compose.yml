@@ -1,4 +1,4 @@
-# Helpdesk v2: una instancia (por ahora: página de avance + PocketBase).
+# Helpdesk v2: una instancia (por ahora: web + PocketBase).
 # Se irán sumando api, worker y redis según el roadmap (sección 4.2).
 #
 #   cp .env.example .env   # rellenar secretos
@@ -7,14 +7,13 @@ name: helpdesk-v2
 
 services:
   web:
-    image: nginx:1.27-alpine
+    build:
+      context: ../apps/web
+    image: helpdesk-v2-web
     container_name: helpdesk-v2-web
     restart: always
     ports:
       - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-3016}:80"
-    volumes:
-      - ../progress:/usr/share/nginx/html:ro
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
       interval: 10s

@@ -1,0 +1,79 @@
+{
+  "app": {
+    "name": "ERPSYS Helpdesk",
+    "preview": "Vista previa de desarrollo: los datos que ves son de ejemplo.",
+    "search": "Buscar (/)",
+    "language": "Idioma",
+    "theme": "Tema",
+    "darkMode": "Modo oscuro",
+    "lightMode": "Modo claro"
+  },
+  "nav": {
+    "home": "Mi trabajo",
+    "tickets": "Tickets",
+    "tasks": "Tareas",
+    "implementations": "Implementaciones",
+    "clients": "Clientes",
+    "reports": "Reportes",
+    "chat": "Chat",
+    "settings": "Configuración"
+  },
+  "themes": { "blue": "Azul", "orange": "Naranja", "green": "Verde", "purple": "Morado", "pink": "Rosa", "slate": "Pizarra" },
+  "status": {
+    "done": "Hecho",
+    "in_progress": "En curso",
+    "pending": "Pendiente",
+    "waiting_client": "Esperando cliente",
+    "completed": "Completada"
+  },
+  "side": { "internal": "Nuestro equipo", "client": "Cliente", "shared": "Ambos" },
+  "request": {
+    "pending": "Pendiente",
+    "submitted": "Entregado",
+    "in_review": "En revisión",
+    "accepted": "Aceptado",
+    "rejected": "Rechazado",
+    "blocking": "Bloquea la etapa",
+    "due": "Vence {{date}}"
+  },
+  "home": {
+    "title": "Mi trabajo",
+    "subtitle": "Lo que necesita tu atención hoy.",
+    "counters": {
+      "waitingMe": "Esperando mi respuesta",
+      "assigned": "Asignados a mí",
+      "toReview": "Entregas por revisar",
+      "waitingClient": "Esperando al cliente",
+      "overdue": "Atrasados"
+    },
+    "myImplementations": "Implementaciones en curso"
+  },
+  "impl": {
+    "title": "Implementaciones",
+    "subtitle": "Avance de cada implementación, etapa por etapa.",
+    "client": "Cliente",
+    "due": "Fecha estimada: {{date}}",
+    "daysLeft_one": "Falta {{count}} día",
+    "daysLeft_other": "Faltan {{count}} días",
+    "daysLate_one": "Atrasada {{count}} día",
+    "daysLate_other": "Atrasada {{count}} días",
+    "currentStage": "Etapa actual: {{order}} · {{name}}",
+    "stages": "Etapas",
+    "log": "Bitácora",
+    "tasksCount": "{{done}} de {{total}} tareas",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días",
+    "ongoing": "continuo",
+    "waitingTitle_one": "Esperando al cliente: {{count}} pendiente",
+    "waitingTitle_other": "Esperando al cliente: {{count}} pendientes",
+    "waitingLead": "La implementación continúa cuando el cliente entregue lo siguiente:",
+    "clientRequests": "Requerimientos al cliente",
+    "dependsOn": "Depende de: {{side}}",
+    "back": "Volver a implementaciones",
+    "notFound": "No se encontró la implementación."
+  },
+  "soon": {
+    "title": "En construcción",
+    "lead": "Esta sección llega en la fase {{phase}} del roadmap."
+  }
+}

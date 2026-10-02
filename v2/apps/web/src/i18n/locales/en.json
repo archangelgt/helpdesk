@@ -1,0 +1,79 @@
+{
+  "app": {
+    "name": "ERPSYS Helpdesk",
+    "preview": "Development preview: the data shown is sample data.",
+    "search": "Search (/)",
+    "language": "Language",
+    "theme": "Theme",
+    "darkMode": "Dark mode",
+    "lightMode": "Light mode"
+  },
+  "nav": {
+    "home": "My work",
+    "tickets": "Tickets",
+    "tasks": "Tasks",
+    "implementations": "Implementations",
+    "clients": "Clients",
+    "reports": "Reports",
+    "chat": "Chat",
+    "settings": "Settings"
+  },
+  "themes": { "blue": "Blue", "orange": "Orange", "green": "Green", "purple": "Purple", "pink": "Pink", "slate": "Slate" },
+  "status": {
+    "done": "Done",
+    "in_progress": "In progress",
+    "pending": "Pending",
+    "waiting_client": "Waiting on client",
+    "completed": "Completed"
+  },
+  "side": { "internal": "Our team", "client": "Client", "shared": "Both" },
+  "request": {
+    "pending": "Pending",
+    "submitted": "Submitted",
+    "in_review": "In review",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "blocking": "Blocks the stage",
+    "due": "Due {{date}}"
+  },
+  "home": {
+    "title": "My work",
+    "subtitle": "What needs your attention today.",
+    "counters": {
+      "waitingMe": "Awaiting my reply",
+      "assigned": "Assigned to me",
+      "toReview": "Deliveries to review",
+      "waitingClient": "Waiting on client",
+      "overdue": "Overdue"
+    },
+    "myImplementations": "Implementations in progress"
+  },
+  "impl": {
+    "title": "Implementations",
+    "subtitle": "Progress of each implementation, stage by stage.",
+    "client": "Client",
+    "due": "Estimated date: {{date}}",
+    "daysLeft_one": "{{count}} day left",
+    "daysLeft_other": "{{count}} days left",
+    "daysLate_one": "{{count}} day late",
+    "daysLate_other": "{{count}} days late",
+    "currentStage": "Current stage: {{order}} · {{name}}",
+    "stages": "Stages",
+    "log": "Changelog",
+    "tasksCount": "{{done}} of {{total}} tasks",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "ongoing": "ongoing",
+    "waitingTitle_one": "Waiting on client: {{count}} pending",
+    "waitingTitle_other": "Waiting on client: {{count}} pending",
+    "waitingLead": "The implementation continues once the client delivers the following:",
+    "clientRequests": "Client requests",
+    "dependsOn": "Depends on: {{side}}",
+    "back": "Back to implementations",
+    "notFound": "Implementation not found."
+  },
+  "soon": {
+    "title": "Under construction",
+    "lead": "This section arrives in phase {{phase}} of the roadmap."
+  }
+}

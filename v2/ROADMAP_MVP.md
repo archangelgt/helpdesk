@@ -695,7 +695,14 @@ Un mismo tablero que se reorganiza según lo que se necesite, como en las refere
 ### 13.3 Otras vistas
 
 - **Detalle de ticket**: panel lateral con datos, conversación (pública/interna), adjuntos con vista previa (imágenes y video), historial, conversación de erpsyschat vinculada, botones de acción claros (Asignar, Iniciar, Resolver).
-- **Implementaciones**: línea de tiempo/Gantt de etapas, barra de avance, "faltan X días", responsables por etapa.
+- **Implementaciones**: línea de tiempo/Gantt de etapas, barra de avance, "faltan X días", responsables por etapa. **Diseño aprobado** (referencia `referencias-ui/05-vista-implementacion.png`):
+  - Cabecera con **anillo de avance** (%), nombre, cliente, fecha estimada y accesos rápidos.
+  - Aviso **"Esperando al cliente"** con los requerimientos pendientes cuando aplica.
+  - Tarjeta **"Etapa actual"** con su checklist (punto verde = hecho, medio lleno = en curso, vacío = pendiente; lo hecho aparece tachado), "N de M tareas" y duración estimada.
+  - **Cuadrícula de etapas**: número, nombre, estado (Hecho / En curso / Esperando cliente / Pendiente), barra de avance, resumen, duración y de quién depende.
+  - **Bitácora** con fecha de cada avance.
+
+  ![Vista de implementación](referencias-ui/05-vista-implementacion.png)
 - **Panel del jefe**: carga por técnico, asignación por arrastre, atrasos, KPIs.
 - **Portal del cliente**: crear ticket en un paso (título + adjuntos opcionales), mis casos, avance de implementaciones de su empresa en línea de tiempo (mostrando qué etapas dependen de ellos), comentarios, y una sección destacada **"Pendientes de tu parte"** con cada requerimiento: qué se necesita, archivo modelo para descargar, fecha límite, botón para subir o responder, y estado de la revisión (aceptado / rechazado con motivo).
 - **Revisión de entregas** (técnico): bandeja con lo que el cliente entregó, vista previa de archivos y botones Aceptar / Rechazar con motivo.
