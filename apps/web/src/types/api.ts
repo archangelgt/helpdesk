@@ -192,7 +192,7 @@ export interface TemplateDto {
 }
 
 export interface NotificationsStatusDto {
-  smtp: { host: string; port: number; secure: boolean; user: string; from: string; ready: boolean };
+  smtp: { transport: "api" | "smtp"; host: string; port: number; secure: boolean; user: string; from: string; ready: boolean };
   sender: { id: string; name: string; email: string; spfOk: boolean; dkimOk: boolean } | null;
   emailChannelActive: boolean;
   notifications: Record<"pending" | "sent" | "failed" | "skipped", number>;

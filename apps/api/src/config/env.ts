@@ -34,6 +34,10 @@ const schema = z.object({
   SMTP_SECURE: z.enum(["true", "false", ""]).default(""),
   SMTP_USER: z.string().default(""),
   SMTP_PASSWORD: z.string().default(""),
+  /** Clave de la API de correo de Zoho ("Zoho-enczapikey …"). Si está, se envía por API en lugar de SMTP. */
+  MAIL_API_KEY: z.string().default(""),
+  /** Vacío = https://cpaas.zoho.com/v1.1/email. */
+  MAIL_API_URL: z.string().default(""),
   MAIL_FROM: z.string().default(""),
   MAIL_REPLY_TO: z.string().default(""),
   WORKER_POLL_MS: z.coerce.number().int().min(1000).default(5000),

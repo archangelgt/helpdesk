@@ -452,7 +452,8 @@ s, res = call("GET", f"{API}/notifications/status", token=TECH)
 check("solo el dueño ve la configuración de correo", s == 403, res)
 s, st = call("GET", f"{API}/notifications/status", token=OWNER)
 check("estado del correo: remitente por defecto y SMTP listo",
-      s == 200 and st["sender"]["email"] == "soporte@erpsys.pro" and st["smtp"]["ready"] and st["smtp"]["host"] == "mailpit", st)
+      s == 200 and st["sender"]["email"] == "soporte@seraphsystems.com" and st["smtp"]["ready"]
+      and st["smtp"]["transport"] == "smtp" and st["smtp"]["host"] == "mailpit", st)
 s, res = call("POST", f"{API}/notifications/test", {"to": "prueba@test.local"}, OWNER)
 check("correo de prueba", s == 200 and res["ok"], res)
 
@@ -485,13 +486,28 @@ check("el comentario de la clienta le llega al técnico y no a ella",
 check("las notas internas no salen por correo", not any("Nota interna del equipo" in n["payload"]["html"] for n in notes))
 client_subjects = " | ".join(n["payload"]["subject"] for uid in (ca_user["id"], ca_admin["id"]) for n in by_user.get(uid, []))
 check("los clientes no reciben avisos internos (asignaciones)", "Te asignaron" not in client_subjects, client_subjects)
-check("el admin del cliente recibe requerimientos de la implementación", "Necesitamos algo de ti" in client_subjects, client_subjects)
+admin_notes = by_user.get(ca_admin["id"], [])
+kick_mails = [n for n in admin_notes if n["payload"]["subject"].startswith("Etapa terminada: «Kickoff»")]
+check("completar una etapa = un solo correo al cliente con la siguiente etapa y lo que se le pide",
+      len(kick_mails) == 1
+      and "Comenzó la etapa «Carga de información»" in kick_mails[0]["payload"]["html"]
+      and kick_mails[0]["payload"]["html"].count("Para avanzar necesitamos que nos entregues") >= 3
+      and "Avance de la implementación:" in kick_mails[0]["payload"]["text"]
+      and {"stage.completed", "stage.started", "client_request.created"} <= set(kick_mails[0]["payload"]["events"]),
+      [(n["payload"]["subject"], n["payload"].get("events")) for n in admin_notes])
+check("cada acción genera como máximo un correo por persona",
+      all(len({tuple(n["payload"]["outboxIds"]) for n in by_user[u]}) == len(by_user[u]) for u in by_user)
+      and not any(set(a["payload"]["outboxIds"]) & set(b["payload"]["outboxIds"]) for u in by_user for a in by_user[u] for b in by_user[u] if a["id"] != b["id"]))
+check("«etapa desbloqueada» no se manda aparte", not any(n["payload"]["subject"].startswith("Ya puede empezar") for n in notes))
+check("al responsable le avisan cuando el cliente aprueba una etapa",
+      any(n["payload"]["subject"].startswith("Etapa terminada: «Pruebas") for n in by_user.get(tech_u["id"], [])),
+      [n["payload"]["subject"] for n in by_user.get(tech_u["id"], [])])
 
 _, mails = call("GET", os.environ["MAIL_URL"] + "/api/v1/messages?limit=200")
 subjects = [m["Subject"] for m in mails["messages"]]
 check("los correos llegan al servidor SMTP", mails["total"] == len(notes) + 1 and any("correo de prueba" in x for x in subjects), [mails["total"], len(notes)])
 first = mails["messages"][0]
-check("remitente soporte@erpsys.pro", first["From"]["Address"] == "soporte@erpsys.pro", first["From"])
+check("remitente soporte@seraphsystems.com", first["From"]["Address"] == "soporte@seraphsystems.com", first["From"])
 
 print(f"\n{passed} comprobaciones correctas, {len(failed)} fallidas")
 if failed:

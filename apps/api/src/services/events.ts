@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { WriteOp } from "../models/unit-of-work.model.js";
 import type { Catalog } from "./catalog-cache.service.js";
 
@@ -11,9 +12,11 @@ export interface DomainEvent {
 /**
  * Un evento queda en la bitácora del caso (work_item_events) y en el outbox (event_outbox),
  * de donde lo tomarán los avisos por correo y los conectores. Ambos dentro del mismo batch.
+ * Los eventos de una misma llamada comparten actionId: los avisos los juntan en un solo correo.
  */
 export function eventOps(catalog: Catalog, events: DomainEvent[]): WriteOp[] {
   const ops: WriteOp[] = [];
+  const actionId = randomUUID();
   for (const e of events) {
     const eventType = catalog.eventTypeId(e.code);
     if (!eventType) continue;
@@ -28,7 +31,7 @@ export function eventOps(catalog: Catalog, events: DomainEvent[]): WriteOp[] {
       data: {
         event_type: eventType,
         aggregate_id: e.workItemId,
-        payload: { event: e.code, workItemId: e.workItemId, actorId: e.actorId, ...e.data },
+        payload: { event: e.code, workItemId: e.workItemId, actorId: e.actorId, actionId, ...e.data },
         status: "pending",
         attempts: 0,
       },

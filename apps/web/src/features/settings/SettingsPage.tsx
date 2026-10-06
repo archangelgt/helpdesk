@@ -45,10 +45,20 @@ function EmailSettings() {
       <dl className="fields">
         <dt>{t("settings.email.sender")}</dt>
         <dd>{s.smtp.from || "—"}</dd>
-        <dt>{t("settings.email.server")}</dt>
-        <dd>{s.smtp.host ? `${s.smtp.host}:${s.smtp.port} (${s.smtp.secure ? "SSL/TLS" : "STARTTLS"})` : "—"}</dd>
-        <dt>{t("settings.email.user")}</dt>
-        <dd>{s.smtp.user || "—"}</dd>
+        <dt>{t("settings.email.transport")}</dt>
+        <dd>
+          {s.smtp.transport === "api"
+            ? t("settings.email.viaApi")
+            : s.smtp.host
+              ? `${t("settings.email.viaSmtp")} · ${s.smtp.host}:${s.smtp.port} (${s.smtp.secure ? "SSL/TLS" : "STARTTLS"})`
+              : "—"}
+        </dd>
+        {s.smtp.transport === "smtp" && (
+          <>
+            <dt>{t("settings.email.user")}</dt>
+            <dd>{s.smtp.user || "—"}</dd>
+          </>
+        )}
       </dl>
       <ul className="check-list">
         <Check ok={s.smtp.ready} label={s.smtp.ready ? t("settings.email.ready") : t("settings.email.notReady")} />

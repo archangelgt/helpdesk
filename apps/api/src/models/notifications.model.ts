@@ -43,11 +43,14 @@ export interface EmailSenderRow extends RecordModel {
 
 export interface NotificationPayload {
   to: string;
+  toName?: string;
   subject: string;
   html: string;
   text: string;
   senderId: string;
-  outboxId: string;
+  /** Eventos del outbox que juntó este correo (una misma acción puede generar varios). */
+  outboxIds: string[];
+  events: string[];
 }
 
 export interface NotificationRow extends RecordModel {
