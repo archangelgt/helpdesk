@@ -634,6 +634,14 @@ Tickets, tareas e implementaciones ya funcionan de punta a punta sobre la base n
 
 - **Sigue en la fase 1**: configuración y asistente inicial, conector erpsys, tablero con modos, portal del cliente (vista dedicada), API pública, dashboard, CLI de instancias, recordatorios de requerimientos vencidos y entrada de correos (responder por email).
 
+### 9.4 Correo por la API de Zoho y avisos de etapas (2026-10-06)
+
+- **Envío por API**: con `MAIL_API_KEY` (clave "Zoho-enczapikey …" en `docker/.env`) el worker envía por `https://cpaas.zoho.com/v1.1/email` (formato ZeptoMail, `MAIL_API_URL` para cambiarla). Sin clave sigue el SMTP de 9.3. Migración `1790950011_mail_api`: remitente por defecto **Helpdesk &lt;soporte@seraphsystems.com&gt;** (dominio verificado en Zoho, proveedor `zeptomail`); soporte@erpsys.pro queda como remitente no predeterminado.
+- **Avisos de etapas**: al **comenzar** una etapa (contactos del cliente, dueño de la etapa y responsable) y al **completarla** (contactos del cliente, jefes y ahora también el responsable). "Etapa desbloqueada" ya no se manda aparte porque siempre llega con "comenzó".
+- **Un correo por acción**: los eventos de una misma llamada comparten `actionId` (en `eventOps`) y el worker los junta en **un solo correo por persona**. Ej.: completar Kickoff = "Se completó la etapa «Kickoff»" + "Comenzó la etapa «Carga de información»" + cada requerimiento que se le pide al cliente + "Avance de la implementación: N %". El asunto lo da el evento más importante (`EVENT_PRIORITY`). El aviso guarda `outboxIds` y `events`.
+- **Configuración** muestra el medio de envío ("API de correo de Zoho" o el servidor SMTP).
+- **Pruebas**: 129 comprobaciones (un solo correo por acción, la siguiente etapa y los requerimientos dentro del mismo correo, sin "desbloqueada" aparte, aviso al responsable cuando el cliente aprueba una etapa, remitente soporte@seraphsystems.com).
+
 ---
 
 ## 10. Integraciones y APIs
