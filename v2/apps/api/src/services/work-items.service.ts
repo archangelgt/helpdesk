@@ -1,5 +1,6 @@
 import { newRecordId, pbDate } from "../db/pocketbase.js";
 import { activityModel } from "../models/activity.model.js";
+import { attachmentsModel } from "../models/attachments.model.js";
 import { clientRequestsModel } from "../models/client-requests.model.js";
 import { stagesModel } from "../models/stages.model.js";
 import { templatesModel } from "../models/templates.model.js";
@@ -34,10 +35,11 @@ import type {
   UpdateWorkItemInput,
 } from "../validators/work-items.validators.js";
 import { assertCan, type Actor } from "./actor.service.js";
+import { attachmentVisible } from "./attachment-rules.js";
 import { catalogCache, type Catalog } from "./catalog-cache.service.js";
 import { eventOps, type DomainEvent } from "./events.js";
 import { ImplementationPlan, loadImplementationState } from "./implementation-engine.js";
-import { orNull, ref, toChecklistDto, toClientRequestDto, toPriorityDto, toStatusDto } from "./mappers.js";
+import { orNull, ref, toAttachmentDto, toChecklistDto, toClientRequestDto, toPriorityDto, toStatusDto } from "./mappers.js";
 import { currentStage, stageProgress, weightedProgress } from "./progress.js";
 import { planFromTemplate } from "./template-planner.js";
 import { usersService } from "./users.service.js";
@@ -139,11 +141,12 @@ async function implementationSummaries(actor: Actor, catalog: Catalog, rows: Wor
 async function detailOf(actor: Actor, row: WorkItemRow): Promise<WorkItemDetailDto> {
   const catalog = await catalogCache.get();
   const type = typeOf(catalog, row);
-  const [allStages, dependencies, requests, itemChecklist] = await Promise.all([
+  const [allStages, dependencies, requests, itemChecklist, attachments] = await Promise.all([
     type.has_stages ? stagesModel.listByWorkItem(row.id) : Promise.resolve([] as StageRow[]),
     type.has_stages ? stagesModel.dependencies(row.id) : Promise.resolve([]),
     clientRequestsModel.listByWorkItem(row.id),
     stagesModel.checklistByWorkItem(row.id),
+    attachmentsModel.listByWorkItem(row.id),
   ]);
   const stages = allStages.filter((s) => !actor.isClient || s.client_visible);
   const stageChecklist = await stagesModel.checklistByStages(stages.map((s) => s.id));
@@ -197,6 +200,9 @@ async function detailOf(actor: Actor, row: WorkItemRow): Promise<WorkItemDetailD
     clientRequests: requests
       .filter((r) => !actor.isClient || !r.stage || stages.some((s) => s.id === r.stage))
       .map(toClientRequestDto),
+    attachments: attachments
+      .filter((a) => attachmentVisible(actor, a, stages))
+      .map(toAttachmentDto),
   };
 }
 

@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   BarChart3,
@@ -62,12 +62,12 @@ export function Layout() {
           <div className="topbar-tools">
             <AppearanceControls onChange={savePreferences} />
             {user && (
-              <span className="user-chip" title={`${user.name} · ${user.role?.name ?? ""}`}>
+              <Link to="/cuenta" className="user-chip" title={`${user.name} · ${user.role?.name ?? ""} — ${t("account.title")}`}>
                 <span className="avatar" aria-hidden="true">
                   {initials(user.name, user.email)}
                 </span>
                 <span className="user-name">{user.name || user.email}</span>
-              </span>
+              </Link>
             )}
             <button
               type="button"

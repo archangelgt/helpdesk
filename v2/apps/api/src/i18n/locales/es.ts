@@ -18,4 +18,7 @@ export default {
   "stage.client_requests_pending": "La etapa no puede completarse: hay requerimientos obligatorios del cliente sin aceptar.",
   "stage.requires_client_approval": "Esta etapa necesita la aprobación del cliente: envíala a revisión.",
   "client_request.invalid_state": "El requerimiento no está en un estado que permita esta acción.",
+  "auth.current_password_invalid": "La contraseña actual no es correcta.",
+  "attachment.too_large": "El archivo es demasiado grande (máximo 25 MB).",
+  "attachment.missing_file": "No se recibió ningún archivo.",
 } as const;

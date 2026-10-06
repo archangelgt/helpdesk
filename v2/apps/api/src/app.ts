@@ -1,4 +1,5 @@
 import cookie from "@fastify/cookie";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import { env } from "./config/env.js";
@@ -7,6 +8,7 @@ import { Errors } from "./utils/errors.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { detectLanguage } from "./middlewares/language.js";
 import { registerRoutes } from "./routes/index.js";
+import { MAX_ATTACHMENT_BYTES } from "./services/attachment-rules.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -32,6 +34,7 @@ export async function buildApp() {
   });
 
   await app.register(cookie);
+  await app.register(multipart, { limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1, fields: 10 } });
   await app.register(rateLimit, { global: false });
   await registerRoutes(app);
 

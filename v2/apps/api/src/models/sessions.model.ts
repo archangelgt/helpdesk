@@ -44,9 +44,9 @@ export const sessionsModel = {
     await pb.collection(COLLECTION).update(id, { revoked_at: new Date().toISOString() });
   },
 
-  async revokeAllForUser(userId: string): Promise<number> {
+  async revokeAllForUser(userId: string, exceptSessionId = ""): Promise<number> {
     await ensureAdminAuth();
-    const filter = pb.filter('user = {:userId} && revoked_at = ""', { userId });
+    const filter = pb.filter('user = {:userId} && revoked_at = "" && id != {:except}', { userId, except: exceptSessionId });
     const active = await pb.collection(COLLECTION).getFullList<SessionRecord>({ filter, fields: "id" });
     const now = new Date().toISOString();
     await Promise.all(active.map((s) => pb.collection(COLLECTION).update(s.id, { revoked_at: now })));

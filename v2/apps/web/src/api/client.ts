@@ -28,7 +28,7 @@ export function setSessionLostHandler(handler: () => void) {
 async function send(path: string, init: RequestInit = {}, auth = true): Promise<Response> {
   const headers = new Headers(init.headers);
   headers.set("Accept-Language", i18n.language);
-  if (init.body) headers.set("Content-Type", "application/json");
+  if (typeof init.body === "string") headers.set("Content-Type", "application/json");
   if (auth && accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   return fetch(BASE + path, { ...init, headers, credentials: "same-origin" });
 }
@@ -62,7 +62,7 @@ export function refreshSession(): Promise<SessionResponse | null> {
   return refreshing;
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function authorized(path: string, init: RequestInit): Promise<Response> {
   let res = await send(path, init);
   if (res.status === 401 && accessToken) {
     const session = await refreshSession();
@@ -73,7 +73,18 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     res = await send(path, init);
   }
-  return parse<T>(res);
+  return res;
+}
+
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return parse<T>(await authorized(path, init));
+}
+
+/** Descarga con el token de la sesión (un enlace normal no lleva el encabezado Authorization). */
+export async function apiBlob(path: string): Promise<Blob> {
+  const res = await authorized(path, {});
+  if (!res.ok) throw await toError(res);
+  return res.blob();
 }
 
 export const authApi = {

@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { clientRequestsApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthProvider";
+import { Attachments } from "../../components/Attachments";
 import { RequestPill } from "../../components/StatusBadge";
 import { useAction } from "../../hooks/useApi";
-import type { ClientRequestDto, WorkItemDetailDto } from "../../types/api";
+import type { AttachmentDto, ClientRequestDto, WorkItemDetailDto } from "../../types/api";
 import { formatDate } from "../../utils/dates";
 
 type Mode = "idle" | "submit" | "reject";
@@ -13,12 +14,18 @@ type Mode = "idle" | "submit" | "reject";
 export function ClientRequestRow({
   request,
   stageName,
+  files,
+  workItemId,
   onChange,
+  onReload,
   readOnly = false,
 }: {
   request: ClientRequestDto;
   stageName?: string;
+  files: AttachmentDto[];
+  workItemId: string;
   onChange: (item: WorkItemDetailDto) => void;
+  onReload: () => void;
   readOnly?: boolean;
 }) {
   const { t, i18n } = useTranslation();
@@ -33,6 +40,7 @@ export function ClientRequestRow({
   const inReview = request.status === "submitted" || request.status === "in_review";
   const canSubmit = !readOnly && isClient && can("client_request.submit") && open;
   const canReview = !readOnly && !isClient && can("client_request.review") && (open || inReview);
+  const requestFiles = files.filter((f) => f.clientRequestId === request.id);
 
   const act = async (action: () => Promise<WorkItemDetailDto>) => {
     const updated = await run(action);
@@ -57,6 +65,17 @@ export function ClientRequestRow({
       {request.description && <p className="muted small request-desc">{request.description}</p>}
       {request.status === "rejected" && request.rejectionReason && (
         <p className="small request-reason">{t("request.rejectedBecause", { reason: request.rejectionReason })}</p>
+      )}
+
+      {(requestFiles.length > 0 || mode === "submit") && (
+        <Attachments
+          workItemId={workItemId}
+          files={files}
+          clientRequestId={request.id}
+          canUpload={mode === "submit"}
+          hideEmpty={mode !== "submit"}
+          onChange={onReload}
+        />
       )}
 
       {mode === "idle" && (canSubmit || canReview) && (

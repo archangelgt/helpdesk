@@ -27,3 +27,5 @@ export const clientContactsQuerySchema = z.object({ clientId: recordId });
 export const templatesQuerySchema = z.object({ type: z.string().regex(/^[a-z0-9_]+$/).max(60).optional() });
 
 export const categoriesQuerySchema = z.object({ type: z.string().regex(/^[a-z0-9_]+$/).max(60).optional() });
+
+export const testEmailSchema = z.object({ to: z.string().trim().email().max(200) }).strict();

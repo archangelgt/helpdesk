@@ -17,7 +17,9 @@
     "choose": "Choose…",
     "previous": "Previous",
     "next": "Next",
-    "pageOf": "Page {{page}} of {{total}}"
+    "pageOf": "Page {{page}} of {{total}}",
+    "edit": "Edit",
+    "save": "Save"
   },
   "auth": {
     "subtitle": "Sign in to continue",
@@ -39,7 +41,14 @@
     "chat": "Chat",
     "settings": "Settings"
   },
-  "themes": { "blue": "Blue", "orange": "Orange", "green": "Green", "purple": "Purple", "pink": "Pink", "slate": "Slate" },
+  "themes": {
+    "blue": "Blue",
+    "orange": "Orange",
+    "green": "Green",
+    "purple": "Purple",
+    "pink": "Pink",
+    "slate": "Slate"
+  },
   "status": {
     "support": {
       "nuevo": "New",
@@ -79,15 +88,29 @@
       "cancelada": "Cancelled"
     }
   },
-  "priority": { "critical": "Critical", "high": "High", "medium": "Medium", "low": "Low" },
-  "side": { "internal": "Our team", "client": "Client", "shared": "Both" },
+  "priority": {
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "side": {
+    "internal": "Our team",
+    "client": "Client",
+    "shared": "Both"
+  },
   "work": {
     "ticketsLead": "Support requests from clients.",
     "tasksLead": "Internal team work.",
     "ticketsNewPlaceholder": "New ticket: describe the problem in one line",
     "tasksNewPlaceholder": "New task: what needs to be done?",
     "create": "Create",
-    "views": { "open": "Open", "waiting_client": "Waiting on client", "done": "Done", "all": "All" },
+    "views": {
+      "open": "Open",
+      "waiting_client": "Waiting on client",
+      "done": "Done",
+      "all": "All"
+    },
     "onlyMine": "Assigned to me only",
     "search": "Search by number or title",
     "empty": "No cases in this view.",
@@ -97,7 +120,10 @@
     "checklist": "Checklist",
     "addChecklist": "Add an item and press Enter",
     "commentFor": "Comment to move to “{{status}}”",
-    "back": { "tickets": "Back to tickets", "tasks": "Back to tasks" },
+    "back": {
+      "tickets": "Back to tickets",
+      "tasks": "Back to tasks"
+    },
     "fields": {
       "number": "Number",
       "title": "Title",
@@ -109,7 +135,14 @@
       "requester": "Requester",
       "created": "Created",
       "description": "Description"
-    }
+    },
+    "addDescription": "Add description",
+    "descriptionPlaceholder": "What happens, since when, who is affected, steps to reproduce…",
+    "noDescriptionEdit": "No description. Use \"Add description\" to give the team context.",
+    "ticketsDescriptionPlaceholder": "Describe the problem: what happens, since when, who is affected and how to reproduce it.",
+    "tasksDescriptionPlaceholder": "Task details: what is expected, criteria to consider it done…",
+    "defaultPriority": "Default priority",
+    "attachAfterCreate": "You can attach files as soon as it is created."
   },
   "activity": {
     "title": "Conversation and history",
@@ -122,13 +155,18 @@
     "send": "Send",
     "statusChanged": "Changed status from “{{from}}” to “{{to}}”",
     "statusSet": "Status: “{{to}}”",
-    "work_item": { "created": "Created the case", "assigned": "Changed the assignee" },
+    "work_item": {
+      "created": "Created the case",
+      "assigned": "Changed the assignee"
+    },
     "stage": {
       "started": "Started stage “{{stage}}”",
       "completed": "Completed stage “{{stage}}”",
       "unlocked": "Stage “{{stage}}” was unlocked"
     },
-    "implementation": { "completed": "The implementation was completed" },
+    "implementation": {
+      "completed": "The implementation was completed"
+    },
     "client_request": {
       "created": "New client request: “{{request}}”",
       "submitted": "The client delivered “{{request}}”",
@@ -207,7 +245,9 @@
     "deliveredTitle_other": "{{count}} deliveries under review by our team",
     "clientRequests": "Client requests",
     "dependsOn": "Depends on: {{side}}",
-    "back": "Back to implementations"
+    "back": "Back to implementations",
+    "noStagesManage": "This implementation has no stages yet. Use \"Add stage\" to build the plan.",
+    "noRequests": "Nothing has been requested from the client."
   },
   "clients": {
     "lead": "Companies we support and implement.",
@@ -219,10 +259,117 @@
     "openItems": "Open cases",
     "search": "Search client",
     "empty": "No clients.",
-    "statuses": { "active": "Active", "inactive": "Inactive", "prospect": "Prospect" }
+    "statuses": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "prospect": "Prospect"
+    }
   },
   "soon": {
     "title": "Under construction",
     "lead": "This section arrives in phase {{phase}} of the roadmap."
+  },
+  "files": {
+    "title": "Files",
+    "stageTitle": "Stage files",
+    "empty": "No files yet.",
+    "attach": "Attach file",
+    "uploading": "Uploading…",
+    "download": "Download",
+    "remove": "Delete file",
+    "confirmRemove": "Delete \"{{name}}\"?",
+    "tooLarge": "The file exceeds the {{max}} limit.",
+    "hint": "Up to {{max}} per file."
+  },
+  "stageForm": {
+    "addTitle": "New stage ({{order}})",
+    "add": "Add stage",
+    "edit": "Edit stage",
+    "name": "Stage name",
+    "side": "Depends on",
+    "owner": "Owner",
+    "ownerIs": "Owner: {{name}}",
+    "plannedStart": "Planned start",
+    "plannedEnd": "Planned end",
+    "description": "Description",
+    "descriptionHint": "What happens in this stage and what is delivered at the end.",
+    "dependsOnPrevious": "Starts when \"{{name}}\" is finished"
+  },
+  "requestForm": {
+    "open": "Ask the client",
+    "title": "New client request",
+    "what": "What do you need?",
+    "whatHint": "e.g. Product catalog in Excel",
+    "type": "Type",
+    "stage": "Stage",
+    "noStage": "None (general)",
+    "dueAt": "Due date",
+    "details": "Details for the client",
+    "detailsHint": "Format, examples, who to send it to…",
+    "blocking": "The stage cannot finish until the client delivers it",
+    "notice": "The client will see it in their portal and get an email notice.",
+    "submit": "Send to client"
+  },
+  "requestType": {
+    "information": "Information",
+    "document": "Document",
+    "data_upload": "Data upload",
+    "access": "Access",
+    "approval": "Approval",
+    "meeting": "Meeting"
+  },
+  "account": {
+    "title": "My account",
+    "lead": "Your details and password.",
+    "name": "Name",
+    "role": "Role",
+    "passwordTitle": "Change password",
+    "current": "Current password",
+    "new": "New password",
+    "newHint": "At least {{min}} characters. An easy-to-remember phrase is safer than a short word.",
+    "tooShort": "Too short: at least {{min}} characters.",
+    "confirm": "Repeat the new password",
+    "mismatch": "Does not match the new password.",
+    "changed_one": "Password changed. {{count}} session on another device was signed out.",
+    "changed_other": "Password changed. {{count}} sessions on other devices were signed out.",
+    "saving": "Saving…",
+    "change": "Change password"
+  },
+  "settings": {
+    "lead": "Instance settings.",
+    "email": {
+      "title": "Outgoing email",
+      "sender": "Sender",
+      "server": "SMTP server",
+      "user": "SMTP user",
+      "ready": "Ready to send",
+      "notReady": "SMTP password missing: notices are recorded but not sent",
+      "channel": "Email channel active",
+      "spf": "Domain SPF verified",
+      "dkim": "Domain DKIM verified",
+      "howTo": "To enable sending, add SMTP_PASSWORD (an app password for the sender account) to the server .env and restart the API and worker.",
+      "counts": {
+        "sent": "Sent",
+        "pending": "Queued",
+        "failed": "Failed",
+        "skipped": "Not sent"
+      },
+      "testTo": "Send a test email to",
+      "sendTest": "Send test",
+      "sending": "Sending…",
+      "testOk": "Test email sent. Check the inbox (and the spam folder).",
+      "testFailed": "Could not send: {{error}}",
+      "recent": "Latest notices",
+      "noRecent": "No notices have been generated yet.",
+      "when": "Date",
+      "to": "To",
+      "subject": "Subject",
+      "status": {
+        "sent": "Sent",
+        "pending": "Queued",
+        "failed": "Failed",
+        "skipped": "Not sent"
+      }
+    }
   }
 }

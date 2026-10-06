@@ -1,4 +1,5 @@
 import type {
+  AttachmentDto,
   ChecklistItemDto,
   ClientRequestDto,
   PriorityDto,
@@ -7,6 +8,7 @@ import type {
   TypeDto,
 } from "../types/dto.js";
 import type {
+  AttachmentRow,
   ChecklistItemRow,
   ClientRequestRow,
   PriorityRow,
@@ -82,5 +84,19 @@ export function toClientRequestDto(r: ClientRequestRow): ClientRequestDto {
     submittedAt: orNull(r.submitted_at),
     reviewedAt: orNull(r.reviewed_at),
     rejectionReason: orNull(r.rejection_reason),
+  };
+}
+
+export function toAttachmentDto(a: AttachmentRow): AttachmentDto {
+  return {
+    id: a.id,
+    name: a.original_name || a.file,
+    mimeType: a.mime_type,
+    size: a.size_bytes,
+    stageId: orNull(a.stage),
+    clientRequestId: orNull(a.client_request),
+    uploadedBy: ref(a.expand?.uploaded_by),
+    created: a.created,
+    url: `/api/v1/attachments/${a.id}/download`,
   };
 }

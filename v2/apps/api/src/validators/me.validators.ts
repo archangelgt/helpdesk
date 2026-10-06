@@ -11,3 +11,12 @@ export const preferencesSchema = z
   .refine((v) => Object.keys(v).length > 0, { message: "Al menos una preferencia" });
 
 export type PreferencesInput = z.infer<typeof preferencesSchema>;
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(200),
+    newPassword: z.string().min(10).max(72),
+  })
+  .strict();
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

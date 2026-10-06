@@ -608,6 +608,32 @@ Tickets, tareas e implementaciones ya funcionan de punta a punta sobre la base n
 - **Web**: Mi trabajo con contadores reales; Tickets y Tareas con vistas, "solo asignados a mí", búsqueda y alta rápida por título; detalle de caso con transiciones, responsable, prioridad, fecha límite, checklist y conversación (pública o interna); Implementaciones con el diseño aprobado, ahora con acciones (estado de etapas, checklist, entregar, aceptar o devolver requerimientos, bitácora) y formulario de nueva implementación desde plantilla; Clientes (lista y alta). Los clientes solo ven Mi trabajo, Tickets e Implementaciones.
 - **Sigue en la fase 1**: adjuntos, configuración y asistente inicial, conector erpsys, tablero con modos, portal del cliente, correos, API pública, dashboard, CLI de instancias y cambio de contraseña.
 
+### 9.3 Adjuntos, avisos por correo y cuenta (fase 1, segunda entrega, 2026-10-06)
+
+- **Descripción y etapas desde la web**: el alta rápida de tickets y tareas se abre al escribir el título para agregar descripción (y prioridad, para el personal). En el detalle, el personal con `work_item.update` edita la descripción. En una implementación (con o sin plantilla) el personal con `stage.manage` agrega etapas (nombre, lado responsable, responsable, fechas, descripción y si depende de la anterior) y edita las existentes; con `client_request.create` le pide cosas al cliente (tipo, etapa, fecha límite, si bloquea la etapa).
+- **Adjuntos** (`attachments`): hasta 25 MB por archivo (nginx acepta 26 MB). El archivo está protegido en PocketBase y solo se descarga a través de la API, que revisa la visibilidad del caso; el cliente no ve archivos de comentarios internos ni de etapas ocultas. Cada adjunto tiene **un solo dueño** (caso, comentario, etapa o requerimiento) y el caso se deduce de ese dueño. El cliente adjunta a sus tickets y a sus entregas de requerimientos; el personal también a etapas (evidencia). Borra quien lo subió o el personal con `work_item.update`.
+- **Avisos por correo**:
+  - Servicio **`worker`** aparte (misma imagen que la API, `node dist/worker.js`). Cada 5 s toma los eventos del `event_outbox` y los convierte en `notifications` según `notification_rules`. Los avisos y el "entregado" del evento van en el mismo batch: un reintento no duplica avisos. Reintenta con espera creciente; a los 5 fallos el evento queda `dead`. Healthcheck por latido en `/tmp/worker-heartbeat`.
+  - **Destinatarios**: solicitante, responsable, dueño de la etapa, contactos del cliente (los de `client_contacts` con avisos; si no hay, sus administradores), equipo, participantes, ejecutivo de cuenta y jefes. A los jefes solo les llega lo que hacen los clientes o el sistema.
+  - Nunca se avisa a quien hizo la acción, ni a usuarios suspendidos o que silenciaron ese evento. A un cliente solo le llegan eventos visibles al cliente, de su empresa y de etapas visibles.
+  - Los cambios de estado automáticos y los de implementaciones no se avisan, porque ya hay eventos más específicos.
+  - **Plantillas** en es/en/pt según el idioma del destinatario, con HTML en el color de la marca, versión de texto y botón al caso.
+  - **SMTP** por variables de entorno (`SMTP_HOST/PORT/SECURE/USER/PASSWORD`, `MAIL_FROM`, `MAIL_REPLY_TO`). Lo que falte sale del remitente por defecto en `email_senders`: migración `1790950010_email_sender`, **soporte@erpsys.pro** por `smtp.zoho.com:465`. La contraseña nunca va en la base ni en git, solo en `v2/docker/.env`.
+  - **Sin `SMTP_PASSWORD`** los avisos se registran como `skipped`: no se acumulan para salir de golpe cuando se active el correo.
+- **Mi cuenta** (`/cuenta`, desde el nombre en la barra superior): datos del usuario y cambio de contraseña. Pide la actual y una nueva de 10 a 72 caracteres, tiene límite de intentos y cierra las demás sesiones.
+- **Configuración** (`/configuracion`, `settings.manage`): estado del correo saliente (servidor, remitente, SPF/DKIM, contadores), correo de prueba y últimos avisos.
+- **Pruebas**: 126 comprobaciones. Se suman descripción, adjuntos (integridad, nombre UTF-8, aislamiento, límite de tamaño, etapas y requerimientos), cambio de contraseña y avisos de punta a punta con un SMTP falso (Mailpit): destinatarios correctos, sin notas internas, sin avisos entre clientes y remitente soporte@erpsys.pro.
+- **Endpoints nuevos**:
+
+| Método | Ruta | Uso |
+|---|---|---|
+| POST | `/api/v1/me/password` | cambiar la contraseña propia |
+| POST | `/api/v1/work-items/:id/attachments` | subir archivo (multipart; opcional `stageId` o `clientRequestId`) |
+| GET / DELETE | `/api/v1/attachments/:id/download`, `/attachments/:id` | descargar con la sesión; borrar |
+| GET / POST | `/api/v1/notifications/status`, `/notifications/test` | estado del correo y correo de prueba (`settings.manage`) |
+
+- **Sigue en la fase 1**: configuración y asistente inicial, conector erpsys, tablero con modos, portal del cliente (vista dedicada), API pública, dashboard, CLI de instancias, recordatorios de requerimientos vencidos y entrada de correos (responder por email).
+
 ---
 
 ## 10. Integraciones y APIs

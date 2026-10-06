@@ -20,6 +20,9 @@ const en: Record<keyof typeof es, string> = {
   "stage.client_requests_pending": "The stage cannot be completed: required client requests are not accepted yet.",
   "stage.requires_client_approval": "This stage needs the client's approval: send it for review.",
   "client_request.invalid_state": "The request is not in a state that allows this action.",
+  "auth.current_password_invalid": "The current password is incorrect.",
+  "attachment.too_large": "The file is too large (maximum 25 MB).",
+  "attachment.missing_file": "No file was received.",
 };
 
 export default en;

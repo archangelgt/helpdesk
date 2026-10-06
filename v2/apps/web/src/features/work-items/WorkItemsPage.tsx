@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Plus, Search } from "lucide-react";
-import { workItemsApi } from "../../api/endpoints";
+import { adminApi, workItemsApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthProvider";
 import { DueLabel } from "../../components/DueLabel";
 import { ErrorNote, Loading } from "../../components/Feedback";
@@ -22,11 +22,109 @@ function useDebounced<T>(value: T, ms = 300): T {
   return debounced;
 }
 
-/** Lista de tickets o tareas con vistas, búsqueda y alta rápida por título. */
+/** Alta rápida: el título basta, y al enfocarlo se abre espacio para la descripción. */
+function QuickCreate({ type, section, basePath }: { type: string; section: string; basePath: string }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const staff = user?.role?.scope === "staff";
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priorityId, setPriorityId] = useState("");
+  const priorities = useApi(() => (staff && open ? adminApi.priorities() : Promise.resolve([])), [staff, open]);
+  const create = useAction();
+
+  const reset = () => {
+    setTitle("");
+    setDescription("");
+    setPriorityId("");
+    setOpen(false);
+    create.clearError();
+  };
+
+  return (
+    <form
+      className={`card quick-create${open ? " open" : ""}`}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!title.trim()) return;
+        const item = await create.run(() =>
+          workItemsApi.create({
+            type,
+            title: title.trim(),
+            ...(description.trim() && { description: description.trim() }),
+            ...(priorityId && { priorityId }),
+          }),
+        );
+        if (item) navigate(`${basePath}/${item.id}`);
+      }}
+    >
+      <div className="quick-create-row">
+        <Plus size={18} aria-hidden="true" />
+        <input
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
+          placeholder={t(`work.${section}NewPlaceholder`)}
+          aria-label={t(`work.${section}NewPlaceholder`)}
+          maxLength={200}
+        />
+        {!open && (
+          <button type="submit" className="btn btn-primary-sm" disabled={create.busy || !title.trim()}>
+            {t("work.create")}
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="quick-create-more">
+          <label className="field">
+            {t("work.fields.description")}
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              maxLength={20_000}
+              placeholder={t(`work.${section}DescriptionPlaceholder`)}
+            />
+          </label>
+          {staff && (
+            <label className="field priority-field">
+              {t("work.fields.priority")}
+              <select value={priorityId} onChange={(e) => setPriorityId(e.target.value)}>
+                <option value="">{t("work.defaultPriority")}</option>
+                {(priorities.data ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {t(p.labelKey, { defaultValue: p.name })}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <p className="hint">{t("work.attachAfterCreate")}</p>
+          {create.error && <p className="form-error">{create.error}</p>}
+          <div className="btn-row">
+            <button type="submit" className="btn btn-primary-sm" disabled={create.busy || !title.trim()}>
+              {t("work.create")}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={reset} disabled={create.busy}>
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+}
+
+/** Lista de tickets o tareas con vistas, búsqueda y alta rápida. */
 export function WorkItemsPage({ type, section, basePath }: { type: string; section: string; basePath: string }) {
   const { t } = useTranslation();
   const { user, can } = useAuth();
-  const navigate = useNavigate();
   const isClient = user?.role?.scope === "client";
   const [view, setView] = useState<WorkItemView>("open");
   const [mine, setMine] = useState(false);
@@ -41,8 +139,6 @@ export function WorkItemsPage({ type, section, basePath }: { type: string; secti
     [type, view, mine, q, page],
   );
 
-  const [title, setTitle] = useState("");
-  const create = useAction();
   const canCreate = can("work_item.create") && (type === "support" || !isClient);
 
   return (
@@ -54,30 +150,7 @@ export function WorkItemsPage({ type, section, basePath }: { type: string; secti
         </div>
       </header>
 
-      {canCreate && (
-        <form
-          className="card quick-create"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (!title.trim()) return;
-            const item = await create.run(() => workItemsApi.create({ type, title: title.trim() }));
-            if (item) navigate(`${basePath}/${item.id}`);
-          }}
-        >
-          <Plus size={18} aria-hidden="true" />
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t(`work.${section}NewPlaceholder`)}
-            aria-label={t(`work.${section}NewPlaceholder`)}
-            maxLength={200}
-          />
-          <button type="submit" className="btn btn-primary-sm" disabled={create.busy || !title.trim()}>
-            {t("work.create")}
-          </button>
-          {create.error && <p className="form-error">{create.error}</p>}
-        </form>
-      )}
+      {canCreate && <QuickCreate type={type} section={section} basePath={basePath} />}
 
       <div className="toolbar">
         <div className="tabs" role="tablist">

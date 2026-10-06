@@ -5,6 +5,8 @@ import { ArrowLeft } from "lucide-react";
 import { stagesApi, workItemsApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthProvider";
 import { ActivityFeed, CommentBox } from "../../components/Activity";
+import { Attachments } from "../../components/Attachments";
+import { DescriptionCard } from "../../components/DescriptionCard";
 import { ErrorNote, Loading } from "../../components/Feedback";
 import { Checklist } from "../../components/Checklist";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -52,9 +54,11 @@ export function WorkItemDetailPage({ section, basePath }: { section: string; bas
 
       <div className="detail-grid">
         <div className="stack">
+          <DescriptionCard item={item} onChange={refresh} />
+
           <section className="card">
-            <h2 className="card-title">{t("work.fields.description")}</h2>
-            {item.description ? <p className="prewrap">{item.description}</p> : <p className="muted small">{t("work.noDescription")}</p>}
+            <h2 className="card-title">{t("files.title")}</h2>
+            <Attachments workItemId={item.id} files={item.attachments} canUpload={can("comment.create_public")} onChange={detail.reload} />
           </section>
 
           {(item.checklist.length > 0 || canEditChecklist) && (

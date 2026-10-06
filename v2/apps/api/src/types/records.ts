@@ -213,6 +213,26 @@ export interface CommentRow extends RecordModel {
   expand?: { author?: UserRow };
 }
 
+export interface AttachmentRow extends RecordModel {
+  work_item: string;
+  comment: string;
+  stage: string;
+  client_request: string;
+  file: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  purpose: "general" | "evidence" | "client_submission" | "template_file";
+  uploaded_by: string;
+  created: string;
+  expand?: {
+    uploaded_by?: UserRow;
+    comment?: CommentRow;
+    stage?: Pick<StageRow, "work_item">;
+    client_request?: Pick<ClientRequestRow, "work_item" | "stage">;
+  };
+}
+
 export interface StatusHistoryRow extends RecordModel {
   work_item: string;
   from_status: string;

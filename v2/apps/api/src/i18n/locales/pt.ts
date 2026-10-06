@@ -20,6 +20,9 @@ const pt: Record<keyof typeof es, string> = {
   "stage.client_requests_pending": "A etapa não pode ser concluída: há solicitações obrigatórias do cliente sem aceitar.",
   "stage.requires_client_approval": "Esta etapa precisa da aprovação do cliente: envie para revisão.",
   "client_request.invalid_state": "A solicitação não está em um estado que permita esta ação.",
+  "auth.current_password_invalid": "A senha atual está incorreta.",
+  "attachment.too_large": "O arquivo é grande demais (máximo 25 MB).",
+  "attachment.missing_file": "Nenhum arquivo foi recebido.",
 };
 
 export default pt;

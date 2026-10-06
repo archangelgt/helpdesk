@@ -1,4 +1,4 @@
-import { pbDate } from "../db/pocketbase.js";
+import { newRecordId, pbDate } from "../db/pocketbase.js";
 import { unitOfWork, type WriteOp } from "../models/unit-of-work.model.js";
 import type { ActivityDto } from "../types/dto.js";
 import { Errors } from "../utils/errors.js";
@@ -17,11 +17,13 @@ export const commentsService = {
     const item = await loadVisibleWorkItem(actor, workItemId);
     const catalog = await catalogCache.get();
 
+    const commentId = newRecordId();
     const ops: WriteOp[] = [
       {
         op: "create",
         collection: "comments",
         data: {
+          id: commentId,
           work_item: item.id,
           stage: input.stageId ?? "",
           client_request: input.clientRequestId ?? "",
@@ -33,7 +35,12 @@ export const commentsService = {
     ];
     const events: DomainEvent[] = [];
     if (visibility === "public") {
-      events.push({ code: "comment.public_added", workItemId: item.id, actorId: actor.userId, data: { byClient: actor.isClient } });
+      events.push({
+        code: "comment.public_added",
+        workItemId: item.id,
+        actorId: actor.userId,
+        data: { byClient: actor.isClient, commentId, excerpt: input.body.slice(0, 1000) },
+      });
     }
 
     const itemUpdate: Record<string, unknown> = {};

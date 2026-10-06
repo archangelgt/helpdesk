@@ -1,9 +1,10 @@
 import { clientsModel } from "../models/clients.model.js";
 import { rolesModel } from "../models/roles.model.js";
+import { sessionsModel } from "../models/sessions.model.js";
 import { usersModel } from "../models/users.model.js";
 import type { UserProfile } from "../types/domain.js";
 import { Errors } from "../utils/errors.js";
-import type { PreferencesInput } from "../validators/me.validators.js";
+import type { ChangePasswordInput, PreferencesInput } from "../validators/me.validators.js";
 import { permissionService } from "./permission.service.js";
 
 export const profileService = {
@@ -23,6 +24,16 @@ export const profileService = {
       theme: user.theme || null,
       permissions,
     };
+  },
+
+  /** Cambia la contraseña y cierra las demás sesiones del usuario (la actual sigue abierta). */
+  async changePassword(userId: string, sessionId: string, input: ChangePasswordInput): Promise<{ closedSessions: number }> {
+    const user = await usersModel.findById(userId);
+    if (!user) throw Errors.unauthorized();
+    if (!(await usersModel.verifyPassword(user.email, input.currentPassword))) throw Errors.currentPasswordInvalid();
+    if (input.currentPassword === input.newPassword) throw Errors.validation([{ field: "newPassword", code: "same_password", message: "" }]);
+    await usersModel.setPassword(userId, input.newPassword);
+    return { closedSessions: await sessionsModel.revokeAllForUser(userId, sessionId) };
   },
 
   async updatePreferences(userId: string, input: PreferencesInput): Promise<UserProfile> {

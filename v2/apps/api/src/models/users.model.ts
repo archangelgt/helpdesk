@@ -32,6 +32,11 @@ export const usersModel = {
     return pb.collection(COLLECTION).update<UserRecord>(id, data);
   },
 
+  async setPassword(id: string, password: string): Promise<void> {
+    await ensureAdminAuth();
+    await pb.collection(COLLECTION).update(id, { password, passwordConfirm: password });
+  },
+
   /** Usuarios activos cuyo rol tiene alcance `scope` (personal interno o de clientes). */
   async listByScope(scope: "staff" | "client", clientId?: string): Promise<(UserRow & { expand?: { role?: { code: string; name: string } } })[]> {
     await ensureAdminAuth();

@@ -30,6 +30,7 @@ export function errorHandler(error: FastifyError | AppError | ClientResponseErro
   }
 
   if ("statusCode" in error && error.statusCode === 429) return send(reply, request, 429, "common.too_many_requests");
+  if ("code" in error && error.code === "FST_REQ_FILE_TOO_LARGE") return send(reply, request, 413, "attachment.too_large");
   if ("statusCode" in error && error.statusCode && error.statusCode < 500) {
     return send(reply, request, error.statusCode, "validation.invalid");
   }

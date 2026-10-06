@@ -10,6 +10,8 @@ import { ImplementationsPage } from "../features/implementations/Implementations
 import { ImplementationDetailPage } from "../features/implementations/ImplementationDetailPage";
 import { WorkItemDetailPage } from "../features/work-items/WorkItemDetailPage";
 import { WorkItemsPage } from "../features/work-items/WorkItemsPage";
+import { AccountPage } from "../features/account/AccountPage";
+import { SettingsPage } from "../features/settings/SettingsPage";
 
 export function App() {
   return (
@@ -29,7 +31,8 @@ export function App() {
               <Route path="clientes" element={<ClientsPage />} />
               <Route path="reportes" element={<ComingSoonPage section="reports" phase={1} />} />
               <Route path="chat" element={<ComingSoonPage section="chat" phase={2} />} />
-              <Route path="configuracion" element={<ComingSoonPage section="settings" phase={1} />} />
+              <Route path="configuracion" element={<SettingsPage />} />
+              <Route path="cuenta" element={<AccountPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Route>

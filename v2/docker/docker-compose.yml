@@ -1,5 +1,5 @@
-# Helpdesk v2: una instancia (web + api + PocketBase).
-# Se irán sumando worker y redis según el roadmap (sección 4.2).
+# Helpdesk v2: una instancia (web + api + worker + PocketBase).
+# El worker usa la misma imagen que la API: procesa el outbox y envía los avisos por correo.
 # La API no publica puerto: la web la expone en /api/ por la red interna.
 #
 #   cp .env.example .env   # rellenar secretos
@@ -39,6 +39,40 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL in .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: &smtp-env
+        SMTP_HOST: ${SMTP_HOST:-}
+        SMTP_PORT: ${SMTP_PORT:-}
+        SMTP_SECURE: ${SMTP_SECURE:-}
+        SMTP_USER: ${SMTP_USER:-}
+        SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+        MAIL_FROM: ${MAIL_FROM:-}
+        MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
+
+  worker:
+    image: helpdesk-v2-api
+    container_name: helpdesk-v2-worker
+    restart: always
+    command: ["node", "dist/worker.js"]
+    depends_on:
+      api:
+        condition: service_started
+      pocketbase:
+        condition: service_healthy
+    environment:
+      POCKETBASE_URL: http://pocketbase:8090
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL:?Set PB_ADMIN_EMAIL in .env}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD:?Set PB_ADMIN_PASSWORD in .env}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?Set JWT_PRIVATE_KEY in .env}
+      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      <<: *smtp-env
+    healthcheck:
+      # El worker escribe un latido en cada vuelta; si lleva más de 2 minutos sin hacerlo está atascado.
+      test: ["CMD-SHELL", "test $$(( $$(date +%s) - $$(cut -c1-10 /tmp/worker-heartbeat) )) -lt 120"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
 
   pocketbase:
     build:

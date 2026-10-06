@@ -11,4 +11,9 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get("/users/assignable", adminController.assignableUsers);
   app.get("/users/client-contacts", adminController.clientContacts);
   app.get("/templates", adminController.templates);
+  app.get("/notifications/status", adminController.notificationsStatus);
+  app.post("/notifications/test", {
+    config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+    handler: adminController.sendTestEmail,
+  });
 }

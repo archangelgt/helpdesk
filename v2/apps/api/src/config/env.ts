@@ -23,6 +23,20 @@ const schema = z.object({
   PUBLIC_URL: z.string().url(),
   COOKIE_SECURE: boolString.default("true"),
   LOGIN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+
+  /**
+   * Correo saliente. Sin SMTP_PASSWORD los avisos se registran como "skipped" y no se envían.
+   * Host, puerto y remitente vacíos = los del remitente por defecto (colección email_senders).
+   */
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().int().min(0).max(65535).default(0),
+  /** "true" = TLS directo (465), "false" = STARTTLS (587), vacío = según el puerto. */
+  SMTP_SECURE: z.enum(["true", "false", ""]).default(""),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASSWORD: z.string().default(""),
+  MAIL_FROM: z.string().default(""),
+  MAIL_REPLY_TO: z.string().default(""),
+  WORKER_POLL_MS: z.coerce.number().int().min(1000).default(5000),
 });
 
 const parsed = schema.safeParse(process.env);

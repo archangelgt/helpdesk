@@ -4,6 +4,7 @@ import {
   stagesController,
   workItemsController,
 } from "../controllers/work-items.controller.js";
+import { attachmentsController } from "../controllers/attachments.controller.js";
 import { authenticate } from "../middlewares/authenticate.js";
 import { requirePermission } from "../middlewares/authorize.js";
 
@@ -32,4 +33,8 @@ export async function workItemsRoutes(app: FastifyInstance) {
 
   app.post("/client-requests/:id/submit", clientRequestsController.submit);
   app.post("/client-requests/:id/review", clientRequestsController.review);
+
+  app.post("/work-items/:id/attachments", attachmentsController.upload);
+  app.get("/attachments/:id/download", attachmentsController.download);
+  app.delete("/attachments/:id", attachmentsController.remove);
 }

@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { profileService } from "../services/profile.service.js";
 import { parse } from "../validators/common.js";
-import { preferencesSchema } from "../validators/me.validators.js";
+import { changePasswordSchema, preferencesSchema } from "../validators/me.validators.js";
 
 export const meController = {
   async get(request: FastifyRequest, reply: FastifyReply) {
@@ -11,5 +11,10 @@ export const meController = {
   async updatePreferences(request: FastifyRequest, reply: FastifyReply) {
     const input = parse(preferencesSchema, request.body);
     return reply.send(await profileService.updatePreferences(request.auth!.userId, input));
+  },
+
+  async changePassword(request: FastifyRequest, reply: FastifyReply) {
+    const input = parse(changePasswordSchema, request.body);
+    return reply.send(await profileService.changePassword(request.auth!.userId, request.auth!.sessionId, input));
   },
 };

@@ -138,6 +138,19 @@ export interface WorkItemDetailDto extends WorkItemSummaryDto {
   stages: StageDto[];
   checklist: ChecklistItemDto[];
   clientRequests: ClientRequestDto[];
+  attachments: AttachmentDto[];
+}
+
+export interface AttachmentDto {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  stageId: string | null;
+  clientRequestId: string | null;
+  uploadedBy: Ref | null;
+  created: string;
+  url: string;
 }
 
 export type ActivityDto =
@@ -176,4 +189,22 @@ export interface TemplateDto {
   description: string | null;
   typeId: string;
   stageCount: number;
+}
+
+export interface NotificationsStatusDto {
+  smtp: { host: string; port: number; secure: boolean; user: string; from: string; ready: boolean };
+  sender: { id: string; name: string; email: string; spfOk: boolean; dkimOk: boolean } | null;
+  emailChannelActive: boolean;
+  notifications: Record<"pending" | "sent" | "failed" | "skipped", number>;
+  outbox: Record<"pending" | "failed" | "dead", number>;
+  recent: {
+    id: string;
+    to: string;
+    subject: string;
+    status: "pending" | "sent" | "failed" | "skipped";
+    attempts: number;
+    error: string;
+    created: string;
+    sentAt: string | null;
+  }[];
 }

@@ -1,12 +1,13 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { actorOf } from "../middlewares/authenticate.js";
-import { clientsService, templatesService } from "../services/admin.service.js";
+import { clientsService, notificationsAdminService, templatesService } from "../services/admin.service.js";
 import { usersService } from "../services/users.service.js";
 import {
   clientContactsQuerySchema,
   createClientSchema,
   listClientsSchema,
   templatesQuerySchema,
+  testEmailSchema,
   updateClientSchema,
 } from "../validators/admin.validators.js";
 import { parse } from "../validators/common.js";
@@ -39,5 +40,14 @@ export const adminController = {
   async templates(request: FastifyRequest, reply: FastifyReply) {
     const { type } = parse(templatesQuerySchema, request.query);
     return reply.send({ items: await templatesService.list(actorOf(request), type) });
+  },
+
+  async notificationsStatus(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await notificationsAdminService.status(actorOf(request)));
+  },
+
+  async sendTestEmail(request: FastifyRequest, reply: FastifyReply) {
+    const { to } = parse(testEmailSchema, request.body);
+    return reply.send(await notificationsAdminService.sendTest(actorOf(request), to));
   },
 };

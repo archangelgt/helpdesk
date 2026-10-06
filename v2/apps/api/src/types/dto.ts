@@ -130,6 +130,19 @@ export interface WorkItemDetailDto extends WorkItemSummaryDto {
   stages: StageDto[];
   checklist: ChecklistItemDto[];
   clientRequests: ClientRequestDto[];
+  attachments: AttachmentDto[];
+}
+
+export interface AttachmentDto {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  stageId: string | null;
+  clientRequestId: string | null;
+  uploadedBy: Ref | null;
+  created: string;
+  url: string;
 }
 
 export type ActivityDto =

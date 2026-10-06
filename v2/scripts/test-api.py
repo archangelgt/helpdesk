@@ -5,11 +5,13 @@ Prueba de integración de la API v2 (casos, etapas, requerimientos al cliente y 
 Debe correrse contra una base DESECHABLE (crea clientes, usuarios y casos):
   v2/scripts/test-api.sh        # levanta PocketBase + API temporales y corre esta prueba
 
-Variables: API_URL, PB_URL, PB_EMAIL, PB_PASSWORD.
+Variables: API_URL, PB_URL, PB_EMAIL, PB_PASSWORD, MAIL_URL (Mailpit).
 """
 import json
 import os
 import sys
+import time
+import uuid
 import urllib.error
 import urllib.request
 
@@ -39,6 +41,36 @@ def call(method, url, body=None, token=None, lang="es"):
             return e.code, json.loads(raw) if raw else None
         except ValueError:
             return e.code, raw.decode()
+
+
+def upload(item_id, name, content, token, fields=None, mime="application/octet-stream"):
+    boundary = uuid.uuid4().hex
+    parts = []
+    for key, value in (fields or {}).items():
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode())
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{name}"\r\nContent-Type: {mime}\r\n\r\n'.encode()
+                 + content + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    req = urllib.request.Request(f"{API}/work-items/{item_id}/attachments", data=b"".join(parts), method="POST",
+                                 headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req) as res:
+            return res.status, json.loads(res.read())
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            return e.code, json.loads(raw)
+        except ValueError:
+            return e.code, raw.decode(errors="replace")
+
+
+def download(attachment_id, token):
+    req = urllib.request.Request(f"{API}/attachments/{attachment_id}/download", headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req) as res:
+            return res.status, res.read(), res.headers
+    except urllib.error.HTTPError as e:
+        return e.code, e.read(), e.headers
 
 
 def check(name, condition, info=None):
@@ -360,6 +392,106 @@ s, res = call("POST", f"{API}/work-items", {"type": "support", "title": "x", "pr
 check("prioridad inexistente → 400", s == 400, res)
 s, res = call("POST", f"{API}/work-items", {"type": "support", "title": ""}, OWNER, lang="en")
 check("validación en inglés", s == 400 and res["error"]["message"] == "The submitted data is not valid.", res)
+
+# --- Descripción y archivos -------------------------------------------------------------
+print("Descripción y archivos")
+s, desc = call("PATCH", f"{API}/work-items/{ta['id']}", {"description": "Pasos:\n1. Abrir factura\n2. Imprimir"}, TECH)
+check("el equipo edita la descripción", s == 200 and desc["description"].startswith("Pasos:"), desc)
+s, res = call("POST", f"{API}/work-items", {"type": "support", "title": "Con detalle", "description": "Detalle inicial"}, OWNER)
+check("crear con descripción", s == 201 and res["description"] == "Detalle inicial", res)
+
+pdf = b"%PDF-1.4 prueba de adjunto " + bytes(range(256))
+s, att = upload(ta["id"], "factura ñ.pdf", pdf, CA, mime="application/pdf")
+check("cliente adjunta a su ticket", s == 201 and att["name"] == "factura ñ.pdf" and att["size"] == len(pdf), att)
+s, detail = call("GET", f"{API}/work-items/{ta['id']}", token=TECH)
+check("el adjunto aparece en el detalle", [a["id"] for a in detail["attachments"]] == [att["id"]], detail.get("attachments"))
+s, body, headers = download(att["id"], OWNER)
+check("descarga íntegra con nombre UTF-8", s == 200 and body == pdf and "filename*=UTF-8''factura%20%C3%B1.pdf" in headers.get("Content-Disposition", ""),
+      [s, headers.get("Content-Disposition")])
+s, _, _ = download(att["id"], CB)
+check("otro cliente no descarga (404)", s == 404)
+s, res = upload(ta["id"], "x.txt", b"hola", CB)
+check("otro cliente no adjunta (404)", s == 404, res)
+s, res = upload(imp["id"], "x.txt", b"hola", CA, {"stageId": imp["stages"][0]["id"]})
+check("cliente no adjunta a etapas", s == 403, res)
+s, res = upload(ta["id"], "x.txt", b"hola", OWNER, {"stageId": imp["stages"][0]["id"]})
+check("etapa de otro caso → 400", s == 400, res)
+s, res = upload(ta["id"], "grande.bin", b"0" * (25 * 1024 * 1024 + 10), OWNER)
+check("archivo mayor a 25 MB → 413", s == 413 and res["error"]["code"] == "attachment.too_large", res)
+s, ev = upload(imp["id"], "evidencia.png", b"\x89PNG fake", OWNER, {"stageId": imp["stages"][0]["id"]}, "image/png")
+check("evidencia en una etapa", s == 201 and ev["stageId"] == imp["stages"][0]["id"], ev)
+check("la evidencia sale en el detalle del caso", ev["id"] in [a["id"] for a in call("GET", f"{API}/work-items/{imp['id']}", token=OWNER)[1]["attachments"]])
+req = imp["clientRequests"][0]
+s, sub = upload(imp["id"], "catalogo.xlsx", b"PK fake xlsx", CA_ADMIN, {"clientRequestId": req["id"]})
+check("cliente adjunta a un requerimiento", s == 201 and sub["clientRequestId"] == req["id"], sub)
+s, detail = call("GET", f"{API}/work-items/{imp['id']}", token=CA_ADMIN)
+ids = [a["id"] for a in detail["attachments"]]
+check("el cliente ve su entrega en el detalle", sub["id"] in ids, ids)
+s, _ = call("DELETE", f"{API}/attachments/{att['id']}", token=CB)
+check("otro cliente no borra", s == 404)
+s, _ = call("DELETE", f"{API}/attachments/{att['id']}", token=CA)
+s2, detail = call("GET", f"{API}/work-items/{ta['id']}", token=TECH)
+check("quien subió el archivo lo borra", s == 204 and detail["attachments"] == [], detail.get("attachments"))
+
+# --- Cambio de contraseña ---------------------------------------------------------------
+print("Cambio de contraseña")
+s, res = call("POST", f"{API}/me/password", {"currentPassword": "mala-clave-123", "newPassword": "Nueva-clave-segura"}, VIEWER)
+check("contraseña actual incorrecta → 400", s == 400 and res["error"]["code"] == "auth.current_password_invalid", res)
+s, res = call("POST", f"{API}/me/password", {"currentPassword": PASSWORD, "newPassword": "corta"}, VIEWER)
+check("contraseña nueva corta → 400", s == 400, res)
+OTHER_VIEWER = login(viewer_u["email"])
+s, res = call("POST", f"{API}/me/password", {"currentPassword": PASSWORD, "newPassword": "Nueva-clave-segura"}, VIEWER)
+check("cambia la contraseña y cierra las otras sesiones", s == 200 and res["closedSessions"] >= 1, res)
+s, _ = call("POST", f"{API}/auth/login", {"email": viewer_u["email"], "password": PASSWORD})
+s2, _ = call("POST", f"{API}/auth/login", {"email": viewer_u["email"], "password": "Nueva-clave-segura"})
+check("entra con la nueva, no con la anterior", s == 401 and s2 == 200, [s, s2])
+
+# --- Avisos por correo ------------------------------------------------------------------
+print("Avisos por correo")
+s, res = call("GET", f"{API}/notifications/status", token=TECH)
+check("solo el dueño ve la configuración de correo", s == 403, res)
+s, st = call("GET", f"{API}/notifications/status", token=OWNER)
+check("estado del correo: remitente por defecto y SMTP listo",
+      s == 200 and st["sender"]["email"] == "soporte@erpsys.pro" and st["smtp"]["ready"] and st["smtp"]["host"] == "mailpit", st)
+s, res = call("POST", f"{API}/notifications/test", {"to": "prueba@test.local"}, OWNER)
+check("correo de prueba", s == 200 and res["ok"], res)
+
+def outbox_pending():
+    return pb_first("event_outbox", "status = 'pending' || status = 'failed'")
+
+for _ in range(60):
+    if not outbox_pending() and not pb_first("notifications", "status = 'pending'"):
+        break
+    time.sleep(1)
+check("el worker procesa todo el outbox", not outbox_pending(), outbox_pending()[:3])
+dead = pb_first("event_outbox", "status = 'dead'")
+check("ningún evento muerto", not dead, dead[:2])
+notes = pb_first("notifications", "id != ''")
+by_user = {}
+for n in notes:
+    by_user.setdefault(n["recipient"], []).append(n)
+check("avisos enviados (sin fallas)", notes and all(n["status"] == "sent" for n in notes), [(n["status"], n["last_error"]) for n in notes if n["status"] != "sent"][:3])
+check("al técnico le avisan que le asignaron el ticket",
+      any(n["payload"]["subject"].startswith("Te asignaron SOP-0002") for n in by_user.get(tech_u["id"], [])),
+      [n["payload"]["subject"] for n in by_user.get(tech_u["id"], [])])
+check("la clienta se entera de que esperan su respuesta",
+      any("Esperando" in n["payload"]["subject"] or "espera" in n["payload"]["subject"].lower() for n in by_user.get(ca_user["id"], [])),
+      [n["payload"]["subject"] for n in by_user.get(ca_user["id"], [])])
+check("el cliente B no recibe avisos de A", cb_user["id"] not in by_user, by_user.get(cb_user["id"]))
+check("el comentario de la clienta le llega al técnico y no a ella",
+      any(n["payload"]["subject"].startswith("Nuevo comentario en SOP-0002") and "Ya probé de nuevo" in n["payload"]["html"] for n in by_user.get(tech_u["id"], []))
+      and not any("Nuevo comentario en SOP-0002" in n["payload"]["subject"] for n in by_user.get(ca_user["id"], [])),
+      [n["payload"]["subject"] for n in by_user.get(tech_u["id"], [])])
+check("las notas internas no salen por correo", not any("Nota interna del equipo" in n["payload"]["html"] for n in notes))
+client_subjects = " | ".join(n["payload"]["subject"] for uid in (ca_user["id"], ca_admin["id"]) for n in by_user.get(uid, []))
+check("los clientes no reciben avisos internos (asignaciones)", "Te asignaron" not in client_subjects, client_subjects)
+check("el admin del cliente recibe requerimientos de la implementación", "Necesitamos algo de ti" in client_subjects, client_subjects)
+
+_, mails = call("GET", os.environ["MAIL_URL"] + "/api/v1/messages?limit=200")
+subjects = [m["Subject"] for m in mails["messages"]]
+check("los correos llegan al servidor SMTP", mails["total"] == len(notes) + 1 and any("correo de prueba" in x for x in subjects), [mails["total"], len(notes)])
+first = mails["messages"][0]
+check("remitente soporte@erpsys.pro", first["From"]["Address"] == "soporte@erpsys.pro", first["From"])
 
 print(f"\n{passed} comprobaciones correctas, {len(failed)} fallidas")
 if failed:

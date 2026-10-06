@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, ArrowLeft, Inbox } from "lucide-react";
+import { AlertCircle, ArrowLeft, Inbox, Pencil, Plus } from "lucide-react";
 import { stagesApi, workItemsApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthProvider";
 import { ActivityFeed, CommentBox } from "../../components/Activity";
+import { Attachments } from "../../components/Attachments";
+import { DescriptionCard } from "../../components/DescriptionCard";
 import { Checklist } from "../../components/Checklist";
 import { DueLabel } from "../../components/DueLabel";
 import { ErrorNote, Loading } from "../../components/Feedback";
@@ -16,6 +18,7 @@ import type { StageDto, WorkItemDetailDto } from "../../types/api";
 import { formatDate } from "../../utils/dates";
 import { WorkItemFields } from "../work-items/WorkItemFields";
 import { ClientRequestRow } from "./ClientRequestRow";
+import { AddStageForm, EditStageForm, NewClientRequestForm } from "./StageForms";
 
 function StageDates({ stage }: { stage: StageDto }) {
   const { t, i18n } = useTranslation();
@@ -28,10 +31,12 @@ function StageDates({ stage }: { stage: StageDto }) {
   );
 }
 
-function StagePanel({ stage, onChange }: { stage: StageDto; onChange: (item: WorkItemDetailDto) => void }) {
+function StagePanel({ item, stage, onChange, onReload }: { item: WorkItemDetailDto; stage: StageDto; onChange: (item: WorkItemDetailDto) => void; onReload: () => void }) {
   const { t } = useTranslation();
   const { user, can } = useAuth();
-  const canManage = user?.role?.scope === "staff" && can("stage.manage");
+  const staff = user?.role?.scope === "staff";
+  const canManage = staff && can("stage.manage");
+  const [editing, setEditing] = useState(false);
   const [newItem, setNewItem] = useState("");
   const add = useAction();
   const done = stage.checklist.filter((c) => c.isDone).length;
@@ -46,8 +51,24 @@ function StagePanel({ stage, onChange }: { stage: StageDto; onChange: (item: Wor
           {stage.checklist.length > 0 && <>{t("impl.tasksCount", { done, total: stage.checklist.length })} · </>}
           <StageDates stage={stage} />
         </span>
+        {canManage && !editing && (
+          <button type="button" className="icon-link" onClick={() => setEditing(true)} aria-label={t("stageForm.edit")} title={t("stageForm.edit")}>
+            <Pencil size={15} />
+          </button>
+        )}
       </div>
-      {stage.description && <p className="muted small stage-desc">{stage.description}</p>}
+      {editing && (
+        <EditStageForm
+          stage={stage}
+          onDone={(updated) => {
+            onChange(updated);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      )}
+      {stage.owner && <p className="muted small stage-desc">{t("stageForm.ownerIs", { name: stage.owner.name })}</p>}
+      {!editing && stage.description && <p className="muted small stage-desc">{stage.description}</p>}
       <ProgressBar value={stage.progress} />
       <Checklist items={stage.checklist} editable={canManage} onToggle={async (id, isDone) => onChange(await stagesApi.setChecklistDone(id, isDone))} />
       {canManage && (
@@ -67,6 +88,12 @@ function StagePanel({ stage, onChange }: { stage: StageDto; onChange: (item: Wor
           {add.error && <p className="form-error">{add.error}</p>}
         </form>
       )}
+      {(staff || item.attachments.some((f) => f.stageId === stage.id)) && (
+        <div className="stage-files">
+          <h3 className="mini-title">{t("files.stageTitle")}</h3>
+          <Attachments workItemId={item.id} files={item.attachments} stageId={stage.id} canUpload={staff && can("comment.create_public")} onChange={onReload} />
+        </div>
+      )}
       <TransitionBar transitions={stage.transitions} onApply={async (statusId, comment) => onChange(await stagesApi.transition(stage.id, statusId, comment))} />
     </section>
   );
@@ -75,12 +102,15 @@ function StagePanel({ stage, onChange }: { stage: StageDto; onChange: (item: Wor
 export function ImplementationDetailPage() {
   const { id = "" } = useParams();
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const isClient = user?.role?.scope === "client";
+  const canManageStages = !isClient && can("stage.manage");
+  const canAskClient = !isClient && can("client_request.create");
   const lang = i18n.resolvedLanguage ?? "es";
   const detail = useApi(() => workItemsApi.get(id), [id]);
   const activity = useApi(() => workItemsApi.activity(id), [id]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [form, setForm] = useState<"stage" | "request" | null>(null);
 
   const back = (
     <Link to="/implementaciones" className="back-link">
@@ -95,6 +125,10 @@ export function ImplementationDetailPage() {
   const refresh = (updated: WorkItemDetailDto) => {
     detail.setData(updated);
     activity.reload();
+  };
+  const formDone = (updated: WorkItemDetailDto) => {
+    refresh(updated);
+    setForm(null);
   };
   const currentId = impl.implementation?.currentStage?.id ?? null;
   const shown = impl.stages.find((s) => s.id === (selected ?? currentId)) ?? null;
@@ -138,6 +172,8 @@ export function ImplementationDetailPage() {
         </details>
       )}
 
+      {(impl.description || !isClient) && <DescriptionCard item={impl} onChange={refresh} />}
+
       {actionableWaiting.length > 0 && (
         <section className="card waiting-box">
           <h2 className="waiting-title">
@@ -146,7 +182,7 @@ export function ImplementationDetailPage() {
           <p className="muted small">{isClient ? t("impl.waitingLeadClient") : t("impl.waitingLead")}</p>
           <ul className="requests">
             {actionableWaiting.map((r) => (
-              <ClientRequestRow key={r.id} request={r} stageName={stageName(r.stageId)} onChange={refresh} />
+              <ClientRequestRow key={r.id} request={r} stageName={stageName(r.stageId)} files={impl.attachments} workItemId={impl.id} onReload={detail.reload} onChange={refresh} />
             ))}
           </ul>
         </section>
@@ -159,7 +195,7 @@ export function ImplementationDetailPage() {
           </h2>
           <ul className="requests">
             {toReview.map((r) => (
-              <ClientRequestRow key={r.id} request={r} stageName={stageName(r.stageId)} onChange={refresh} />
+              <ClientRequestRow key={r.id} request={r} stageName={stageName(r.stageId)} files={impl.attachments} workItemId={impl.id} onReload={detail.reload} onChange={refresh} />
             ))}
           </ul>
         </section>
@@ -170,12 +206,22 @@ export function ImplementationDetailPage() {
           <h2 className="section-title">
             {shown.id === currentId ? t("impl.currentStage", { order: shown.order, name: shown.name }) : t("impl.selectedStage", { order: shown.order, name: shown.name })}
           </h2>
-          <StagePanel stage={shown} onChange={refresh} />
+          <StagePanel item={impl} stage={shown} onChange={refresh} onReload={detail.reload} />
         </>
       )}
 
-      <h2 className="section-title">{t("impl.stages")}</h2>
-      {impl.stages.length === 0 && <p className="muted">{t("impl.noStages")}</p>}
+      <div className="section-head">
+        <h2 className="section-title">{t("impl.stages")}</h2>
+        {canManageStages && form !== "stage" && (
+          <button type="button" className="btn btn-ghost" onClick={() => setForm("stage")}>
+            <Plus size={15} aria-hidden="true" /> {t("stageForm.add")}
+          </button>
+        )}
+      </div>
+      {form === "stage" && <AddStageForm item={impl} onDone={formDone} onCancel={() => setForm(null)} />}
+      {impl.stages.length === 0 && form !== "stage" && (
+        <p className="muted">{canManageStages ? t("impl.noStagesManage") : t("impl.noStages")}</p>
+      )}
       <div className="stage-grid">
         {impl.stages.map((stage) => (
           <button
@@ -202,18 +248,37 @@ export function ImplementationDetailPage() {
         ))}
       </div>
 
-      {impl.clientRequests.length > 0 && (
+      {(impl.clientRequests.length > 0 || canAskClient) && (
         <>
-          <h2 className="section-title">{t("impl.clientRequests")}</h2>
-          <section className="card">
-            <ul className="requests">
-              {impl.clientRequests.map((r) => (
-                <ClientRequestRow key={r.id} request={r} stageName={stageName(r.stageId)} onChange={refresh} readOnly />
-              ))}
-            </ul>
-          </section>
+          <div className="section-head">
+            <h2 className="section-title">{t("impl.clientRequests")}</h2>
+            {canAskClient && form !== "request" && (
+              <button type="button" className="btn btn-ghost" onClick={() => setForm("request")}>
+                <Plus size={15} aria-hidden="true" /> {t("requestForm.open")}
+              </button>
+            )}
+          </div>
+          {form === "request" && (
+            <NewClientRequestForm item={impl} defaultStageId={shown?.id} onDone={formDone} onCancel={() => setForm(null)} />
+          )}
+          {impl.clientRequests.length > 0 ? (
+            <section className="card">
+              <ul className="requests">
+                {impl.clientRequests.map((r) => (
+                  <ClientRequestRow key={r.id} request={r} stageName={stageName(r.stageId)} files={impl.attachments} workItemId={impl.id} onReload={detail.reload} onChange={refresh} readOnly />
+                ))}
+              </ul>
+            </section>
+          ) : (
+            form !== "request" && <p className="muted">{t("impl.noRequests")}</p>
+          )}
         </>
       )}
+
+      <h2 className="section-title">{t("files.title")}</h2>
+      <section className="card">
+        <Attachments workItemId={impl.id} files={impl.attachments} canUpload={can("comment.create_public")} onChange={detail.reload} />
+      </section>
 
       <h2 className="section-title">{t("impl.log")}</h2>
       <section className="card">

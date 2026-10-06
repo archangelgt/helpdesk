@@ -5,6 +5,7 @@ import { Errors } from "../utils/errors.js";
 import type { CreateClientInput, UpdateClientInput } from "../validators/admin.validators.js";
 import { assertCan, type Actor } from "./actor.service.js";
 import { catalogCache } from "./catalog-cache.service.js";
+import { notificationDispatcher } from "./notifications/dispatcher.js";
 
 function clientDto(c: ClientRow, openItems = 0) {
   return {
@@ -61,5 +62,17 @@ export const templatesService = {
       typeId: t.type,
       stageCount: t.stageCount,
     }));
+  },
+};
+
+export const notificationsAdminService = {
+  async status(actor: Actor) {
+    assertCan(actor, "settings.manage");
+    return notificationDispatcher.status();
+  },
+
+  async sendTest(actor: Actor, to: string) {
+    assertCan(actor, "settings.manage");
+    return notificationDispatcher.sendTest(to);
   },
 };

@@ -1,7 +1,11 @@
-import { api } from "./client";
+import { api, apiBlob } from "./client";
 import type {
   ActivityDto,
+  AttachmentDto,
   ClientDto,
+  ClientRequestType,
+  NotificationsStatusDto,
+  ResponsibleSide,
   Page,
   PriorityDto,
   TemplateDto,
@@ -39,6 +43,27 @@ export type UpdateWorkItemBody = Partial<
   Pick<CreateWorkItemBody, "title" | "description" | "priorityId" | "clientId" | "assigneeId" | "dueAt">
 >;
 
+export interface CreateStageBody {
+  name: string;
+  description?: string;
+  side: ResponsibleSide;
+  ownerId?: string | null;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  dependsOnPrevious: boolean;
+}
+
+export type UpdateStageBody = Partial<Pick<CreateStageBody, "name" | "description" | "ownerId" | "plannedStart" | "plannedEnd">>;
+
+export interface CreateClientRequestBody {
+  title: string;
+  description?: string;
+  type: ClientRequestType;
+  stageId?: string | null;
+  dueAt?: string | null;
+  blocking: boolean;
+}
+
 function query(params: object): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -65,9 +90,25 @@ export const workItemsApi = {
   comment: (id: string, body: string, visibility: "public" | "internal") =>
     api<{ items: ActivityDto[] }>(`/work-items/${id}/comments`, json("POST", { body, visibility })).then((r) => r.items),
   addChecklistItem: (id: string, title: string) => api<WorkItemDetailDto>(`/work-items/${id}/checklist`, json("POST", { title })),
+  addStage: (id: string, body: CreateStageBody) => api<WorkItemDetailDto>(`/work-items/${id}/stages`, json("POST", body)),
+  addClientRequest: (id: string, body: CreateClientRequestBody) =>
+    api<WorkItemDetailDto>(`/work-items/${id}/client-requests`, json("POST", body)),
+};
+
+export const attachmentsApi = {
+  upload: (workItemId: string, file: File, target: { stageId?: string; clientRequestId?: string } = {}) => {
+    const form = new FormData();
+    if (target.stageId) form.append("stageId", target.stageId);
+    if (target.clientRequestId) form.append("clientRequestId", target.clientRequestId);
+    form.append("file", file, file.name);
+    return api<AttachmentDto>(`/work-items/${workItemId}/attachments`, { method: "POST", body: form });
+  },
+  download: (id: string) => apiBlob(`/attachments/${id}/download`),
+  remove: (id: string) => api<void>(`/attachments/${id}`, { method: "DELETE" }),
 };
 
 export const stagesApi = {
+  update: (id: string, body: UpdateStageBody) => api<WorkItemDetailDto>(`/stages/${id}`, json("PATCH", body)),
   transition: (id: string, statusId: string, comment?: string) =>
     api<WorkItemDetailDto>(`/stages/${id}/transition`, json("POST", { statusId, ...(comment && { comment }) })),
   addChecklistItem: (id: string, title: string) => api<WorkItemDetailDto>(`/stages/${id}/checklist`, json("POST", { title })),
@@ -88,4 +129,12 @@ export const adminApi = {
   assignableUsers: () => api<{ items: UserOption[] }>("/users/assignable").then((r) => r.items),
   templates: (type: string) => api<{ items: TemplateDto[] }>(`/templates${query({ type })}`).then((r) => r.items),
   priorities: () => api<{ items: PriorityDto[] }>("/catalog/priorities").then((r) => r.items),
+  notificationsStatus: () => api<NotificationsStatusDto>("/notifications/status"),
+  sendTestEmail: (to: string) =>
+    api<{ ok: boolean; error?: string; messageId?: string }>("/notifications/test", json("POST", { to })),
+};
+
+export const meApi = {
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api<{ closedSessions: number }>("/me/password", json("POST", { currentPassword, newPassword })),
 };

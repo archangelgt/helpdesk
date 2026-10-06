@@ -17,7 +17,9 @@
     "choose": "Elige…",
     "previous": "Anterior",
     "next": "Siguiente",
-    "pageOf": "Página {{page}} de {{total}}"
+    "pageOf": "Página {{page}} de {{total}}",
+    "edit": "Editar",
+    "save": "Guardar"
   },
   "auth": {
     "subtitle": "Inicia sesión para continuar",
@@ -39,15 +41,31 @@
     "chat": "Chat",
     "settings": "Configuración"
   },
-  "themes": { "blue": "Azul", "orange": "Naranja", "green": "Verde", "purple": "Morado", "pink": "Rosa", "slate": "Pizarra" },
-  "side": { "internal": "Nuestro equipo", "client": "Cliente", "shared": "Ambos" },
+  "themes": {
+    "blue": "Azul",
+    "orange": "Naranja",
+    "green": "Verde",
+    "purple": "Morado",
+    "pink": "Rosa",
+    "slate": "Pizarra"
+  },
+  "side": {
+    "internal": "Nuestro equipo",
+    "client": "Cliente",
+    "shared": "Ambos"
+  },
   "work": {
     "ticketsLead": "Solicitudes de soporte de los clientes.",
     "tasksLead": "Trabajo interno del equipo.",
     "ticketsNewPlaceholder": "Nuevo ticket: describe el problema en una línea",
     "tasksNewPlaceholder": "Nueva tarea: ¿qué hay que hacer?",
     "create": "Crear",
-    "views": { "open": "Abiertos", "waiting_client": "Esperando cliente", "done": "Terminados", "all": "Todos" },
+    "views": {
+      "open": "Abiertos",
+      "waiting_client": "Esperando cliente",
+      "done": "Terminados",
+      "all": "Todos"
+    },
     "onlyMine": "Solo asignados a mí",
     "search": "Buscar por número o título",
     "empty": "No hay casos en esta vista.",
@@ -57,7 +75,10 @@
     "checklist": "Checklist",
     "addChecklist": "Agregar un punto y presionar Enter",
     "commentFor": "Comentario para pasar a «{{status}}»",
-    "back": { "tickets": "Volver a tickets", "tasks": "Volver a tareas" },
+    "back": {
+      "tickets": "Volver a tickets",
+      "tasks": "Volver a tareas"
+    },
     "fields": {
       "number": "Número",
       "title": "Título",
@@ -69,7 +90,14 @@
       "requester": "Solicitante",
       "created": "Creado",
       "description": "Descripción"
-    }
+    },
+    "addDescription": "Agregar descripción",
+    "descriptionPlaceholder": "Qué pasa, desde cuándo, a quién afecta, pasos para reproducirlo…",
+    "noDescriptionEdit": "Sin descripción. Usa «Agregar descripción» para dar contexto al equipo.",
+    "ticketsDescriptionPlaceholder": "Describe el problema: qué pasa, desde cuándo, a quién afecta y cómo reproducirlo.",
+    "tasksDescriptionPlaceholder": "Detalles de la tarea: qué se espera, criterios para darla por terminada…",
+    "defaultPriority": "Prioridad por defecto",
+    "attachAfterCreate": "Podrás adjuntar archivos en cuanto se cree."
   },
   "activity": {
     "title": "Conversación e historial",
@@ -82,13 +110,18 @@
     "send": "Enviar",
     "statusChanged": "Cambió el estado de «{{from}}» a «{{to}}»",
     "statusSet": "Estado: «{{to}}»",
-    "work_item": { "created": "Creó el caso", "assigned": "Cambió el responsable" },
+    "work_item": {
+      "created": "Creó el caso",
+      "assigned": "Cambió el responsable"
+    },
     "stage": {
       "started": "Inició la etapa «{{stage}}»",
       "completed": "Completó la etapa «{{stage}}»",
       "unlocked": "Se desbloqueó la etapa «{{stage}}»"
     },
-    "implementation": { "completed": "La implementación quedó completada" },
+    "implementation": {
+      "completed": "La implementación quedó completada"
+    },
     "client_request": {
       "created": "Nuevo requerimiento al cliente: «{{request}}»",
       "submitted": "El cliente entregó «{{request}}»",
@@ -167,7 +200,9 @@
     "deliveredTitle_other": "{{count}} entregas en revisión de nuestro equipo",
     "clientRequests": "Requerimientos al cliente",
     "dependsOn": "Depende de: {{side}}",
-    "back": "Volver a implementaciones"
+    "back": "Volver a implementaciones",
+    "noStagesManage": "Esta implementación todavía no tiene etapas. Usa «Agregar etapa» para armar el plan.",
+    "noRequests": "No se le ha pedido nada al cliente."
   },
   "clients": {
     "lead": "Empresas a las que damos soporte e implementamos.",
@@ -179,10 +214,117 @@
     "openItems": "Casos abiertos",
     "search": "Buscar cliente",
     "empty": "No hay clientes.",
-    "statuses": { "active": "Activo", "inactive": "Inactivo", "prospect": "Prospecto" }
+    "statuses": {
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "prospect": "Prospecto"
+    }
   },
   "soon": {
     "title": "En construcción",
     "lead": "Esta sección llega en la fase {{phase}} del roadmap."
+  },
+  "files": {
+    "title": "Archivos",
+    "stageTitle": "Archivos de la etapa",
+    "empty": "Todavía no hay archivos.",
+    "attach": "Adjuntar archivo",
+    "uploading": "Subiendo…",
+    "download": "Descargar",
+    "remove": "Eliminar archivo",
+    "confirmRemove": "¿Eliminar «{{name}}»?",
+    "tooLarge": "El archivo supera el máximo de {{max}}.",
+    "hint": "Máximo {{max}} por archivo."
+  },
+  "stageForm": {
+    "addTitle": "Nueva etapa ({{order}})",
+    "add": "Agregar etapa",
+    "edit": "Editar etapa",
+    "name": "Nombre de la etapa",
+    "side": "Depende de",
+    "owner": "Responsable",
+    "ownerIs": "Responsable: {{name}}",
+    "plannedStart": "Inicio planeado",
+    "plannedEnd": "Fin planeado",
+    "description": "Descripción",
+    "descriptionHint": "Qué se hace en esta etapa y qué se entrega al terminarla.",
+    "dependsOnPrevious": "Empieza cuando termine «{{name}}»"
+  },
+  "requestForm": {
+    "open": "Pedir al cliente",
+    "title": "Nuevo requerimiento al cliente",
+    "what": "¿Qué necesitas?",
+    "whatHint": "Ej. Catálogo de productos en Excel",
+    "type": "Tipo",
+    "stage": "Etapa",
+    "noStage": "Ninguna (general)",
+    "dueAt": "Fecha límite",
+    "details": "Detalles para el cliente",
+    "detailsHint": "Formato, ejemplos, a quién enviarlo…",
+    "blocking": "La etapa no puede terminar hasta que el cliente lo entregue",
+    "notice": "El cliente lo verá en su portal y recibirá un aviso por correo.",
+    "submit": "Enviar al cliente"
+  },
+  "requestType": {
+    "information": "Información",
+    "document": "Documento",
+    "data_upload": "Carga de datos",
+    "access": "Accesos",
+    "approval": "Aprobación",
+    "meeting": "Reunión"
+  },
+  "account": {
+    "title": "Mi cuenta",
+    "lead": "Tus datos y tu contraseña.",
+    "name": "Nombre",
+    "role": "Rol",
+    "passwordTitle": "Cambiar contraseña",
+    "current": "Contraseña actual",
+    "new": "Nueva contraseña",
+    "newHint": "Mínimo {{min}} caracteres. Una frase fácil de recordar es más segura que una palabra corta.",
+    "tooShort": "Le faltan caracteres: mínimo {{min}}.",
+    "confirm": "Repite la nueva contraseña",
+    "mismatch": "No coincide con la nueva contraseña.",
+    "changed_one": "Contraseña cambiada. Se cerró {{count}} sesión en otro dispositivo.",
+    "changed_other": "Contraseña cambiada. Se cerraron {{count}} sesiones en otros dispositivos.",
+    "saving": "Guardando…",
+    "change": "Cambiar contraseña"
+  },
+  "settings": {
+    "lead": "Configuración de la instancia.",
+    "email": {
+      "title": "Correo saliente",
+      "sender": "Remitente",
+      "server": "Servidor SMTP",
+      "user": "Usuario SMTP",
+      "ready": "Listo para enviar",
+      "notReady": "Falta la contraseña SMTP: los avisos se registran pero no se envían",
+      "channel": "Canal de correo activo",
+      "spf": "SPF del dominio verificado",
+      "dkim": "DKIM del dominio verificado",
+      "howTo": "Para activar el envío, agrega SMTP_PASSWORD (contraseña de aplicación de la cuenta remitente) al .env del servidor y reinicia la API y el worker.",
+      "counts": {
+        "sent": "Enviados",
+        "pending": "En cola",
+        "failed": "Fallidos",
+        "skipped": "Sin enviar"
+      },
+      "testTo": "Enviar un correo de prueba a",
+      "sendTest": "Enviar prueba",
+      "sending": "Enviando…",
+      "testOk": "Correo de prueba enviado. Revisa la bandeja (y la carpeta de spam).",
+      "testFailed": "No se pudo enviar: {{error}}",
+      "recent": "Últimos avisos",
+      "noRecent": "Todavía no se ha generado ningún aviso.",
+      "when": "Fecha",
+      "to": "Para",
+      "subject": "Asunto",
+      "status": {
+        "sent": "Enviado",
+        "pending": "En cola",
+        "failed": "Falló",
+        "skipped": "Sin enviar"
+      }
+    }
   }
 }
