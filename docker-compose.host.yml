@@ -1,5 +1,0 @@
-# Deprecated: ya no hace falta. El compose principal publica 8080+8090
-# con PocketBase en network_mode: service:api.
-#
-# Usa solo:
-#   docker compose up --build

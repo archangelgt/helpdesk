@@ -3,7 +3,7 @@
 Prueba de integración de la API v2 (casos, etapas, requerimientos al cliente y permisos).
 
 Debe correrse contra una base DESECHABLE (crea clientes, usuarios y casos):
-  v2/scripts/test-api.sh        # levanta PocketBase + API temporales y corre esta prueba
+  scripts/test-api.sh           # levanta PocketBase + API temporales y corre esta prueba
 
 Variables: API_URL, PB_URL, PB_EMAIL, PB_PASSWORD, MAIL_URL (Mailpit).
 """

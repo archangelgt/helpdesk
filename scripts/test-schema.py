@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prueba de integración del esquema de PocketBase v2 (solo biblioteca estándar).
 
-Uso: PB_URL=http://127.0.0.1:18199 PB_EMAIL=... PB_PASSWORD=... python3 v2/scripts/test-schema.py
+Uso: PB_URL=http://127.0.0.1:18199 PB_EMAIL=... PB_PASSWORD=... python3 scripts/test-schema.py
 Ejecutar SOLO contra una base desechable: crea y borra datos.
 """
 import json

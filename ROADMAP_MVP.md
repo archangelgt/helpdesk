@@ -1,7 +1,7 @@
 # Helpdesk v2 — Visión, arquitectura, MVP y roadmap
 
-> Proyecto nuevo, independiente del helpdesk actual. Vive en la carpeta `v2/` del mismo repositorio
-> hasta que decidamos reemplazar la versión actual.
+> Desde el 2026-10-06 es la única versión: reemplazó al helpdesk anterior (v1, en Go), que queda
+> solo en el historial de git y en el respaldo de su base (`/root/backups/helpdesk-v1-pb_data-*`).
 >
 > **Nuestra instancia (Seraph Systems / erpsys):**
 > - Programa: https://support.erpsys.pro/
@@ -189,10 +189,10 @@ El navegador y los productos externos **nunca hablan directo con PocketBase**: t
 
 ---
 
-## 6. Estructura del proyecto (monorepo dentro de `v2/`)
+## 6. Estructura del proyecto (monorepo en la raíz del repositorio)
 
 ```
-v2/
+helpdesk/
 ├── ROADMAP_MVP.md                 ← este documento
 ├── docker/
 │   ├── docker-compose.yml         ← una instancia: web, api, worker, redis, pocketbase
@@ -412,7 +412,7 @@ erDiagram
 
 El esquema ya está creado en `https://pb-support.erpsys.pro/_/` con **68 colecciones** relacionadas.
 
-- **Migraciones versionadas** en `v2/pocketbase/pb_migrations/`, una por dominio: `catalogs`, `sla_calendar`, `organization`, `templates`, `work_items`, `notifications_integrations`, `system` y `seed_defaults`. Todas se pueden revertir (`migrate down`) y volver a aplicar.
+- **Migraciones versionadas** en `pocketbase/pb_migrations/`, una por dominio: `catalogs`, `sla_calendar`, `organization`, `templates`, `work_items`, `notifications_integrations`, `system` y `seed_defaults`. Todas se pueden revertir (`migrate down`) y volver a aplicar.
 - **Datos de fábrica**:
   - 7 roles y 26 permisos;
   - 20 tipos de evento;
@@ -422,7 +422,7 @@ El esquema ya está creado en `https://pb-support.erpsys.pro/_/` con **68 colecc
   - equipos Soporte e Implementaciones;
   - la plantilla **"Implementación ERPSYS"**: 6 etapas secuenciales con checklists y 7 requerimientos al cliente, 5 de ellos en "Carga de información";
   - 16 reglas de aviso por correo y la configuración inicial de la empresa.
-- **Hooks de integridad** (`v2/pocketbase/pb_hooks/`), que se aplican también a lo que se edita desde el panel:
+- **Hooks de integridad** (`pocketbase/pb_hooks/`), que se aplican también a lo que se edita desde el panel:
   - numeración por tipo (`SOP-0001`, `IMP-0001`) con una secuencia atómica;
   - el estado de un caso debe ser del flujo de su tipo, y el de una etapa, del flujo de etapas;
   - dependencias sin ciclos y dentro del mismo caso o plantilla;
@@ -436,7 +436,7 @@ El esquema ya está creado en `https://pb-support.erpsys.pro/_/` con **68 colecc
   - `progress_percent`, que es el peso de las etapas cerradas sobre el total, sin contar las omitidas.
 - **Historial de estados automático** con quién cambió (`updated_by`) y cuántos segundos pasó el caso en el estado anterior.
 - **Reglas de acceso**: todas las colecciones están cerradas (solo superusuarios). La API de v2 aplicará los permisos por rol y cliente.
-- **Prueba de integración**: `v2/scripts/test-schema.py`, con 41 comprobaciones del flujo completo y de cada regla de integridad. Debe correrse contra una base desechable.
+- **Prueba de integración**: `scripts/test-schema.py`, con 41 comprobaciones del flujo completo y de cada regla de integridad. Debe correrse contra una base desechable.
 
 ---
 
@@ -549,7 +549,7 @@ La empresa crea un tipo (ej. "Capacitación") desde la configuración: nombre, i
 
 ### 9.1 API y autenticación (hecho, 2026-10-02)
 
-La API (`v2/apps/api`, Node.js 22 + TypeScript + Fastify) corre en el contenedor `helpdesk-v2-api`, sin puerto publicado. La web la expone en `https://support.erpsys.pro/api/`.
+La API (`apps/api`, Node.js 22 + TypeScript + Fastify) corre en el contenedor `helpdesk-v2-api`, sin puerto publicado. La web la expone en `https://support.erpsys.pro/api/`.
 
 - **Capas**: `config`, `routes`, `controllers`, `services`, `models`, `middlewares`, `validators` (zod), `types`, `utils` e `i18n`. Solo los `models` hablan con PocketBase, como superusuario interno.
 - **Access token**: JWT EdDSA (Ed25519) de 15 minutos, con `kid` y la clave pública en `/api/v1/auth/jwks.json`, de modo que otros servicios (erpsyschat) pueden validar tokens sin pedirle nada a la API.
@@ -587,7 +587,7 @@ Tickets, tareas e implementaciones ya funcionan de punta a punta sobre la base n
   - Desde plantilla: fechas planificadas en días hábiles con el calendario y feriados de la instancia; la fecha límite sale de la plantilla si no se indica.
   - Avance mostrado: etapa cerrada = 100 %, si no, proporción del checklist, ponderado por el peso de cada etapa.
 - **"Mi trabajo"** (`/work-items/summary`): nuevos y asignados a mí, entregas por revisar, esperando al cliente y atrasados. Para el cliente cuenta solo lo accionable (requerimientos de etapas ya iniciadas).
-- **Pruebas**: `v2/scripts/test-api.sh` levanta un PocketBase y una API desechables y corre 91 comprobaciones (aislamiento entre clientes, permisos, flujos de soporte, implementación completa desde plantilla con fechas y feriados, entregas y revisiones, aprobación del cliente, outbox, mensajes traducidos).
+- **Pruebas**: `scripts/test-api.sh` levanta un PocketBase y una API desechables y corre 91 comprobaciones (aislamiento entre clientes, permisos, flujos de soporte, implementación completa desde plantilla con fechas y feriados, entregas y revisiones, aprobación del cliente, outbox, mensajes traducidos).
 - **Endpoints nuevos** (todos con sesión y `work_item.view`; los permisos finos se validan en los services):
 
 | Método | Ruta | Uso |
@@ -618,7 +618,7 @@ Tickets, tareas e implementaciones ya funcionan de punta a punta sobre la base n
   - Nunca se avisa a quien hizo la acción, ni a usuarios suspendidos o que silenciaron ese evento. A un cliente solo le llegan eventos visibles al cliente, de su empresa y de etapas visibles.
   - Los cambios de estado automáticos y los de implementaciones no se avisan, porque ya hay eventos más específicos.
   - **Plantillas** en es/en/pt según el idioma del destinatario, con HTML en el color de la marca, versión de texto y botón al caso.
-  - **SMTP** por variables de entorno (`SMTP_HOST/PORT/SECURE/USER/PASSWORD`, `MAIL_FROM`, `MAIL_REPLY_TO`). Lo que falte sale del remitente por defecto en `email_senders`: migración `1790950010_email_sender`, **soporte@erpsys.pro** por `smtp.zoho.com:465`. La contraseña nunca va en la base ni en git, solo en `v2/docker/.env`.
+  - **SMTP** por variables de entorno (`SMTP_HOST/PORT/SECURE/USER/PASSWORD`, `MAIL_FROM`, `MAIL_REPLY_TO`). Lo que falte sale del remitente por defecto en `email_senders`: migración `1790950010_email_sender`, **soporte@erpsys.pro** por `smtp.zoho.com:465`. La contraseña nunca va en la base ni en git, solo en `docker/.env`.
   - **Sin `SMTP_PASSWORD`** los avisos se registran como `skipped`: no se acumulan para salir de golpe cuando se active el correo.
 - **Mi cuenta** (`/cuenta`, desde el nombre en la barra superior): datos del usuario y cambio de contraseña. Pide la actual y una nueva de 10 a 72 caracteres, tiene límite de intentos y cierra las demás sesiones.
 - **Configuración** (`/configuracion`, `settings.manage`): estado del correo saliente (servidor, remitente, SPF/DKIM, contadores), correo de prueba y últimos avisos.
@@ -767,7 +767,7 @@ Lo mismo sirve para conectar más adelante otros chats o canales (WhatsApp, Tele
 
 ## 13. Interfaz
 
-Referencias visuales aportadas (en `v2/referencias-ui/`): tablero tipo ToDo por vencimiento (Zoho ToDo), tablero de tickets por estado con modos de trabajo (Zoho Desk) y panel "Mi trabajo" con contadores, barras de SLA y acciones pendientes. Se adoptan sus patrones con la identidad azul de erpsys.
+Referencias visuales aportadas (en `referencias-ui/`): tablero tipo ToDo por vencimiento (Zoho ToDo), tablero de tickets por estado con modos de trabajo (Zoho Desk) y panel "Mi trabajo" con contadores, barras de SLA y acciones pendientes. Se adoptan sus patrones con la identidad azul de erpsys.
 
 | ToDo por vencimiento | Tickets por estado |
 |---|---|

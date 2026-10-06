@@ -22,13 +22,11 @@ Si hace falta algo de otro producto: **parar y preguntar**.
 | Separar | Cómo |
 |---|---|
 | Tenants helpdesk | Empresas aisladas en este producto ≠ tenants CRM |
-| Tipos de ticket | `implementacion` (etapas/plazos/avance) y `soporte` |
+| Tipos de caso | `implementation` (etapas/plazos/avance), `support` y `task` |
 | Visibilidad | Interno (equipo) vs compartido al cliente |
-| Canales | Email / WhatsApp / ERPSYS Chat solo vía API de ingesta (Fases 3–4) |
-| Stack | Docker: PocketBase + Go; **nunca** binario en host |
-| Deploy erpsys | Fase 6 |
+| Canales | Email / WhatsApp / ERPSYS Chat solo vía API (ver `ROADMAP_MVP.md`) |
+| Stack | Docker: web + API + worker (Node.js/TypeScript) + PocketBase; **nunca** binario en host |
 
 ## Docs
 
-`README`, `ROADMAP`, `MVP`, `FEATURES`, `BOUNDARIES`  
-Skill stack: `.cursor/skills/docker-pocketbase-go/SKILL.md`
+`README.md` y `ROADMAP_MVP.md`. Stack: `.cursor/rules/stack.mdc`.

@@ -1,0 +1,13 @@
+---
+description: Stack obligatorio — Docker Compose con web, API y worker en Node.js + TypeScript y PocketBase
+alwaysApply: true
+---
+
+# Stack: Docker + Node.js/TypeScript + PocketBase
+
+- Todo corre con **`docker compose`** desde `docker/` (proyecto `helpdesk-v2`): `web` (nginx + React), `api` (Fastify), `worker` (misma imagen que la API, `node dist/worker.js`) y `pocketbase`. Nunca binarios en el host.
+- **Base de datos:** solo el volumen Docker `helpdesk_v2_pb_data` → `/pb_data`. Respaldarlo antes de aplicar migraciones.
+- Solo los `models` de la API hablan con PocketBase; los `services` validan permisos (`assertCan`) y visibilidad.
+- Esquema normalizado: los cambios de esquema van en migraciones nuevas de `pocketbase/pb_migrations/`, nunca editando las ya aplicadas.
+- Secretos (contraseñas, SMTP, JWT) solo en `docker/.env` del servidor; nunca en git.
+- Textos de interfaz y de la API en es/en/pt.

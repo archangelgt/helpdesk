@@ -1,23 +1,20 @@
-# Binaries / local tooling
-bin/
+# Dependencias y compilados
+node_modules/
 dist/
+*.tsbuildinfo
 tmp/
 
-# Env & secrets
+# Env & secrets (las contraseñas viven solo en docker/.env del servidor)
 .env
 .env.*
 !.env.example
 
-# PocketBase local data — la DB real vive en el volumen Docker `helpdesk_pb_data`,
+# PocketBase local data — la base real vive en el volumen Docker `helpdesk_v2_pb_data`,
 # nunca como carpeta del proyecto. Estos paths solo evitan commits accidentales.
 pb_data/
-docker/pocketbase/pb_data/
 
 # IDE / OS
 .DS_Store
 .idea/
 .vscode/
 *.swp
-
-# Go
-vendor/
