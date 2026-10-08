@@ -7,6 +7,22 @@ export type Mode = "light" | "dark";
 const root = document.documentElement;
 const key = (k: string) => `hd2-${k}`;
 
+/** "system" = lo que tenga el sistema operativo del usuario. */
+export function resolveMode(mode: Mode | "system" | null | undefined): Mode {
+  if (mode === "light" || mode === "dark") return mode;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+/** Tema y modo guardados en este navegador (null si nunca se eligieron). */
+export function storedAppearance(): { theme: Theme | null; mode: Mode | null } {
+  const theme = localStorage.getItem(key("theme"));
+  const mode = localStorage.getItem(key("mode"));
+  return {
+    theme: (THEMES as readonly string[]).includes(theme ?? "") ? (theme as Theme) : null,
+    mode: mode === "light" || mode === "dark" ? mode : null,
+  };
+}
+
 /** Aplica tema y modo al documento sin pasar por React (p. ej. al restaurar la sesión). */
 export function applyAppearance(theme: Theme, mode: Mode) {
   root.dataset.theme = theme;

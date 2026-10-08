@@ -6,12 +6,17 @@ import type { UserProfile } from "../types/domain.js";
 import { Errors } from "../utils/errors.js";
 import type { ChangePasswordInput, PreferencesInput } from "../validators/me.validators.js";
 import { permissionService } from "./permission.service.js";
+import { settingsService } from "./settings.service.js";
 
 export const profileService = {
   async get(userId: string): Promise<UserProfile> {
     const user = await usersModel.findById(userId);
     if (!user) throw Errors.unauthorized();
-    const [role, client] = await Promise.all([rolesModel.findById(user.role), clientsModel.findSummary(user.client)]);
+    const [role, client, defaults] = await Promise.all([
+      rolesModel.findById(user.role),
+      clientsModel.findSummary(user.client),
+      settingsService.current(),
+    ]);
     const permissions = role ? [...(await permissionService.forRole(role.id))] : [];
     return {
       id: user.id,
@@ -19,9 +24,9 @@ export const profileService = {
       name: user.name,
       role: role ? { code: role.code, name: role.name, scope: role.scope } : null,
       client,
-      language: user.language || null,
-      colorMode: user.color_mode || null,
-      theme: user.theme || null,
+      language: user.language || defaults.defaultLanguage,
+      colorMode: user.color_mode || defaults.colorMode,
+      theme: user.theme || defaults.theme,
       permissions,
     };
   },

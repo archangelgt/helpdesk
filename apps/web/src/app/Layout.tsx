@@ -11,20 +11,24 @@ import {
   Search,
   Settings,
   Ticket,
+  Users,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
 import { AppearanceControls } from "../components/AppearanceControls";
+import { useInstance } from "../instance/InstanceProvider";
 
-const NAV = [
+/** `perm`: el módulo solo aparece si el rol tiene ese permiso. */
+const NAV: { to: string; key: string; icon: typeof Home; end?: boolean; client: boolean; perm?: string }[] = [
   { to: "/", key: "home", icon: Home, end: true, client: true },
   { to: "/tickets", key: "tickets", icon: Ticket, client: true },
   { to: "/tareas", key: "tasks", icon: ListTodo, client: false },
   { to: "/implementaciones", key: "implementations", icon: Layers, client: true },
   { to: "/clientes", key: "clients", icon: Building2, client: false },
-  { to: "/reportes", key: "reports", icon: BarChart3, client: false },
+  { to: "/usuarios", key: "users", icon: Users, client: false, perm: "user.manage" },
+  { to: "/reportes", key: "reports", icon: BarChart3, client: false, perm: "report.view" },
   { to: "/chat", key: "chat", icon: MessageSquare, client: false },
-  { to: "/configuracion", key: "settings", icon: Settings, client: false },
-] as const;
+  { to: "/configuracion", key: "settings", icon: Settings, client: false, perm: "settings.manage" },
+];
 
 function initials(name: string, email: string): string {
   const parts = (name || email).trim().split(/\s+/);
@@ -33,7 +37,8 @@ function initials(name: string, email: string): string {
 
 export function Layout() {
   const { t } = useTranslation();
-  const { user, logout, savePreferences } = useAuth();
+  const { user, logout, savePreferences, can } = useAuth();
+  const { companyName } = useInstance().settings;
   const isClient = user?.role?.scope === "client";
 
   return (
@@ -41,11 +46,13 @@ export function Layout() {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <span className="logo">HD</span>
-          <span className="brand-text">{t("app.name")}</span>
+          <span className="brand-text" title={companyName || undefined}>
+            {companyName || t("app.name")}
+          </span>
         </div>
         <nav>
-          {NAV.filter((item) => !isClient || item.client).map(({ to, key, icon: Icon, ...rest }) => (
-            <NavLink key={to} to={to} end={"end" in rest} className="nav-item">
+          {NAV.filter((item) => (!isClient || item.client) && (!item.perm || can(item.perm))).map(({ to, key, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} className="nav-item">
               <Icon size={18} aria-hidden="true" />
               <span>{t(`nav.${key}`)}</span>
             </NavLink>

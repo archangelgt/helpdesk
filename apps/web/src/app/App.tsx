@@ -12,10 +12,14 @@ import { WorkItemDetailPage } from "../features/work-items/WorkItemDetailPage";
 import { WorkItemsPage } from "../features/work-items/WorkItemsPage";
 import { AccountPage } from "../features/account/AccountPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { UsersPage } from "../features/users/UsersPage";
+import { ReportsPage } from "../features/reports/ReportsPage";
+import { InstanceProvider } from "../instance/InstanceProvider";
 
 export function App() {
   return (
     <BrowserRouter>
+      <InstanceProvider>
       <AuthProvider>
         <Routes>
           <Route path="login" element={<LoginPage />} />
@@ -29,7 +33,8 @@ export function App() {
               <Route path="implementaciones" element={<ImplementationsPage />} />
               <Route path="implementaciones/:id" element={<ImplementationDetailPage />} />
               <Route path="clientes" element={<ClientsPage />} />
-              <Route path="reportes" element={<ComingSoonPage section="reports" phase={1} />} />
+              <Route path="usuarios" element={<UsersPage />} />
+              <Route path="reportes" element={<ReportsPage />} />
               <Route path="chat" element={<ComingSoonPage section="chat" phase={2} />} />
               <Route path="configuracion" element={<SettingsPage />} />
               <Route path="cuenta" element={<AccountPage />} />
@@ -38,6 +43,7 @@ export function App() {
           </Route>
         </Routes>
       </AuthProvider>
+      </InstanceProvider>
     </BrowserRouter>
   );
 }

@@ -642,6 +642,14 @@ Tickets, tareas e implementaciones ya funcionan de punta a punta sobre la base n
 - **Configuración** muestra el medio de envío ("API de correo de Zoho" o el servidor SMTP).
 - **Pruebas**: 129 comprobaciones (un solo correo por acción, la siguiente etapa y los requerimientos dentro del mismo correo, sin "desbloqueada" aparte, aviso al responsable cuando el cliente aprueba una etapa, remitente soporte@seraphsystems.com).
 
+### 9.5 Usuarios, configuración y reportes (2026-10-08)
+
+- **Usuarios** (`/usuarios`, permiso `user.manage`: dueño y jefe): lista con correo, rol, empresa, estado y último acceso; filtros por equipo/clientes, rol, empresa, estado y búsqueda. Crear con contraseña temporal (o una elegida) y correo de bienvenida opcional; editar nombre, correo, teléfono, idioma, **rol y empresa**; "recibe avisos de su empresa" (`client_contacts`); suspender/reactivar; restablecer contraseña (cierra sesiones, correo opcional). Reglas: solo un dueño toca dueños, nadie se cambia su rol ni se suspende, los roles de cliente exigen empresa y los internos la quitan, correo único. Cambiar rol, empresa, correo o suspender cierra las sesiones del usuario.
+- **Clientes**: editar estado y notas; cantidad de usuarios con enlace a `/usuarios` filtrado por esa empresa.
+- **Configuración** (`/configuracion`, solo dueño), por pestañas: General (nombre de la empresa, zona horaria, tamaño máximo de archivo ≤ 25 MB), Apariencia e idioma (tema, modo y color de marca por defecto, idiomas disponibles y por defecto), Correo (remitente, estado y prueba), Avisos (quién recibe cada evento y activar/desactivar) y Calendario (días hábiles y feriados). Cada cambio queda en `settings_history`. `GET /settings/public` (sin sesión) da nombre, tema, idiomas y tamaño máximo a la web.
+- **Reportes** (`/reportes`, permiso `report.view`): periodo (7/30/90/365 días o rango), empresa y tipo; totales (creados, resueltos, abiertos, vencidos, sin asignar, esperando al cliente, primera respuesta y resolución promedio), gráfica creados vs resueltos, por tipo, por técnico (incluye etapas completadas, sin usuarios del cliente), por empresa, quién pide más, implementaciones con avance y atraso atribuido al cliente o al equipo, y requerimientos al cliente por empresa. Cada tabla se exporta a CSV.
+- **Pruebas**: 187 comprobaciones.
+
 ---
 
 ## 10. Integraciones y APIs

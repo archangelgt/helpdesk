@@ -1,5 +1,6 @@
 import { clientsModel } from "../models/clients.model.js";
 import { templatesModel } from "../models/templates.model.js";
+import { usersModel } from "../models/users.model.js";
 import type { ClientRow } from "../types/records.js";
 import { Errors } from "../utils/errors.js";
 import type { CreateClientInput, UpdateClientInput } from "../validators/admin.validators.js";
@@ -7,7 +8,7 @@ import { assertCan, type Actor } from "./actor.service.js";
 import { catalogCache } from "./catalog-cache.service.js";
 import { notificationDispatcher } from "./notifications/dispatcher.js";
 
-function clientDto(c: ClientRow, openItems = 0) {
+function clientDto(c: ClientRow, openItems = 0, userCount = 0) {
   return {
     id: c.id,
     name: c.name,
@@ -16,6 +17,7 @@ function clientDto(c: ClientRow, openItems = 0) {
     status: c.status,
     notes: c.notes || null,
     openItems,
+    userCount,
   };
 }
 
@@ -32,8 +34,8 @@ function clientData(input: UpdateClientInput) {
 export const clientsService = {
   async list(actor: Actor, search?: string) {
     if (actor.isClient || !(actor.can("work_item.view_all") || actor.can("client.manage"))) throw Errors.forbidden();
-    const [clients, counts] = await Promise.all([clientsModel.list(search), clientsModel.openWorkItemCounts()]);
-    return clients.map((c) => clientDto(c, counts.get(c.id) ?? 0));
+    const [clients, counts, users] = await Promise.all([clientsModel.list(search), clientsModel.openWorkItemCounts(), usersModel.countByClient()]);
+    return clients.map((c) => clientDto(c, counts.get(c.id) ?? 0, users.get(c.id) ?? 0));
   },
 
   async create(actor: Actor, input: CreateClientInput) {

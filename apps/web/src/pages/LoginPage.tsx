@@ -5,10 +5,12 @@ import { LogIn } from "lucide-react";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { AppearanceControls } from "../components/AppearanceControls";
+import { useInstance } from "../instance/InstanceProvider";
 
 export function LoginPage() {
   const { t } = useTranslation();
   const { status, login } = useAuth();
+  const { companyName } = useInstance().settings;
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
@@ -44,7 +46,7 @@ export function LoginPage() {
         <div className="login-brand">
           <span className="logo">HD</span>
           <div>
-            <h1>{t("app.name")}</h1>
+            <h1>{companyName || t("app.name")}</h1>
             <p className="muted small">{t("auth.subtitle")}</p>
           </div>
         </div>

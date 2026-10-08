@@ -4,10 +4,9 @@ import { Download, FileText, Paperclip, Trash2 } from "lucide-react";
 import { attachmentsApi } from "../api/endpoints";
 import { useAuth } from "../auth/AuthProvider";
 import { useAction } from "../hooks/useApi";
+import { useInstance } from "../instance/InstanceProvider";
 import type { AttachmentDto } from "../types/api";
 import { formatDateTime } from "../utils/dates";
-
-const MAX_BYTES = 25 * 1024 * 1024;
 
 export function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -42,6 +41,7 @@ interface Props {
 export function Attachments({ workItemId, files, stageId, clientRequestId, canUpload, hideEmpty = false, onChange }: Props) {
   const { t, i18n } = useTranslation();
   const { user, can } = useAuth();
+  const { maxUploadMb } = useInstance().settings;
   const lang = i18n.resolvedLanguage ?? "es";
   const input = useRef<HTMLInputElement>(null);
   const { busy, error, run } = useAction();
@@ -57,8 +57,8 @@ export function Attachments({ workItemId, files, stageId, clientRequestId, canUp
     setLocalError(null);
     const file = list?.[0];
     if (!file) return;
-    if (file.size > MAX_BYTES) {
-      setLocalError(t("files.tooLarge", { max: "25 MB" }));
+    if (file.size > maxUploadMb * 1024 * 1024) {
+      setLocalError(t("files.tooLarge", { max: `${maxUploadMb} MB` }));
       return;
     }
     const done = await run(() => attachmentsApi.upload(workItemId, file, clientRequestId ? { clientRequestId } : stageId ? { stageId } : {}));
@@ -115,7 +115,7 @@ export function Attachments({ workItemId, files, stageId, clientRequestId, canUp
         </label>
       )}
       {(localError || error) && <p className="form-error">{localError || error}</p>}
-      {canUpload && <p className="hint">{t("files.hint", { max: "25 MB" })}</p>}
+      {canUpload && <p className="hint">{t("files.hint", { max: `${maxUploadMb} MB` })}</p>}
     </div>
   );
 }

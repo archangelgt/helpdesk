@@ -19,3 +19,18 @@ export function ErrorNote({ error, onRetry }: { error: ApiError; onRetry?: () =>
     </div>
   );
 }
+
+/** El rol no tiene permiso para esta sección. */
+export function NoAccess({ section }: { section: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="stack">
+      <header className="page-head">
+        <h1>{t(`nav.${section}`)}</h1>
+      </header>
+      <div className="card error-note">
+        <span>{t("common.noAccess")}</span>
+      </div>
+    </div>
+  );
+}

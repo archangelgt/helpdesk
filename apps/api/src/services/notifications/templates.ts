@@ -222,3 +222,76 @@ ${progressHtml}
 
   return { subject, html, text };
 }
+
+export interface AccessMailContext {
+  kind: "welcome" | "reset";
+  recipientName: string;
+  email: string;
+  password: string;
+  url: string;
+  companyName: string;
+  brandColor: string;
+}
+
+const ACCESS_COPY: Record<Language, (c: AccessMailContext) => { subject: string; intro: string; user: string; password: string; change: string; button: string }> = {
+  es: (c) => ({
+    subject: c.kind === "welcome" ? `Tu acceso a ${c.companyName}` : `Nueva contraseña para ${c.companyName}`,
+    intro: c.kind === "welcome" ? `Te crearon un usuario en el portal de soporte de ${c.companyName}.` : "Se restableció la contraseña de tu usuario.",
+    user: "Usuario",
+    password: "Contraseña temporal",
+    change: "Al entrar, cámbiala en «Mi cuenta» (haz clic en tu nombre, arriba a la derecha).",
+    button: "Entrar al portal",
+  }),
+  en: (c) => ({
+    subject: c.kind === "welcome" ? `Your access to ${c.companyName}` : `New password for ${c.companyName}`,
+    intro: c.kind === "welcome" ? `A user was created for you on the ${c.companyName} support portal.` : "Your password was reset.",
+    user: "User",
+    password: "Temporary password",
+    change: "After signing in, change it under “My account” (click your name, top right).",
+    button: "Open the portal",
+  }),
+  pt: (c) => ({
+    subject: c.kind === "welcome" ? `Seu acesso a ${c.companyName}` : `Nova senha para ${c.companyName}`,
+    intro: c.kind === "welcome" ? `Foi criado um usuário para você no portal de suporte da ${c.companyName}.` : "A senha do seu usuário foi redefinida.",
+    user: "Usuário",
+    password: "Senha temporária",
+    change: "Ao entrar, altere-a em “Minha conta” (clique no seu nome, no canto superior direito).",
+    button: "Entrar no portal",
+  }),
+};
+
+/** Correo con usuario y contraseña temporal (alta de usuario o restablecimiento). */
+export function renderAccessMail(language: Language, c: AccessMailContext): RenderedMail {
+  const pack = PACKS[language] ?? es;
+  const copy = (ACCESS_COPY[language] ?? ACCESS_COPY.es)(c);
+  const color = /^#[0-9a-f]{6}$/i.test(c.brandColor) ? c.brandColor : "#00387a";
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${escapeHtml(label)}</td><td style="padding:4px 0;font-family:Consolas,monospace;font-weight:600">${escapeHtml(value)}</td></tr>`;
+  const html = `<!doctype html>
+<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(copy.subject)}</title></head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#0f172a">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:10px;overflow:hidden">
+<tr><td style="background:${color};padding:18px 24px;color:#ffffff;font-size:18px;font-weight:600">${escapeHtml(c.companyName)}</td></tr>
+<tr><td style="padding:24px">
+<p style="margin:0 0 12px">${escapeHtml(pack.hello(c.recipientName))}</p>
+<p style="margin:0 0 12px">${escapeHtml(copy.intro)}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 12px;background:#f3f6fa;border-radius:6px;padding:8px 12px">${row(copy.user, c.email)}${row(copy.password, c.password)}</table>
+<p style="margin:0 0 4px">${escapeHtml(copy.change)}</p>
+<p style="margin:20px 0 0"><a href="${escapeHtml(c.url)}" style="display:inline-block;background:${color};color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:600">${escapeHtml(copy.button)}</a></p>
+</td></tr>
+</table></td></tr></table></body></html>`;
+  const text = [
+    pack.hello(c.recipientName),
+    "",
+    copy.intro,
+    "",
+    `${copy.user}: ${c.email}`,
+    `${copy.password}: ${c.password}`,
+    "",
+    copy.change,
+    "",
+    `${copy.button}: ${c.url}`,
+  ].join("\n");
+  return { subject: copy.subject, html, text };
+}

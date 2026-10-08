@@ -2,10 +2,11 @@ import { attachmentsModel } from "../models/attachments.model.js";
 import { clientRequestsModel } from "../models/client-requests.model.js";
 import { stagesModel } from "../models/stages.model.js";
 import type { AttachmentDto } from "../types/dto.js";
-import { Errors } from "../utils/errors.js";
+import { AppError, Errors } from "../utils/errors.js";
 import { assertCan, type Actor } from "./actor.service.js";
 import { attachmentVisible } from "./attachment-rules.js";
 import { toAttachmentDto } from "./mappers.js";
+import { settingsService } from "./settings.service.js";
 import { loadVisibleWorkItem } from "./work-items.service.js";
 
 export interface UploadedFile {
@@ -32,6 +33,8 @@ export const attachmentsService = {
   async upload(actor: Actor, workItemId: string, file: UploadedFile, target: UploadTarget): Promise<AttachmentDto> {
     assertCan(actor, "comment.create_public");
     const item = await loadVisibleWorkItem(actor, workItemId);
+    const { maxUploadMb } = await settingsService.current();
+    if (file.content.length > maxUploadMb * 1024 * 1024) throw new AppError(413, "attachment.too_large", { maxMb: maxUploadMb });
 
     if (target.stageId) {
       if (actor.isClient) throw Errors.forbidden();

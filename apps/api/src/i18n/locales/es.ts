@@ -19,6 +19,11 @@ export default {
   "stage.requires_client_approval": "Esta etapa necesita la aprobación del cliente: envíala a revisión.",
   "client_request.invalid_state": "El requerimiento no está en un estado que permita esta acción.",
   "auth.current_password_invalid": "La contraseña actual no es correcta.",
-  "attachment.too_large": "El archivo es demasiado grande (máximo 25 MB).",
+  "attachment.too_large": "El archivo es demasiado grande (máximo {maxMb} MB).",
   "attachment.missing_file": "No se recibió ningún archivo.",
+  "users.email_taken": "Ya existe un usuario con ese correo.",
+  "users.cannot_change_self": "No puedes cambiar tu propio rol ni suspenderte.",
+  "users.last_owner": "Debe quedar al menos un dueño activo.",
+  "users.use_account_page": "Para cambiar tu propia contraseña usa «Mi cuenta».",
+  "settings.holiday_exists": "Ya hay un feriado registrado ese día.",
 } as const;

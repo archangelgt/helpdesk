@@ -509,6 +509,173 @@ check("los correos llegan al servidor SMTP", mails["total"] == len(notes) + 1 an
 first = mails["messages"][0]
 check("remitente soporte@seraphsystems.com", first["From"]["Address"] == "soporte@seraphsystems.com", first["From"])
 
+# --- Administración de usuarios ---------------------------------------------------------
+print("Usuarios")
+for who, tok in (("técnico", TECH), ("cliente", CA_ADMIN)):
+    s, res = call("GET", f"{API}/users", token=tok)
+    check(f"{who} no administra usuarios → 403", s == 403, res)
+s, res = call("GET", f"{API}/users", token=OWNER)
+emails = {u["email"]: u for u in res["items"]} if s == 200 else {}
+check("lista de usuarios con correo, rol y empresa",
+      s == 200 and emails.get(ca_user["email"], {}).get("client", {}).get("name") == "Cliente A"
+      and emails.get(tech_u["email"], {}).get("role", {}).get("code") == "technician", res)
+s, res = call("GET", f"{API}/users?scope=client&clientId={client_a['id']}", token=OWNER)
+check("filtra por empresa", s == 200 and {u["email"] for u in res["items"]} == {ca_user["email"], ca_admin["email"]}, res)
+s, res = call("GET", f"{API}/users?q=beto", token=OWNER)
+check("busca por nombre o correo", s == 200 and [u["email"] for u in res["items"]] == [cb_user["email"]], res)
+s, owner_roles = call("GET", f"{API}/users/roles", token=OWNER)
+owner_roles = owner_roles["items"]
+check("el dueño ve todos los roles", s == 200 and "owner" in {r["code"] for r in owner_roles}, owner_roles)
+role_ids = {r["code"]: r["id"] for r in owner_roles}
+
+s, res = call("POST", f"{API}/users", {"name": "Sin empresa", "email": "sin@empresa.local", "roleId": role_ids["client_user"]}, OWNER)
+check("rol de cliente sin empresa → 400", s == 400, res)
+s, res = call("POST", f"{API}/users", {"name": "Repetida", "email": tech_u["email"].upper(), "roleId": role_ids["technician"]}, OWNER)
+check("correo repetido → 409", s == 409 and res["error"]["code"] == "users.email_taken", res)
+s, created = call("POST", f"{API}/users", {"name": "Gerente Prueba", "email": "gerente@test.local", "roleId": role_ids["manager"]}, OWNER)
+mgr_pw = (created or {}).get("temporaryPassword") or ""
+check("crear usuario con contraseña temporal", s == 201 and created["user"]["status"] == "invited" and len(mgr_pw) >= 12, created)
+s, res = call("POST", f"{API}/auth/login", {"email": "gerente@test.local", "password": mgr_pw})
+check("entra con la contraseña temporal", s == 200, res)
+MANAGER = res["accessToken"] if s == 200 else None
+s, mgr = call("GET", f"{API}/users/{created['user']['id']}", token=OWNER)
+check("al entrar queda activo", s == 200 and mgr["status"] == "active" and mgr["activeSessions"] == 1, mgr)
+
+s, mgr_roles = call("GET", f"{API}/users/roles", token=MANAGER)
+check("el gerente administra usuarios pero no ve el rol dueño", s == 200 and "owner" not in {r["code"] for r in mgr_roles["items"]}, mgr_roles)
+s, res = call("PATCH", f"{API}/users/{owner_u['id']}", {"name": "Otro nombre"}, MANAGER)
+check("el gerente no toca al dueño → 403", s == 403, res)
+s, res = call("POST", f"{API}/users", {"name": "Dueño 2", "email": "duenio2@test.local", "roleId": role_ids["owner"]}, MANAGER)
+check("el gerente no crea dueños → 403", s == 403, res)
+s, res = call("PATCH", f"{API}/users/{owner_u['id']}", {"roleId": role_ids["manager"]}, OWNER)
+check("nadie se cambia su propio rol → 409", s == 409 and res["error"]["code"] == "users.cannot_change_self", res)
+s, res = call("PATCH", f"{API}/users/{owner_u['id']}", {"status": "suspended"}, OWNER)
+check("nadie se suspende a sí mismo → 409", s == 409, res)
+
+welcome_before = call("GET", os.environ["MAIL_URL"] + "/api/v1/messages?limit=1")[1]["total"]
+s, carla = call("POST", f"{API}/users", {"name": "Carla Contacto", "email": "carla@cliente-a.local", "roleId": role_ids["client_admin"],
+                                         "clientId": client_a["id"], "receivesNotifications": True, "sendWelcome": True,
+                                         "password": "Clave-de-Carla-1"}, MANAGER)
+check("crear usuario de cliente con aviso de bienvenida",
+      s == 201 and carla["user"]["client"]["id"] == client_a["id"] and carla["user"]["receivesNotifications"]
+      and carla["emailSent"] and carla["temporaryPassword"] is None, carla)
+carla_id = carla["user"]["id"]
+time.sleep(1)
+_, mails = call("GET", os.environ["MAIL_URL"] + "/api/v1/messages?limit=5")
+welcome = [m for m in mails["messages"] if any(t["Address"] == "carla@cliente-a.local" for t in m["To"])]
+check("llega el correo de bienvenida", mails["total"] == welcome_before + 1 and welcome and "acceso" in welcome[0]["Subject"].lower(),
+      [m["Subject"] for m in mails["messages"]])
+check("queda como contacto que recibe avisos de su empresa",
+      len(pb_first("client_contacts", f"user = '{carla_id}' && client = '{client_a['id']}' && receives_notifications = true")) == 1)
+_, clients = call("GET", f"{API}/clients", token=OWNER)
+count_a = next((c["userCount"] for c in clients["items"] if c["id"] == client_a["id"]), None)
+check("los clientes muestran cuántos usuarios tienen", count_a == 3, count_a)
+
+s, moved = call("PATCH", f"{API}/users/{carla_id}", {"clientId": client_b["id"]}, MANAGER)
+check("asignar al usuario otra empresa", s == 200 and moved["client"]["id"] == client_b["id"] and moved["receivesNotifications"], moved)
+check("el contacto se mueve con la empresa",
+      [c["client"] for c in pb_first("client_contacts", f"user = '{carla_id}'")] == [client_b["id"]])
+s, quiet = call("PATCH", f"{API}/users/{carla_id}", {"receivesNotifications": False}, MANAGER)
+check("dejar de recibir avisos de su empresa", s == 200 and not quiet["receivesNotifications"], quiet)
+s, staff = call("PATCH", f"{API}/users/{carla_id}", {"roleId": role_ids["agent"]}, MANAGER)
+check("al pasar a rol interno pierde la empresa", s == 200 and staff["client"] is None and staff["role"]["code"] == "agent", staff)
+s, back = call("PATCH", f"{API}/users/{carla_id}", {"roleId": role_ids["client_user"], "clientId": client_a["id"]}, MANAGER)
+check("volver a rol de cliente con empresa", s == 200 and back["client"]["id"] == client_a["id"], back)
+
+s, susp = call("PATCH", f"{API}/users/{carla_id}", {"status": "suspended"}, MANAGER)
+s2, res = call("POST", f"{API}/auth/login", {"email": "carla@cliente-a.local", "password": "Clave-de-Carla-1"})
+check("suspender bloquea el acceso", s == 200 and susp["status"] == "suspended" and s2 == 403
+      and res["error"]["code"] == "auth.account_suspended", [susp, res])
+s, _ = call("PATCH", f"{API}/users/{carla_id}", {"status": "active"}, MANAGER)
+s2, _ = call("POST", f"{API}/auth/login", {"email": "carla@cliente-a.local", "password": "Clave-de-Carla-1"})
+check("reactivar devuelve el acceso", s == 200 and s2 == 200, [s, s2])
+s, reset = call("POST", f"{API}/users/{carla_id}/reset-password", {}, MANAGER)
+new_pw = (reset or {}).get("temporaryPassword") or ""
+s2, _ = call("POST", f"{API}/auth/login", {"email": "carla@cliente-a.local", "password": "Clave-de-Carla-1"})
+s3, _ = call("POST", f"{API}/auth/login", {"email": "carla@cliente-a.local", "password": new_pw})
+check("restablecer contraseña cierra sesiones y da una temporal",
+      s == 200 and reset["closedSessions"] >= 1 and s2 == 401 and s3 == 200, [reset, s2, s3])
+s, res = call("POST", f"{API}/users/{owner_u['id']}/reset-password", {}, OWNER)
+check("la propia contraseña se cambia desde «Mi cuenta» → 409", s == 409 and res["error"]["code"] == "users.use_account_page", res)
+
+# --- Configuración ----------------------------------------------------------------------
+print("Configuración")
+for who, tok in (("técnico", TECH), ("gerente", MANAGER)):
+    s, res = call("GET", f"{API}/settings", token=tok)
+    check(f"{who} no ve la configuración → 403", s == 403, res)
+s, pub = call("GET", f"{API}/settings/public")
+check("datos públicos sin sesión", s == 200 and pub["companyName"] and pub["maxUploadMb"] == 25 and "es" in pub["languages"], pub)
+s, conf = call("GET", f"{API}/settings", token=OWNER)
+check("configuración completa para el dueño",
+      s == 200 and conf["sender"]["fromEmail"] == "soporte@seraphsystems.com" and conf["rules"]
+      and conf["calendar"]["workingDays"] == ["mon", "tue", "wed", "thu", "fri"], conf)
+original_name = conf["values"]["companyName"]
+s, res = call("PATCH", f"{API}/settings", {"defaultLanguage": "pt", "languages": ["es"]}, OWNER)
+check("idioma por defecto fuera de los disponibles → 400", s == 400, res)
+s, res = call("PATCH", f"{API}/settings", {"timezone": "Marte/Base"}, OWNER)
+check("zona horaria inválida → 400", s == 400, res)
+s, res = call("PATCH", f"{API}/settings", {"brandColor": "rojo"}, OWNER)
+check("color inválido → 400", s == 400, res)
+s, res = call("PATCH", f"{API}/settings", {"companyName": "Empresa Prueba", "theme": "green", "maxUploadMb": 1}, OWNER)
+check("guardar nombre, tema y tamaño máximo", s == 200 and res["values"]["companyName"] == "Empresa Prueba" and res["values"]["theme"] == "green", res)
+_, pub = call("GET", f"{API}/settings/public")
+check("los datos públicos reflejan el cambio", pub["companyName"] == "Empresa Prueba" and pub["theme"] == "green" and pub["maxUploadMb"] == 1, pub)
+check("queda historial del cambio", len(pb_first("settings_history", "id != ''")) >= 3)
+_, me = call("GET", f"{API}/me", token=MANAGER)
+check("quien no eligió tema usa el de la empresa", me["theme"] == "green", me)
+s, res = upload(imp["id"], "grande.bin", b"x" * (1024 * 1024 + 10), OWNER)
+check("respeta el tamaño máximo configurado", s == 413 and "1 MB" in res["error"]["message"], res)
+call("PATCH", f"{API}/settings", {"companyName": original_name, "maxUploadMb": 25}, OWNER)
+
+s, res = call("PATCH", f"{API}/settings/sender", {"name": "Mesa de ayuda", "fromEmail": "no es correo"}, OWNER)
+check("remitente con correo inválido → 400", s == 400, res)
+s, res = call("PATCH", f"{API}/settings/sender", {"name": "Mesa de ayuda", "fromEmail": "soporte@seraphsystems.com", "replyTo": "ayuda@test.local"}, OWNER)
+check("editar el remitente", s == 200 and res["name"] == "Mesa de ayuda" and res["replyTo"] == "ayuda@test.local", res)
+
+rule = next(r for r in conf["rules"] if r["event"] == "stage.started")
+s, res = call("PATCH", f"{API}/settings/rules/{rule['id']}", {"recipients": ["nadie"]}, OWNER)
+check("destinatario desconocido → 400", s == 400, res)
+s, res = call("PATCH", f"{API}/settings/rules/{rule['id']}", {"recipients": ["assignee"], "active": False}, OWNER)
+updated = next((r for r in res["items"] if r["id"] == rule["id"]), {}) if s == 200 else res
+check("editar una regla de aviso", updated.get("recipients") == ["assignee"] and updated.get("active") is False, updated)
+call("PATCH", f"{API}/settings/rules/{rule['id']}", {"recipients": rule["recipients"], "active": rule["active"]}, OWNER)
+
+s, res = call("PUT", f"{API}/settings/calendar/working-days", {"workingDays": ["mon", "tue", "wed", "thu", "fri", "sat"]}, OWNER)
+check("días hábiles con sábado", s == 200 and "sat" in res["workingDays"], res)
+call("PUT", f"{API}/settings/calendar/working-days", {"workingDays": ["mon", "tue", "wed", "thu", "fri"]}, OWNER)
+s, res = call("POST", f"{API}/settings/calendar/holidays", {"day": "2027-01-01", "name": "Año nuevo"}, OWNER)
+holiday = next((h for h in res["holidays"] if h["day"] == "2027-01-01"), None) if s in (200, 201) else None
+check("agregar feriado", holiday and holiday["name"] == "Año nuevo", res)
+s, res = call("POST", f"{API}/settings/calendar/holidays", {"day": "2027-01-01", "name": "Otra vez"}, OWNER)
+check("feriado repetido → 409", s == 409 and res["error"]["code"] == "settings.holiday_exists", res)
+s, res = call("DELETE", f"{API}/settings/calendar/holidays/{holiday['id'] if holiday else 'x'}", token=OWNER)
+check("quitar feriado", s == 200 and not any(h["day"] == "2027-01-01" for h in res["holidays"]), res)
+
+# --- Reportes ---------------------------------------------------------------------------
+print("Reportes")
+s, res = call("GET", f"{API}/reports/overview", token=CA_ADMIN)
+check("los clientes no ven reportes → 403", s == 403, res)
+s, res = call("GET", f"{API}/reports/overview", token=TECH)
+check("el técnico ve reportes", s == 200, res)
+s, rep = call("GET", f"{API}/reports/overview?days=30", token=OWNER)
+codes = {t["code"]: t for t in rep.get("byType", [])} if s == 200 else {}
+impl = next((i for i in rep["implementations"]["items"] if i["number"] == "IMP-0001"), None) if s == 200 else None
+check("resumen del periodo", s == 200 and rep["summary"]["created"] >= 4 and rep["summary"]["resolved"] >= 1
+      and codes.get("support", {}).get("created", 0) >= 2, rep.get("summary"))
+check("tendencia diaria del periodo", s == 200 and 30 <= len(rep["trend"]) <= 32
+      and sum(b["created"] for b in rep["trend"]) == rep["summary"]["created"], len(rep.get("trend", [])))
+check("implementaciones con avance", impl is not None and impl["progress"] == 100, impl)
+check("carga por técnico (sin usuarios del cliente) y por empresa",
+      any(a["name"] == "Técnico Prueba" for a in rep["byAssignee"]) and not any(a["name"] == "Admin Cliente A" for a in rep["byAssignee"])
+      and "Cliente A" in {c["name"] for c in rep["byClient"]},
+      [rep["byAssignee"], rep["byClient"]])
+check("requerimientos al cliente por empresa", any(r["name"] == "Cliente A" for r in rep["clientRequests"]), rep["clientRequests"])
+s, only_a = call("GET", f"{API}/reports/overview?clientId={client_a['id']}", token=OWNER)
+check("filtrar por empresa", s == 200 and [c["name"] for c in only_a["byClient"]] == ["Cliente A"]
+      and only_a["summary"]["created"] < rep["summary"]["created"], only_a.get("byClient"))
+s, res = call("GET", f"{API}/reports/overview?from=2026-05-01&to=2026-04-01", token=OWNER)
+check("rango invertido → 400", s == 400, res)
+
 print(f"\n{passed} comprobaciones correctas, {len(failed)} fallidas")
 if failed:
     print("Fallidas:", *failed, sep="\n  - ")

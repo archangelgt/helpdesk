@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import i18n from "../i18n";
 import { api, authApi, refreshSession, setSessionLostHandler } from "../api/client";
-import { applyAppearance } from "../theme/preferences";
+import { applyAppearance, resolveMode } from "../theme/preferences";
 import type { CurrentUser, PreferencesPatch } from "../types/auth";
 
 type Status = "loading" | "authenticated" | "anonymous";
@@ -18,7 +18,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function applyUserPreferences(user: CurrentUser) {
-  applyAppearance(user.theme, user.colorMode);
+  applyAppearance(user.theme, resolveMode(user.colorMode));
   if (i18n.language !== user.language) void i18n.changeLanguage(user.language);
 }
 

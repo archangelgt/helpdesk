@@ -19,7 +19,9 @@
     "next": "Siguiente",
     "pageOf": "Página {{page}} de {{total}}",
     "edit": "Editar",
-    "save": "Guardar"
+    "save": "Guardar",
+    "close": "Cerrar",
+    "noAccess": "Tu rol no tiene permiso para ver esta sección."
   },
   "auth": {
     "subtitle": "Inicia sesión para continuar",
@@ -39,7 +41,8 @@
     "clients": "Clientes",
     "reports": "Reportes",
     "chat": "Chat",
-    "settings": "Configuración"
+    "settings": "Configuración",
+    "users": "Usuarios"
   },
   "themes": {
     "blue": "Azul",
@@ -218,7 +221,11 @@
       "active": "Activo",
       "inactive": "Inactivo",
       "prospect": "Prospecto"
-    }
+    },
+    "notes": "Notas",
+    "users": "Usuarios",
+    "manageUsers": "Ver y agregar usuarios de esta empresa",
+    "edit": "Editar {{name}}"
   },
   "soon": {
     "title": "En construcción",
@@ -291,7 +298,7 @@
     "change": "Cambiar contraseña"
   },
   "settings": {
-    "lead": "Configuración de la instancia.",
+    "lead": "Datos de la empresa, apariencia, correo, avisos y calendario laboral.",
     "email": {
       "title": "Correo saliente",
       "sender": "Remitente",
@@ -327,6 +334,285 @@
         "failed": "Falló",
         "skipped": "Sin enviar"
       }
+    },
+    "saved": "Guardado.",
+    "tabs": {
+      "general": "General",
+      "appearance": "Apariencia e idioma",
+      "email": "Correo",
+      "notifications": "Avisos",
+      "calendar": "Calendario"
+    },
+    "general": {
+      "title": "Empresa",
+      "lead": "El nombre aparece en el menú, en la pantalla de inicio de sesión y en los correos.",
+      "companyName": "Nombre de la empresa",
+      "timezone": "Zona horaria"
+    },
+    "files": {
+      "title": "Archivos",
+      "lead": "Tamaño máximo de cada archivo adjunto.",
+      "maxUpload": "Tamaño máximo (MB)",
+      "maxHint": "Entre 1 y 25 MB."
+    },
+    "appearance": {
+      "title": "Apariencia e idioma",
+      "lead": "Valores por defecto para quien no haya elegido los suyos.",
+      "theme": "Tema de color",
+      "mode": "Modo",
+      "modes": {
+        "light": "Claro",
+        "dark": "Oscuro",
+        "system": "Según el equipo"
+      },
+      "brandColor": "Color de los correos",
+      "brandHint": "Encabezado y botones de los avisos por correo.",
+      "defaultLanguage": "Idioma por defecto",
+      "languages": "Idiomas disponibles",
+      "defaultsHint": "Cada usuario puede cambiar tema, modo e idioma desde la barra superior."
+    },
+    "sender": {
+      "title": "Remitente",
+      "lead": "Nombre y correo desde el que salen los avisos.",
+      "name": "Nombre que ve el destinatario",
+      "fromEmail": "Correo remitente",
+      "replyTo": "Responder a",
+      "replyToNone": "El mismo remitente",
+      "domainWarning": "El correo remitente debe ser de un dominio verificado en Zoho; si no, los avisos fallarán. Usa «Enviar prueba» después de guardar."
+    },
+    "rules": {
+      "title": "Quién recibe cada aviso",
+      "lead": "Marca a quién le llega el correo de cada evento. Nunca se avisa a quien hizo la acción.",
+      "event": "Evento",
+      "active": "Activo",
+      "clientVisible": "cliente",
+      "footnote": "Los clientes solo reciben eventos marcados como «cliente», de su empresa y de etapas visibles para ellos. A los jefes solo les llega lo que hacen los clientes o el sistema."
+    },
+    "recipients": {
+      "requester": "Solicitante",
+      "requesterHint": "Quien levantó el caso",
+      "assignee": "Responsable",
+      "assigneeHint": "Técnico asignado al caso",
+      "stage_owner": "Dueño de etapa",
+      "stage_ownerHint": "Responsable de la etapa",
+      "client_contacts": "Contactos",
+      "client_contactsHint": "Contactos del cliente que reciben avisos (o sus administradores)",
+      "account_manager": "Ejecutivo",
+      "account_managerHint": "Ejecutivo de cuenta del cliente",
+      "team": "Equipo",
+      "teamHint": "Miembros del equipo del caso",
+      "participants": "Participantes",
+      "participantsHint": "Personas agregadas al caso",
+      "managers": "Jefes",
+      "managersHint": "Dueños y jefes"
+    },
+    "calendar": {
+      "none": "No hay calendario laboral configurado.",
+      "title": "Días laborales",
+      "lead": "Las fechas de las implementaciones se calculan en días hábiles: sin fines de semana ni feriados.",
+      "days": {
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mié",
+        "thu": "Jue",
+        "fri": "Vie",
+        "sat": "Sáb",
+        "sun": "Dom"
+      },
+      "holidays": "Feriados",
+      "holidaysLead": "Días que no se trabajan. Afectan las fechas de las implementaciones nuevas.",
+      "day": "Fecha",
+      "holidayName": "Nombre",
+      "add": "Agregar",
+      "noHolidays": "No hay feriados registrados para este año ni los siguientes.",
+      "remove": "Quitar {{name}}"
+    }
+  },
+  "role": {
+    "owner": "Dueño",
+    "manager": "Jefe",
+    "technician": "Técnico",
+    "agent": "Agente",
+    "viewer": "Solo lectura",
+    "client_admin": "Administrador del cliente",
+    "client_user": "Usuario del cliente"
+  },
+  "types": {
+    "support": "Soporte",
+    "task": "Tareas",
+    "implementation": "Implementaciones"
+  },
+  "users": {
+    "lead": "Personas con acceso: correo, rol, empresa y estado. Los usuarios de una empresa cliente solo ven lo de su empresa.",
+    "new": "Nuevo usuario",
+    "create": "Crear usuario",
+    "choose": "Elige…",
+    "edit": "Editar datos",
+    "saved": "Cambios guardados.",
+    "scope": {
+      "staff": "Nuestro equipo",
+      "client": "Empresas cliente"
+    },
+    "scopeTabs": {
+      "all": "Todos",
+      "staff": "Equipo",
+      "client": "Clientes"
+    },
+    "allRoles": "Todos los roles",
+    "allClients": "Todas las empresas",
+    "allStatuses": "Todos los estados",
+    "search": "Buscar por nombre, correo o teléfono",
+    "empty": "No hay usuarios con estos filtros.",
+    "ownRole": "No puedes cambiar tu propio rol.",
+    "fields": {
+      "name": "Nombre",
+      "email": "Correo",
+      "role": "Rol",
+      "client": "Empresa",
+      "phone": "Teléfono",
+      "language": "Idioma",
+      "status": "Estado",
+      "receivesNotifications": "Recibe los avisos de su empresa"
+    },
+    "receivesHint": "Si nadie de la empresa está marcado, los avisos llegan a sus administradores.",
+    "languageDefault": "El de la empresa",
+    "password": "Contraseña",
+    "passwordGenerate": "Generar temporal",
+    "passwordWrite": "Escribirla",
+    "passwordRules": "De 10 a 72 caracteres.",
+    "passwordGenerateHint": "Se muestra una sola vez al crear el usuario.",
+    "sendWelcome": "Enviar el acceso por correo",
+    "sendWelcomeHint": "Le llega su usuario, la contraseña y el enlace al portal.",
+    "createdTitle": "Usuario creado",
+    "tempPasswordLead": "Contraseña temporal de {{email}}:",
+    "tempPasswordHint": "Cópiala ahora: no se vuelve a mostrar. Al entrar, el usuario debe cambiarla en «Mi cuenta».",
+    "copy": "Copiar",
+    "copied": "Copiada",
+    "accessEmailSent": "Se envió el acceso a {{email}}.",
+    "accessEmailFailed": "No se pudo enviar el correo: {{error}}",
+    "status": {
+      "active": "Activo",
+      "invited": "Sin entrar aún",
+      "suspended": "Suspendido"
+    },
+    "internal": "Equipo interno",
+    "lastSeen": "Último acceso",
+    "never": "Nunca",
+    "createdAt": "Creado",
+    "sessions": "Sesiones abiertas",
+    "requested": "Casos que levantó",
+    "openAssigned": "Casos abiertos asignados",
+    "ownerOnly": "Solo un dueño puede modificar a otro dueño.",
+    "access": "Acceso",
+    "resetSendEmail": "Enviar la nueva contraseña por correo",
+    "resetPassword": "Restablecer contraseña",
+    "resetConfirm": "¿Restablecer la contraseña de {{name}}? Se cerrarán sus sesiones abiertas.",
+    "suspend": "Suspender",
+    "reactivate": "Reactivar",
+    "suspendConfirm": "¿Suspender a {{name}}? No podrá entrar y se cerrarán sus sesiones."
+  },
+  "reports": {
+    "lead": "Volumen, tiempos y atrasos del período. Exporta cada tabla a CSV para Excel.",
+    "lastDays": "{{n}} días",
+    "custom": "Rango",
+    "from": "Desde",
+    "to": "Hasta",
+    "client": "Empresa",
+    "allClients": "Todas las empresas",
+    "type": "Tipo",
+    "allTypes": "Todos los tipos",
+    "period": "Del {{from}} al {{to}}",
+    "export": "CSV",
+    "noData": "Sin datos en este período.",
+    "minutes": "{{n}} min",
+    "hours": "{{n}} h",
+    "days": "{{n}} días",
+    "daysShort": "{{n}} d",
+    "summary": {
+      "created": "Creados",
+      "resolved": "Resueltos",
+      "open": "Abiertos hoy",
+      "overdue": "Vencidos",
+      "unassigned": "Sin asignar",
+      "waitingClient": "Esperando al cliente",
+      "avgFirstResponse": "Primera respuesta (promedio)",
+      "avgResolution": "Tiempo de resolución (promedio)"
+    },
+    "trend": "Creados vs resueltos",
+    "created": "Creados",
+    "resolved": "Resueltos",
+    "open": "Abiertos",
+    "overdue": "Vencidos",
+    "avgResolution": "Resolución",
+    "byType": "Por tipo de caso",
+    "byAssignee": "Por técnico",
+    "assignee": "Técnico",
+    "stagesCompleted": "Etapas",
+    "unassignedNote": "Además hay {{n}} casos abiertos sin asignar.",
+    "byClient": "Por empresa cliente",
+    "byRequester": "Quién levanta más casos",
+    "requester": "Solicitante",
+    "implementations": "Implementaciones",
+    "delayHint": "Días de atraso de las etapas vencidas: las del cliente cuentan para el cliente, las internas para nuestro equipo y las compartidas mitad y mitad.",
+    "implementation": "Implementación",
+    "number": "Número",
+    "titleCol": "Título",
+    "progress": "Avance",
+    "stages": "Etapas",
+    "delayedStages": "Etapas atrasadas",
+    "clientDelay": "Atraso del cliente (días)",
+    "internalDelay": "Atraso nuestro (días)",
+    "pendingRequests": "Requerimientos pendientes",
+    "overdueRequests": "Requerimientos vencidos",
+    "requestsCol": "Requerimientos",
+    "dueAt": "Fecha estimada",
+    "delayedN": "{{n}} atrasadas",
+    "overdueN": "{{n}} vencidos",
+    "noImplementations": "No hay implementaciones activas en este período.",
+    "implTotals": {
+      "active": "Activas",
+      "delayed": "Con etapas atrasadas",
+      "avgProgress": "Avance promedio",
+      "clientDelay": "Atraso del cliente",
+      "internalDelay": "Atraso de nuestro equipo"
+    },
+    "clientRequests": "Requerimientos al cliente",
+    "pending": "Pendientes",
+    "inReview": "Por revisar",
+    "avgDelivery": "Entrega promedio",
+    "rejected": "Devueltos"
+  },
+  "events": {
+    "work_item": {
+      "created": "Caso creado",
+      "assigned": "Caso asignado",
+      "status_changed": "Cambio de estado"
+    },
+    "comment": {
+      "public_added": "Comentario público"
+    },
+    "stage": {
+      "started": "Etapa iniciada",
+      "completed": "Etapa completada",
+      "unlocked": "Etapa desbloqueada",
+      "overdue": "Etapa atrasada"
+    },
+    "implementation": {
+      "completed": "Implementación terminada"
+    },
+    "client_request": {
+      "created": "Requerimiento al cliente",
+      "reminder": "Recordatorio de requerimiento",
+      "overdue": "Requerimiento vencido",
+      "submitted": "Requerimiento entregado",
+      "accepted": "Requerimiento aceptado",
+      "rejected": "Requerimiento devuelto"
+    },
+    "approval": {
+      "requested": "Aprobación solicitada"
+    },
+    "sla": {
+      "breached": "SLA incumplido"
     }
   }
 }

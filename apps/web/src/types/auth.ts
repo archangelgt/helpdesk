@@ -8,7 +8,7 @@ export interface CurrentUser {
   role: { code: string; name: string; scope: "staff" | "client" } | null;
   client: { id: string; name: string } | null;
   language: Language;
-  colorMode: Mode;
+  colorMode: Mode | "system";
   theme: Theme;
   permissions: string[];
 }
@@ -20,4 +20,4 @@ export interface SessionResponse {
   user: CurrentUser;
 }
 
-export type PreferencesPatch = Partial<Pick<CurrentUser, "language" | "colorMode" | "theme">>;
+export type PreferencesPatch = { language?: Language; colorMode?: Mode; theme?: Theme };

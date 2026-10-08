@@ -1,11 +1,16 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { ClientResponseError } from "pocketbase";
 import { t } from "../i18n/index.js";
+import { MAX_ATTACHMENT_BYTES } from "../services/attachment-rules.js";
 import { AppError } from "../utils/errors.js";
 
 function send(reply: FastifyReply, request: FastifyRequest, status: number, code: string, details?: unknown) {
   return reply.status(status).send({
-    error: { code, message: t(request.lang ?? "es", code), ...(details ? { details } : {}) },
+    error: {
+      code,
+      message: t(request.lang ?? "es", code, details && typeof details === "object" && !Array.isArray(details) ? (details as Record<string, unknown>) : undefined),
+      ...(details ? { details } : {}),
+    },
   });
 }
 
@@ -30,7 +35,7 @@ export function errorHandler(error: FastifyError | AppError | ClientResponseErro
   }
 
   if ("statusCode" in error && error.statusCode === 429) return send(reply, request, 429, "common.too_many_requests");
-  if ("code" in error && error.code === "FST_REQ_FILE_TOO_LARGE") return send(reply, request, 413, "attachment.too_large");
+  if ("code" in error && error.code === "FST_REQ_FILE_TOO_LARGE") return send(reply, request, 413, "attachment.too_large", { maxMb: MAX_ATTACHMENT_BYTES / 1024 / 1024 });
   if ("statusCode" in error && error.statusCode && error.statusCode < 500) {
     return send(reply, request, error.statusCode, "validation.invalid");
   }

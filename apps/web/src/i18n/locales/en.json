@@ -19,7 +19,9 @@
     "next": "Next",
     "pageOf": "Page {{page}} of {{total}}",
     "edit": "Edit",
-    "save": "Save"
+    "save": "Save",
+    "close": "Close",
+    "noAccess": "Your role doesn't have access to this section."
   },
   "auth": {
     "subtitle": "Sign in to continue",
@@ -39,7 +41,8 @@
     "clients": "Clients",
     "reports": "Reports",
     "chat": "Chat",
-    "settings": "Settings"
+    "settings": "Settings",
+    "users": "Users"
   },
   "themes": {
     "blue": "Blue",
@@ -263,7 +266,11 @@
       "active": "Active",
       "inactive": "Inactive",
       "prospect": "Prospect"
-    }
+    },
+    "notes": "Notes",
+    "users": "Users",
+    "manageUsers": "View and add users of this company",
+    "edit": "Edit {{name}}"
   },
   "soon": {
     "title": "Under construction",
@@ -336,7 +343,7 @@
     "change": "Change password"
   },
   "settings": {
-    "lead": "Instance settings.",
+    "lead": "Company details, appearance, email, notices and working calendar.",
     "email": {
       "title": "Outgoing email",
       "sender": "Sender",
@@ -372,6 +379,285 @@
         "failed": "Failed",
         "skipped": "Not sent"
       }
+    },
+    "saved": "Saved.",
+    "tabs": {
+      "general": "General",
+      "appearance": "Appearance & language",
+      "email": "Email",
+      "notifications": "Notices",
+      "calendar": "Calendar"
+    },
+    "general": {
+      "title": "Company",
+      "lead": "The name appears in the menu, on the sign-in screen and in emails.",
+      "companyName": "Company name",
+      "timezone": "Time zone"
+    },
+    "files": {
+      "title": "Files",
+      "lead": "Maximum size of each attachment.",
+      "maxUpload": "Maximum size (MB)",
+      "maxHint": "Between 1 and 25 MB."
+    },
+    "appearance": {
+      "title": "Appearance & language",
+      "lead": "Defaults for people who haven't chosen their own.",
+      "theme": "Color theme",
+      "mode": "Mode",
+      "modes": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "Follow device"
+      },
+      "brandColor": "Email color",
+      "brandHint": "Header and buttons of email notices.",
+      "defaultLanguage": "Default language",
+      "languages": "Available languages",
+      "defaultsHint": "Each user can change theme, mode and language from the top bar."
+    },
+    "sender": {
+      "title": "Sender",
+      "lead": "Name and address notices are sent from.",
+      "name": "Name the recipient sees",
+      "fromEmail": "Sender address",
+      "replyTo": "Reply to",
+      "replyToNone": "Same as sender",
+      "domainWarning": "The sender address must be on a domain verified in Zoho, otherwise notices will fail. Use “Send test” after saving."
+    },
+    "rules": {
+      "title": "Who gets each notice",
+      "lead": "Check who receives the email for each event. The person who did the action is never notified.",
+      "event": "Event",
+      "active": "Active",
+      "clientVisible": "client",
+      "footnote": "Clients only get events marked “client”, from their company and visible stages. Managers only get what clients or the system do."
+    },
+    "recipients": {
+      "requester": "Requester",
+      "requesterHint": "Who raised the case",
+      "assignee": "Assignee",
+      "assigneeHint": "Technician assigned to the case",
+      "stage_owner": "Stage owner",
+      "stage_ownerHint": "Person responsible for the stage",
+      "client_contacts": "Contacts",
+      "client_contactsHint": "Client contacts who receive notices (or its admins)",
+      "account_manager": "Account mgr.",
+      "account_managerHint": "Client's account manager",
+      "team": "Team",
+      "teamHint": "Members of the case's team",
+      "participants": "Participants",
+      "participantsHint": "People added to the case",
+      "managers": "Managers",
+      "managersHint": "Owners and managers"
+    },
+    "calendar": {
+      "none": "No working calendar is configured.",
+      "title": "Working days",
+      "lead": "Implementation dates are calculated in business days: no weekends or holidays.",
+      "days": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "holidays": "Holidays",
+      "holidaysLead": "Non-working days. They affect the dates of new implementations.",
+      "day": "Date",
+      "holidayName": "Name",
+      "add": "Add",
+      "noHolidays": "No holidays registered for this year or later.",
+      "remove": "Remove {{name}}"
+    }
+  },
+  "role": {
+    "owner": "Owner",
+    "manager": "Manager",
+    "technician": "Technician",
+    "agent": "Agent",
+    "viewer": "Read only",
+    "client_admin": "Client admin",
+    "client_user": "Client user"
+  },
+  "types": {
+    "support": "Support",
+    "task": "Tasks",
+    "implementation": "Implementations"
+  },
+  "users": {
+    "lead": "People with access: email, role, company and status. Users of a client company only see their company's data.",
+    "new": "New user",
+    "create": "Create user",
+    "choose": "Choose…",
+    "edit": "Edit details",
+    "saved": "Changes saved.",
+    "scope": {
+      "staff": "Our team",
+      "client": "Client companies"
+    },
+    "scopeTabs": {
+      "all": "All",
+      "staff": "Team",
+      "client": "Clients"
+    },
+    "allRoles": "All roles",
+    "allClients": "All companies",
+    "allStatuses": "All statuses",
+    "search": "Search by name, email or phone",
+    "empty": "No users match these filters.",
+    "ownRole": "You can't change your own role.",
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "client": "Company",
+      "phone": "Phone",
+      "language": "Language",
+      "status": "Status",
+      "receivesNotifications": "Receives their company's notices"
+    },
+    "receivesHint": "If nobody in the company is checked, notices go to its admins.",
+    "languageDefault": "Company default",
+    "password": "Password",
+    "passwordGenerate": "Generate temporary",
+    "passwordWrite": "Type it",
+    "passwordRules": "10 to 72 characters.",
+    "passwordGenerateHint": "Shown only once when the user is created.",
+    "sendWelcome": "Email the access details",
+    "sendWelcomeHint": "They get their user, password and the portal link.",
+    "createdTitle": "User created",
+    "tempPasswordLead": "Temporary password for {{email}}:",
+    "tempPasswordHint": "Copy it now: it won't be shown again. After signing in, the user should change it under “My account”.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "accessEmailSent": "Access details sent to {{email}}.",
+    "accessEmailFailed": "The email couldn't be sent: {{error}}",
+    "status": {
+      "active": "Active",
+      "invited": "Not signed in yet",
+      "suspended": "Suspended"
+    },
+    "internal": "Internal team",
+    "lastSeen": "Last access",
+    "never": "Never",
+    "createdAt": "Created",
+    "sessions": "Open sessions",
+    "requested": "Cases raised",
+    "openAssigned": "Open assigned cases",
+    "ownerOnly": "Only an owner can modify another owner.",
+    "access": "Access",
+    "resetSendEmail": "Email the new password",
+    "resetPassword": "Reset password",
+    "resetConfirm": "Reset {{name}}'s password? Their open sessions will be closed.",
+    "suspend": "Suspend",
+    "reactivate": "Reactivate",
+    "suspendConfirm": "Suspend {{name}}? They won't be able to sign in and their sessions will be closed."
+  },
+  "reports": {
+    "lead": "Volume, times and delays for the period. Export each table to CSV for Excel.",
+    "lastDays": "{{n}} days",
+    "custom": "Range",
+    "from": "From",
+    "to": "To",
+    "client": "Company",
+    "allClients": "All companies",
+    "type": "Type",
+    "allTypes": "All types",
+    "period": "From {{from}} to {{to}}",
+    "export": "CSV",
+    "noData": "No data for this period.",
+    "minutes": "{{n}} min",
+    "hours": "{{n}} h",
+    "days": "{{n}} days",
+    "daysShort": "{{n}} d",
+    "summary": {
+      "created": "Created",
+      "resolved": "Resolved",
+      "open": "Open today",
+      "overdue": "Overdue",
+      "unassigned": "Unassigned",
+      "waitingClient": "Waiting on client",
+      "avgFirstResponse": "First response (avg.)",
+      "avgResolution": "Resolution time (avg.)"
+    },
+    "trend": "Created vs resolved",
+    "created": "Created",
+    "resolved": "Resolved",
+    "open": "Open",
+    "overdue": "Overdue",
+    "avgResolution": "Resolution",
+    "byType": "By case type",
+    "byAssignee": "By technician",
+    "assignee": "Technician",
+    "stagesCompleted": "Stages",
+    "unassignedNote": "There are also {{n}} open unassigned cases.",
+    "byClient": "By client company",
+    "byRequester": "Who raises the most cases",
+    "requester": "Requester",
+    "implementations": "Implementations",
+    "delayHint": "Days late on overdue stages: client stages count for the client, internal ones for our team and shared ones half each.",
+    "implementation": "Implementation",
+    "number": "Number",
+    "titleCol": "Title",
+    "progress": "Progress",
+    "stages": "Stages",
+    "delayedStages": "Delayed stages",
+    "clientDelay": "Client delay (days)",
+    "internalDelay": "Our delay (days)",
+    "pendingRequests": "Pending requests",
+    "overdueRequests": "Overdue requests",
+    "requestsCol": "Requests",
+    "dueAt": "Estimated date",
+    "delayedN": "{{n}} delayed",
+    "overdueN": "{{n}} overdue",
+    "noImplementations": "No active implementations in this period.",
+    "implTotals": {
+      "active": "Active",
+      "delayed": "With delayed stages",
+      "avgProgress": "Average progress",
+      "clientDelay": "Client delay",
+      "internalDelay": "Our team's delay"
+    },
+    "clientRequests": "Client requests",
+    "pending": "Pending",
+    "inReview": "To review",
+    "avgDelivery": "Avg. delivery",
+    "rejected": "Returned"
+  },
+  "events": {
+    "work_item": {
+      "created": "Case created",
+      "assigned": "Case assigned",
+      "status_changed": "Status changed"
+    },
+    "comment": {
+      "public_added": "Public comment"
+    },
+    "stage": {
+      "started": "Stage started",
+      "completed": "Stage completed",
+      "unlocked": "Stage unlocked",
+      "overdue": "Stage overdue"
+    },
+    "implementation": {
+      "completed": "Implementation completed"
+    },
+    "client_request": {
+      "created": "Client request",
+      "reminder": "Request reminder",
+      "overdue": "Request overdue",
+      "submitted": "Request delivered",
+      "accepted": "Request accepted",
+      "rejected": "Request returned"
+    },
+    "approval": {
+      "requested": "Approval requested"
+    },
+    "sla": {
+      "breached": "SLA breached"
     }
   }
 }

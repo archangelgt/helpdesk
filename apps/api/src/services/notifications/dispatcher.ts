@@ -17,7 +17,7 @@ import { workItemsModel } from "../../models/work-items.model.js";
 import type { StageRow, WorkItemRow, WorkItemTypeRow } from "../../types/records.js";
 import { catalogCache, type Catalog } from "../catalog-cache.service.js";
 import { mailer, mailerConfig } from "./mailer.js";
-import { EVENT_PRIORITY, hasTemplate, renderMail, type EventDetails, type ItemContext } from "./templates.js";
+import { EVENT_PRIORITY, hasTemplate, renderAccessMail, renderMail, type EventDetails, type ItemContext } from "./templates.js";
 
 const OUTBOX_BATCH = 100;
 const OUTBOX_MAX_ATTEMPTS = 5;
@@ -324,6 +324,33 @@ export const notificationDispatcher = {
         sentAt: n.sent_at || null,
       })),
     };
+  },
+
+  /** Usuario y contraseña temporal al dar de alta o restablecer; se envía directo, sin guardar la contraseña en la cola. */
+  async sendAccess(
+    user: { email: string; name: string; language: string },
+    kind: "welcome" | "reset",
+    password: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    const setup = await loadSetup();
+    const config = mailerConfig(defaultSender(setup.senders));
+    if (!config.ready) return { ok: false, error: MAIL_NOT_CONFIGURED };
+    const language = isLanguage(user.language) ? user.language : DEFAULT_LANGUAGE;
+    const mail = renderAccessMail(language, {
+      kind,
+      recipientName: user.name || user.email,
+      email: user.email,
+      password,
+      url: `${env.PUBLIC_URL.replace(/\/$/, "")}/login`,
+      companyName: setup.companyName,
+      brandColor: setup.brandColor,
+    });
+    try {
+      await mailer.send(config, { to: user.email, toName: user.name, ...mail });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
   },
 
   /** Envía un correo de prueba sin pasar por la cola. Devuelve el error del proveedor, si lo hay. */

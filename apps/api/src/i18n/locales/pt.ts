@@ -21,8 +21,13 @@ const pt: Record<keyof typeof es, string> = {
   "stage.requires_client_approval": "Esta etapa precisa da aprovação do cliente: envie para revisão.",
   "client_request.invalid_state": "A solicitação não está em um estado que permita esta ação.",
   "auth.current_password_invalid": "A senha atual está incorreta.",
-  "attachment.too_large": "O arquivo é grande demais (máximo 25 MB).",
+  "attachment.too_large": "O arquivo é grande demais (máximo {maxMb} MB).",
   "attachment.missing_file": "Nenhum arquivo foi recebido.",
+  "users.email_taken": "Já existe um usuário com esse e-mail.",
+  "users.cannot_change_self": "Você não pode alterar seu próprio papel nem se suspender.",
+  "users.last_owner": "Deve restar pelo menos um dono ativo.",
+  "users.use_account_page": "Para alterar sua própria senha use “Minha conta”.",
+  "settings.holiday_exists": "Já existe um feriado nesse dia.",
 };
 
 export default pt;

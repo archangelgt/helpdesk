@@ -1,6 +1,19 @@
 import { api, apiBlob } from "./client";
 import type {
+  AccessResult,
   ActivityDto,
+  AdminUserDetailDto,
+  AdminUserDto,
+  CalendarDto,
+  InstanceSettingsValues,
+  NotificationRuleDto,
+  PublicSettingsDto,
+  RecipientKind,
+  ReportDto,
+  RoleOption,
+  SenderDto,
+  SettingsDto,
+  Weekday,
   AttachmentDto,
   ClientDto,
   ClientRequestType,
@@ -126,6 +139,8 @@ export const clientRequestsApi = {
 export const adminApi = {
   clients: (q?: string) => api<{ items: ClientDto[] }>(`/clients${query({ q })}`).then((r) => r.items),
   createClient: (body: { name: string; legalName?: string; taxId?: string }) => api<ClientDto>("/clients", json("POST", body)),
+  updateClient: (id: string, body: Partial<Pick<ClientDto, "name" | "status">> & { legalName?: string; taxId?: string; notes?: string }) =>
+    api<ClientDto>(`/clients/${id}`, json("PATCH", body)),
   assignableUsers: () => api<{ items: UserOption[] }>("/users/assignable").then((r) => r.items),
   templates: (type: string) => api<{ items: TemplateDto[] }>(`/templates${query({ type })}`).then((r) => r.items),
   priorities: () => api<{ items: PriorityDto[] }>("/catalog/priorities").then((r) => r.items),
@@ -137,4 +152,58 @@ export const adminApi = {
 export const meApi = {
   changePassword: (currentPassword: string, newPassword: string) =>
     api<{ closedSessions: number }>("/me/password", json("POST", { currentPassword, newPassword })),
+};
+
+export interface UserQuery {
+  q?: string;
+  roleId?: string;
+  clientId?: string;
+  scope?: "staff" | "client";
+  status?: "active" | "invited" | "suspended";
+}
+
+export interface UserBody {
+  name: string;
+  email: string;
+  phone?: string;
+  roleId: string;
+  clientId?: string | null;
+  language?: "es" | "en" | "pt" | null;
+  receivesNotifications?: boolean;
+}
+
+export const usersApi = {
+  list: (params: UserQuery) => api<{ items: AdminUserDto[] }>(`/users${query(params)}`).then((r) => r.items),
+  roles: () => api<{ items: RoleOption[] }>("/users/roles").then((r) => r.items),
+  get: (id: string) => api<AdminUserDetailDto>(`/users/${id}`),
+  create: (body: UserBody & { password?: string; sendWelcome: boolean }) =>
+    api<AccessResult & { user: AdminUserDetailDto }>("/users", json("POST", body)),
+  update: (id: string, body: Partial<UserBody> & { status?: "active" | "suspended" }) =>
+    api<AdminUserDetailDto>(`/users/${id}`, json("PATCH", body)),
+  resetPassword: (id: string, sendEmail: boolean) =>
+    api<AccessResult & { closedSessions: number }>(`/users/${id}/reset-password`, json("POST", { sendEmail })),
+};
+
+export const settingsApi = {
+  publicSettings: () => api<PublicSettingsDto>("/settings/public"),
+  get: () => api<SettingsDto>("/settings"),
+  update: (body: Partial<InstanceSettingsValues>) => api<SettingsDto>("/settings", json("PATCH", body)),
+  updateSender: (body: { name?: string; fromEmail?: string; replyTo?: string | null }) => api<SenderDto>("/settings/sender", json("PATCH", body)),
+  updateRule: (id: string, body: { recipients?: RecipientKind[]; active?: boolean }) =>
+    api<{ items: NotificationRuleDto[] }>(`/settings/rules/${id}`, json("PATCH", body)).then((r) => r.items),
+  setWorkingDays: (workingDays: Weekday[]) => api<CalendarDto>("/settings/calendar/working-days", json("PUT", { workingDays })),
+  addHoliday: (day: string, name: string) => api<CalendarDto>("/settings/calendar/holidays", json("POST", { day, name })),
+  removeHoliday: (id: string) => api<CalendarDto>(`/settings/calendar/holidays/${id}`, { method: "DELETE" }),
+};
+
+export interface ReportQuery {
+  days?: number;
+  from?: string;
+  to?: string;
+  clientId?: string;
+  typeId?: string;
+}
+
+export const reportsApi = {
+  overview: (params: ReportQuery) => api<ReportDto>(`/reports/overview${query(params)}`),
 };

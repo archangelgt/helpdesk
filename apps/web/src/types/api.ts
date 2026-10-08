@@ -174,6 +174,7 @@ export interface ClientDto {
   status: "active" | "inactive" | "prospect";
   notes: string | null;
   openItems: number;
+  userCount: number;
 }
 
 export interface UserOption {
@@ -207,4 +208,142 @@ export interface NotificationsStatusDto {
     created: string;
     sentAt: string | null;
   }[];
+}
+
+export type RoleScope = "staff" | "client";
+export type UserStatus = "active" | "invited" | "suspended";
+
+export interface RoleOption {
+  id: string;
+  code: string;
+  name: string;
+  scope: RoleScope;
+}
+
+export interface AdminUserDto {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  role: RoleOption | null;
+  client: { id: string; name: string } | null;
+  status: UserStatus;
+  language: "es" | "en" | "pt" | null;
+  lastSeenAt: string | null;
+  created: string;
+  receivesNotifications: boolean;
+}
+
+export interface AdminUserDetailDto extends AdminUserDto {
+  openAssigned: number;
+  requested: number;
+  activeSessions: number;
+}
+
+export interface AccessResult {
+  temporaryPassword: string | null;
+  emailSent: boolean;
+  emailError: string | null;
+}
+
+export type ThemeName = "blue" | "orange" | "green" | "purple" | "pink" | "slate";
+export type LanguageCode = "es" | "en" | "pt";
+
+export interface PublicSettingsDto {
+  companyName: string;
+  theme: ThemeName;
+  colorMode: "light" | "dark" | "system";
+  defaultLanguage: LanguageCode;
+  languages: LanguageCode[];
+  maxUploadMb: number;
+}
+
+export interface InstanceSettingsValues extends PublicSettingsDto {
+  timezone: string;
+  brandColor: string;
+}
+
+export type RecipientKind =
+  | "requester"
+  | "assignee"
+  | "stage_owner"
+  | "client_contacts"
+  | "account_manager"
+  | "team"
+  | "participants"
+  | "managers";
+
+export interface NotificationRuleDto {
+  id: string;
+  event: string;
+  clientVisible: boolean;
+  recipients: RecipientKind[];
+  active: boolean;
+}
+
+export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+export interface CalendarDto {
+  id: string;
+  name: string;
+  timezone: string;
+  workingDays: Weekday[];
+  holidays: { id: string; day: string; name: string }[];
+}
+
+export interface SenderDto {
+  id: string;
+  name: string;
+  fromEmail: string;
+  replyTo: string | null;
+  provider: string;
+}
+
+export interface SettingsDto {
+  values: InstanceSettingsValues;
+  calendar: CalendarDto | null;
+  rules: NotificationRuleDto[];
+  sender: SenderDto | null;
+  recipientKinds: RecipientKind[];
+}
+
+export interface ReportDto {
+  period: { from: string; to: string };
+  summary: {
+    created: number;
+    resolved: number;
+    open: number;
+    overdue: number;
+    unassigned: number;
+    waitingClient: number;
+    avgFirstResponseHours: number | null;
+    avgResolutionHours: number | null;
+  };
+  byType: { typeId: string; code: string; name: string; created: number; resolved: number; open: number; overdue: number; avgResolutionHours: number | null }[];
+  trend: { date: string; created: number; resolved: number }[];
+  byClient: { clientId: string; name: string; created: number; resolved: number; open: number; overdue: number }[];
+  byAssignee: { userId: string; name: string; open: number; overdue: number; resolved: number; avgResolutionHours: number | null; stagesCompleted: number }[];
+  unassignedOpen: number;
+  byRequester: { userId: string; name: string; clientName: string | null; created: number }[];
+  implementations: {
+    totals: { active: number; delayed: number; avgProgress: number | null; clientDelayDays: number; internalDelayDays: number };
+    items: {
+      id: string;
+      number: string;
+      title: string;
+      clientName: string | null;
+      assigneeName: string | null;
+      statusCategory: string;
+      progress: number;
+      dueAt: string | null;
+      stagesTotal: number;
+      stagesDone: number;
+      delayedStages: number;
+      clientDelayDays: number;
+      internalDelayDays: number;
+      pendingRequests: number;
+      overdueRequests: number;
+    }[];
+  };
+  clientRequests: { clientId: string; name: string; pending: number; overdue: number; inReview: number; avgDeliveryDays: number | null; rejected: number }[];
 }

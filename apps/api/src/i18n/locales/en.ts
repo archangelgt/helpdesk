@@ -21,8 +21,13 @@ const en: Record<keyof typeof es, string> = {
   "stage.requires_client_approval": "This stage needs the client's approval: send it for review.",
   "client_request.invalid_state": "The request is not in a state that allows this action.",
   "auth.current_password_invalid": "The current password is incorrect.",
-  "attachment.too_large": "The file is too large (maximum 25 MB).",
+  "attachment.too_large": "The file is too large (maximum {maxMb} MB).",
   "attachment.missing_file": "No file was received.",
+  "users.email_taken": "A user with that email already exists.",
+  "users.cannot_change_self": "You can't change your own role or suspend yourself.",
+  "users.last_owner": "At least one active owner must remain.",
+  "users.use_account_page": "To change your own password use “My account”.",
+  "settings.holiday_exists": "There is already a holiday on that day.",
 };
 
 export default en;

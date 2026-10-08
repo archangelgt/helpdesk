@@ -7,9 +7,11 @@ export type MessageKey = keyof typeof es;
 
 const MESSAGES: Record<Language, Record<MessageKey, string>> = { es, en, pt };
 
-export function t(lang: Language, key: string): string {
+/** Mensaje traducido; `{nombre}` se reemplaza con `params.nombre`. */
+export function t(lang: Language, key: string, params?: Record<string, unknown>): string {
   const messages = MESSAGES[lang] ?? MESSAGES[DEFAULT_LANGUAGE];
-  return (messages as Record<string, string>)[key] ?? (MESSAGES.es as Record<string, string>)[key] ?? key;
+  const text = (messages as Record<string, string>)[key] ?? (MESSAGES.es as Record<string, string>)[key] ?? key;
+  return params ? text.replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String(params[name]) : match)) : text;
 }
 
 export function isLanguage(value: unknown): value is Language {
