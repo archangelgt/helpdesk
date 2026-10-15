@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import {
   clientRequestsController,
+  plansController,
   stagesController,
   workItemsController,
 } from "../controllers/work-items.controller.js";
@@ -31,6 +32,7 @@ export async function workItemsRoutes(app: FastifyInstance) {
   app.post("/stages/:id/checklist", stagesController.addChecklistItem);
   app.patch("/checklist-items/:id", stagesController.updateChecklistItem);
 
+  app.post("/plans/preview", plansController.preview);
   app.post("/client-requests/:id/submit", clientRequestsController.submit);
   app.post("/client-requests/:id/review", clientRequestsController.review);
   app.post("/client-requests/:id/remind", {

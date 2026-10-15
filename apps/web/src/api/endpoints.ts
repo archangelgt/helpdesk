@@ -5,6 +5,8 @@ import type {
   AdminUserDetailDto,
   AdminUserDto,
   BoardStatusDto,
+  PlanPreviewDto,
+  PlanStageInput,
   CalendarDto,
   InstanceSettingsValues,
   NotificationRuleDto,
@@ -52,6 +54,7 @@ export interface CreateWorkItemBody {
   dueAt?: string | null;
   templateId?: string | null;
   plannedStart?: string | null;
+  plan?: { stages: PlanStageInput[] };
 }
 
 export type UpdateWorkItemBody = Partial<
@@ -108,6 +111,11 @@ export const workItemsApi = {
   addStage: (id: string, body: CreateStageBody) => api<WorkItemDetailDto>(`/work-items/${id}/stages`, json("POST", body)),
   addClientRequest: (id: string, body: CreateClientRequestBody) =>
     api<WorkItemDetailDto>(`/work-items/${id}/client-requests`, json("POST", body)),
+};
+
+export const plansApi = {
+  preview: (body: { startDay?: string; templateId?: string; plan?: { stages: PlanStageInput[] } }) =>
+    api<PlanPreviewDto>("/plans/preview", json("POST", body)),
 };
 
 export const attachmentsApi = {

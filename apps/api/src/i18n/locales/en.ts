@@ -1,6 +1,9 @@
 import type es from "./es.js";
 
 const en: Record<keyof typeof es, string> = {
+  "plan.duplicate_key": "Two stages in the plan share the same key.",
+  "plan.invalid_dependency": "A stage depends on a stage that does not exist or on itself.",
+  "plan.dependency_cycle": "The stage dependencies form a cycle: check what each stage depends on.",
   "validation.invalid": "The submitted data is not valid.",
   "auth.invalid_credentials": "Incorrect email or password.",
   "auth.unauthorized": "You need to sign in.",

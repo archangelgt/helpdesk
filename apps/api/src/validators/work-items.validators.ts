@@ -25,6 +25,55 @@ export const listWorkItemsSchema = z.object({
 });
 export type ListWorkItemsInput = z.infer<typeof listWorkItemsSchema>;
 
+const planKey = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
+
+export const planStageSchema = z
+  .object({
+    key: planKey,
+    templateStageId: recordId.optional(),
+    name: text(120).min(1),
+    description: text(2_000).default(""),
+    side: z.enum(["internal", "client", "shared"]).default("internal"),
+    durationDays: z.number().int().min(1).max(365),
+    dependsOn: z.array(planKey).max(20).default([]),
+    weight: z.number().int().min(1).max(100).default(1),
+    clientVisible: z.boolean().default(true),
+    requiresEvidence: z.boolean().default(false),
+    requiresClientApproval: z.boolean().default(false),
+    ownerId: optionalId,
+    checklist: z.array(text(200).min(1)).max(50).default([]),
+    requests: z
+      .array(
+        z
+          .object({
+            templateRequestId: recordId.optional(),
+            title: text(200).min(1),
+            description: text(5_000).default(""),
+            type: z.enum(CLIENT_REQUEST_TYPES).default("information"),
+            dueInDays: z.number().int().min(0).max(365).default(0),
+            blocking: z.boolean().default(true),
+          })
+          .strict(),
+      )
+      .max(30)
+      .default([]),
+  })
+  .strict();
+export type PlanStageInput = z.infer<typeof planStageSchema>;
+
+const planSchema = z.object({ stages: z.array(planStageSchema).min(1).max(40) }).strict();
+
+/** Vista previa del asistente: fechas de un plan, o el plan de una plantilla para editarlo. */
+export const planPreviewSchema = z
+  .object({
+    startDay: day.optional(),
+    templateId: recordId.optional(),
+    plan: planSchema.optional(),
+  })
+  .strict()
+  .refine((v) => v.templateId || v.plan, { message: "templateId_or_plan" });
+export type PlanPreviewInput = z.infer<typeof planPreviewSchema>;
+
 export const createWorkItemSchema = z
   .object({
     type: z.string().regex(/^[a-z0-9_]+$/).max(60),
@@ -40,6 +89,7 @@ export const createWorkItemSchema = z
     dueAt: day.optional().nullable(),
     templateId: optionalId,
     plannedStart: day.optional().nullable(),
+    plan: planSchema.optional(),
   })
   .strict();
 export type CreateWorkItemInput = z.infer<typeof createWorkItemSchema>;

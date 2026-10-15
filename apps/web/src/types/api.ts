@@ -190,6 +190,47 @@ export interface UserOption {
   role: string | null;
 }
 
+export interface PlanRequestInput {
+  templateRequestId?: string;
+  title: string;
+  description: string;
+  type: ClientRequestType;
+  dueInDays: number;
+  blocking: boolean;
+}
+
+export interface PlanStageInput {
+  key: string;
+  templateStageId?: string;
+  name: string;
+  description: string;
+  side: ResponsibleSide;
+  durationDays: number;
+  dependsOn: string[];
+  weight: number;
+  clientVisible: boolean;
+  requiresEvidence: boolean;
+  requiresClientApproval: boolean;
+  ownerId?: string | null;
+  checklist: string[];
+  requests: PlanRequestInput[];
+}
+
+export interface PlanPreviewStageDto extends Omit<PlanStageInput, "templateStageId" | "ownerId" | "requests"> {
+  templateStageId: string | null;
+  ownerId: string | null;
+  plannedStart: string;
+  plannedEnd: string;
+  requests: (Omit<PlanRequestInput, "templateRequestId"> & { templateRequestId: string | null; dueDay: string })[];
+}
+
+export interface PlanPreviewDto {
+  templateId: string | null;
+  plannedStart: string;
+  plannedEnd: string;
+  stages: PlanPreviewStageDto[];
+}
+
 export interface TemplateDto {
   id: string;
   name: string;

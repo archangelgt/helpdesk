@@ -1,4 +1,7 @@
 export default {
+  "plan.duplicate_key": "Hay dos etapas con la misma clave en el plan.",
+  "plan.invalid_dependency": "Una etapa depende de otra que no existe o de sí misma.",
+  "plan.dependency_cycle": "Las dependencias entre etapas forman un ciclo: revisa de qué depende cada una.",
   "validation.invalid": "Los datos enviados no son válidos.",
   "auth.invalid_credentials": "Correo o contraseña incorrectos.",
   "auth.unauthorized": "Debes iniciar sesión.",

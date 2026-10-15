@@ -3,7 +3,6 @@ import { activityModel } from "../models/activity.model.js";
 import { attachmentsModel } from "../models/attachments.model.js";
 import { clientRequestsModel } from "../models/client-requests.model.js";
 import { stagesModel } from "../models/stages.model.js";
-import { templatesModel } from "../models/templates.model.js";
 import { unitOfWork, type WriteOp } from "../models/unit-of-work.model.js";
 import { workItemVisibility } from "../models/visibility.js";
 import { workItemsModel, type WorkItemCriteria } from "../models/work-items.model.js";
@@ -26,7 +25,7 @@ import {
   type WorkItemRow,
   type WorkItemTypeRow,
 } from "../types/records.js";
-import { buildCalendar, dayToPb, toDay } from "../utils/business-days.js";
+import { dayToPb, toDay } from "../utils/business-days.js";
 import { Errors } from "../utils/errors.js";
 import type {
   CreateWorkItemInput,
@@ -41,7 +40,8 @@ import { eventOps, type DomainEvent } from "./events.js";
 import { ImplementationPlan, loadImplementationState } from "./implementation-engine.js";
 import { orNull, ref, toAttachmentDto, toChecklistDto, toClientRequestDto, toPriorityDto, toStatusDto } from "./mappers.js";
 import { currentStage, stageProgress, weightedProgress } from "./progress.js";
-import { planFromTemplate } from "./template-planner.js";
+import { resolvePlan, workCalendar } from "./plans.service.js";
+import { planStages } from "./template-planner.js";
 import { usersService } from "./users.service.js";
 import { availableTransitions, canUseTransition, categoryOf } from "./workflow.js";
 
@@ -317,6 +317,7 @@ export const workItemsService = {
     if (!type?.active) throw Errors.validation([{ field: "type", code: "invalid", message: "" }]);
     if (actor.isClient && (!type.client_visible || input.assigneeId || input.templateId || type.has_stages)) throw Errors.forbidden();
     if (type.has_stages && !actor.can("stage.manage")) throw Errors.forbidden();
+    if (input.plan && !type.has_stages) throw Errors.validation([{ field: "plan", code: "invalid", message: "" }]);
 
     let requesterId = actor.userId;
     let clientId = actor.isClient ? actor.clientId : (input.clientId ?? null);
@@ -341,16 +342,12 @@ export const workItemsService = {
     let plannedStart = input.plannedStart ?? null;
     let plannedEnd: string | null = null;
     const childOps: WriteOp[] = [];
-    if (type.has_stages && input.templateId) {
-      const bundle = await templatesModel.bundle(input.templateId);
-      if (!bundle?.template.active || bundle.template.type !== type.id) {
-        throw Errors.validation([{ field: "templateId", code: "invalid", message: "" }]);
-      }
-      const { calendar, holidays } = await templatesModel.defaultCalendar();
-      const plan = planFromTemplate(bundle, {
+    const planned = type.has_stages ? await resolvePlan(type, input) : null;
+    if (planned) {
+      const plan = planStages(planned, {
         workItemId: id,
         startDay: plannedStart ?? toDay(new Date()),
-        calendar: buildCalendar(calendar?.working_hours ?? null, holidays),
+        calendar: await workCalendar(),
         initialStageStatus: catalog.initialStatus(type.stage_workflow).id,
         actorId: actor.userId,
       });

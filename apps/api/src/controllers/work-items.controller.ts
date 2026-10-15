@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { actorOf } from "../middlewares/authenticate.js";
 import { clientRequestsService } from "../services/client-requests.service.js";
 import { commentsService } from "../services/comments.service.js";
+import { plansService } from "../services/plans.service.js";
 import { remindersService } from "../services/reminders.service.js";
 import { stagesService } from "../services/stages.service.js";
 import { workItemsService } from "../services/work-items.service.js";
@@ -11,6 +12,7 @@ import {
   checklistUpdateSchema,
   commentSchema,
   createClientRequestSchema,
+  planPreviewSchema,
   createStageSchema,
   createWorkItemSchema,
   idParamSchema,
@@ -96,6 +98,12 @@ export const stagesController = {
 
   async updateChecklistItem(request: FastifyRequest, reply: FastifyReply) {
     return reply.send(await stagesService.updateChecklistItem(actorOf(request), idOf(request), parse(checklistUpdateSchema, request.body)));
+  },
+};
+
+export const plansController = {
+  async preview(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await plansService.preview(actorOf(request), parse(planPreviewSchema, request.body)));
   },
 };
 

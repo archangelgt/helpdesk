@@ -754,6 +754,69 @@ check("el cliente no puede mover tickets nuevos", s == 200 and not next(x for x 
 s, res = call("GET", f"{API}/catalog/board?type=nada", token=TECH)
 check("tipo desconocido → 404", s == 404, res)
 
+# --- Asistente de implementación -------------------------------------------------------
+print("Asistente de implementación")
+s, pv = call("POST", f"{API}/plans/preview", {"templateId": template_id, "startDay": "2026-10-03"}, OWNER)
+pstages = pv.get("stages", []) if s == 200 else []
+check("vista previa de la plantilla con fechas", s == 200 and len(pstages) == 6 and pstages[0]["plannedStart"] == "2026-10-05"
+      and pstages[0]["templateStageId"] and sum(len(x["requests"]) for x in pstages) == 7, pv)
+s, res = call("POST", f"{API}/plans/preview", {"templateId": template_id}, CA)
+check("el cliente no usa el asistente", s == 403, res)
+
+def stage(key, name, days=2, deps=(), **extra):
+    return {"key": key, "name": name, "durationDays": days, "dependsOn": list(deps), **extra}
+
+s, res = call("POST", f"{API}/plans/preview", {"plan": {"stages": [stage("a", "A", deps=["b"]), stage("b", "B", deps=["a"])]}}, OWNER)
+check("ciclo de dependencias → 400 plan.dependency_cycle", s == 400 and res["error"]["code"] == "plan.dependency_cycle", res)
+s, res = call("POST", f"{API}/plans/preview", {"plan": {"stages": [stage("a", "A"), stage("a", "B")]}}, OWNER)
+check("claves repetidas → plan.duplicate_key", s == 400 and res["error"]["code"] == "plan.duplicate_key", res)
+s, res = call("POST", f"{API}/plans/preview", {"plan": {"stages": [stage("a", "A", deps=["zz"])]}}, OWNER)
+check("dependencia inexistente → plan.invalid_dependency", s == 400 and res["error"]["code"] == "plan.invalid_dependency", res)
+s, res = call("POST", f"{API}/plans/preview", {"startDay": "2026-10-05", "plan": {"stages": [stage("a", "A", 3), stage("b", "B", 1), stage("c", "C", 1, ["a", "b"])]}}, OWNER)
+dates = {x["key"]: (x["plannedStart"], x["plannedEnd"]) for x in res.get("stages", [])} if s == 200 else {}
+check("etapas en paralelo: C espera a la más larga", s == 200 and dates["a"][0] == dates["b"][0] == "2026-10-05"
+      and dates["c"][0] == "2026-10-08" and res["plannedEnd"] == "2026-10-08", res)
+
+edited = [{k: v for k, v in x.items() if k not in ("plannedStart", "plannedEnd")} for x in pstages[:-1]]
+for x in edited:
+    x["templateStageId"] = x["templateStageId"] or None
+    x["ownerId"] = x["ownerId"] or None
+    x["requests"] = [{k: v for k, v in r.items() if k != "dueDay"} for r in x["requests"]]
+    for r in x["requests"]:
+        if not r["templateRequestId"]:
+            del r["templateRequestId"]
+    if not x["templateStageId"]:
+        del x["templateStageId"]
+edited[0]["name"] = "Arranque"
+edited[0]["ownerId"] = tech_u["id"]
+edited.append(stage("extra", "Capacitación extra", 2, [edited[-1]["key"]], side="shared", checklist=["Agenda", "Lista de asistentes"],
+                    requests=[{"title": "Lista de usuarios a capacitar", "type": "document", "dueInDays": 1}]))
+bad = [dict(x) for x in edited]
+bad[0] = {**bad[0], "ownerId": ca_user["id"]}
+s, res = call("POST", f"{API}/work-items", {"type": "implementation", "title": "Mala", "clientId": client_a["id"], "plan": {"stages": bad}}, OWNER)
+check("responsable de etapa debe ser del equipo", s == 400, res)
+s, res = call("POST", f"{API}/work-items", {"type": "support", "title": "Mal", "plan": {"stages": [stage("a", "A")]}}, OWNER)
+check("un ticket no acepta plan", s == 400, res)
+
+s, wimp = call("POST", f"{API}/work-items", {"type": "implementation", "title": "Implementación con asistente", "clientId": client_a["id"],
+                                              "templateId": template_id, "plannedStart": "2026-10-03", "plan": {"stages": edited}}, OWNER)
+wst = {x["name"]: x for x in wimp.get("stages", [])} if s == 201 else {}
+check("crear implementación con el plan editado", s == 201 and len(wimp["stages"]) == 6 and "Arranque" in wst and "Capacitación extra" in wst
+      and "Salida a producción" not in wst, wimp)
+if s == 201:
+    check("responsable de la etapa", (wst["Arranque"].get("owner") or {}).get("id") == tech_u["id"], wst["Arranque"].get("owner"))
+    extra = wst["Capacitación extra"]
+    check("etapa nueva con tareas, dependencia y requerimiento", len(extra["checklist"]) == 2 and extra["side"] == "shared"
+          and len(extra["dependsOn"]) == 1 and any(r["title"] == "Lista de usuarios a capacitar" and r["stageId"] == extra["id"] for r in wimp["clientRequests"]),
+          extra)
+    check("fecha estimada = fin del plan", wimp["dueAt"] == max(x["plannedEnd"] for x in wimp["stages"]), wimp["dueAt"])
+    check("requerimientos de la plantilla conservados", len(wimp["clientRequests"]) == sum(len(x["requests"]) for x in edited), len(wimp["clientRequests"]))
+
+s, mimp = call("POST", f"{API}/work-items", {"type": "implementation", "title": "Implementación manual", "clientId": client_b["id"], "plannedStart": "2026-10-05",
+                                              "plan": {"stages": [stage("x", "Análisis", 2), stage("y", "Entrega", 1, ["x"])]}}, OWNER)
+check("implementación manual desde el asistente", s == 201 and [x["name"] for x in mimp["stages"]] == ["Análisis", "Entrega"]
+      and mimp["stages"][1]["plannedStart"].startswith("2026-10-07"), mimp)
+
 print(f"\n{passed} comprobaciones correctas, {len(failed)} fallidas")
 if failed:
     print("Fallidas:", *failed, sep="\n  - ")
