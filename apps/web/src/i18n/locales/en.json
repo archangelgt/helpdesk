@@ -191,7 +191,11 @@
     "accept": "Accept",
     "reject": "Return",
     "rejectReason": "What is missing or needs fixing?",
-    "rejectedBecause": "Returned: {{reason}}"
+    "rejectedBecause": "Returned: {{reason}}",
+    "remind": "Remind",
+    "reminded": "Reminder sent",
+    "remindersSent_one": "{{count}} reminder",
+    "remindersSent_other": "{{count}} reminders"
   },
   "home": {
     "title": "My work",
@@ -471,6 +475,19 @@
       "add": "Add",
       "noHolidays": "No holidays registered for this year or later.",
       "remove": "Remove {{name}}"
+    },
+    "reminders": {
+      "title": "Due date reminders",
+      "lead": "They go out automatically on working days from 8:00 (company time). Who gets them is set below under “Request reminder”, “Request overdue”, “Stage overdue” and “Case overdue”.",
+      "beforeDueDays": "Remind the client this many working days before a request is due",
+      "everyDaysAfter": "Once overdue, remind again every (working days)",
+      "maxReminders": "Maximum reminders per request",
+      "maxHint": "After the maximum we stop insisting (0 = no reminders).",
+      "zeroOff": "0 = off.",
+      "onDue": "Also remind on the due date",
+      "footnote": "Stages and cases that pass their due date are notified once; if you change the date, they are notified again when the new one passes.",
+      "runNow": "Check due dates now",
+      "result": "Done: {{requests}} request reminders, {{stages}} overdue stages and {{items}} overdue cases."
     }
   },
   "role": {
@@ -657,7 +674,37 @@
       "requested": "Approval requested"
     },
     "sla": {
-      "breached": "SLA breached"
+      "breached": "Case overdue (past its due date)"
     }
+  },
+  "board": {
+    "layout": "View",
+    "list": "List",
+    "board": "Board",
+    "mode": "Group by",
+    "modes": {
+      "status": "Status",
+      "due": "Due date",
+      "assignee": "Technician",
+      "priority": "Priority"
+    },
+    "due": {
+      "overdue": "Overdue",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "thisWeek": "This week",
+      "nextWeek": "Next week",
+      "later": "Later",
+      "none": "No date"
+    },
+    "moveTo": "Move {{item}} to…",
+    "dropHere": "Drop here",
+    "empty": "Nothing here",
+    "recentDone": "Recently closed",
+    "load_one": "{{count}} case",
+    "load_other": "{{count}} cases",
+    "truncated": "Showing {{shown}} of {{total}} open cases. Use search or “Only mine” to narrow it down.",
+    "commentTitle": "{{item}} → {{status}}",
+    "commentLabel": "This change needs a comment"
   }
 }

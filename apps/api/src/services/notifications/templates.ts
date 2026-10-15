@@ -23,6 +23,11 @@ export interface EventDetails {
   requestTitle?: string;
   reason?: string;
   excerpt?: string;
+  /** YYYY-MM-DD de la fecha límite (recordatorios y vencimientos). */
+  dueDay?: string;
+  daysLate?: number;
+  /** due_soon | due_today | overdue | manual */
+  reminderKind?: string;
 }
 
 export interface MailEvent {
@@ -42,7 +47,7 @@ interface Copy {
   quote?: string;
 }
 
-type Ctx = ItemContext & EventDetails;
+type Ctx = ItemContext & EventDetails & { dueDate: string };
 type EventCopy = (c: Ctx) => Copy;
 
 interface LanguagePack {
@@ -57,6 +62,11 @@ interface LanguagePack {
 }
 
 const ref = (c: Ctx) => `${c.number} · ${c.title}`;
+
+function formatDay(language: Language, day?: string): string {
+  if (!day) return "";
+  return new Intl.DateTimeFormat(language, { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${day.slice(0, 10)}T12:00:00Z`));
+}
 
 const es: LanguagePack = {
   kind: { support: "ticket", task: "tarea", implementation: "implementación" },
@@ -78,10 +88,23 @@ const es: LanguagePack = {
     "client_request.submitted": (c) => ({ subject: `El cliente entregó «${c.requestTitle}» · ${c.number}`, intro: `${c.actorName} entregó «${c.requestTitle}». Revísalo para aceptarlo o devolverlo.` }),
     "client_request.accepted": (c) => ({ subject: `Aceptado: ${c.requestTitle}`, intro: `${c.actorName} aceptó lo que entregaste para «${c.requestTitle}».` }),
     "client_request.rejected": (c) => ({ subject: `Hace falta corregir: ${c.requestTitle}`, intro: `${c.actorName} pidió cambios en «${c.requestTitle}».`, quote: c.reason }),
+    "client_request.reminder": (c) =>
+      c.reminderKind === "due_today"
+        ? { subject: `Vence hoy: ${c.requestTitle}`, intro: `Te recordamos que hoy vence la entrega de «${c.requestTitle}».` }
+        : c.reminderKind === "manual"
+          ? { subject: `Recordatorio: ${c.requestTitle}`, intro: `${c.actorName} te recuerda que necesitamos «${c.requestTitle}»${c.dueDate ? ` (fecha límite: ${c.dueDate})` : ""}.` }
+          : { subject: `Recordatorio: «${c.requestTitle}» vence el ${c.dueDate}`, intro: `Te recordamos que necesitamos «${c.requestTitle}» a más tardar el ${c.dueDate}.` },
+    "client_request.overdue": (c) => ({
+      subject: `Vencido: ${c.requestTitle}`,
+      intro: `Seguimos esperando «${c.requestTitle}», que venció el ${c.dueDate}${c.daysLate ? ` (${c.daysLate} ${c.daysLate === 1 ? "día" : "días"} de atraso)` : ""}. Mientras no llegue, esa parte no puede avanzar.`,
+    }),
+    "stage.overdue": (c) => ({ subject: `Etapa atrasada: «${c.stageName}» · ${c.number}`, intro: `La etapa «${c.stageName}» debía terminar el ${c.dueDate} y sigue en curso.` }),
+    "sla.breached": (c) => ({ subject: `Vencido: ${ref(c)}`, intro: `${c.number} venció el ${c.dueDate} y sigue abierto.` }),
     test: (c) => ({ subject: `${c.companyName}: correo de prueba`, intro: "Este es un correo de prueba del Helpdesk. Si lo recibes, los avisos por correo funcionan." }),
   },
   generic: (c) => ({ subject: `Novedades en ${ref(c)}`, intro: `Hay novedades en ${c.number}.` }),
 };
+
 
 const en: LanguagePack = {
   kind: { support: "ticket", task: "task", implementation: "implementation" },
@@ -103,6 +126,18 @@ const en: LanguagePack = {
     "client_request.submitted": (c) => ({ subject: `Client delivered "${c.requestTitle}" · ${c.number}`, intro: `${c.actorName} delivered "${c.requestTitle}". Review it to accept or return it.` }),
     "client_request.accepted": (c) => ({ subject: `Accepted: ${c.requestTitle}`, intro: `${c.actorName} accepted what you delivered for "${c.requestTitle}".` }),
     "client_request.rejected": (c) => ({ subject: `Changes needed: ${c.requestTitle}`, intro: `${c.actorName} asked for changes on "${c.requestTitle}".`, quote: c.reason }),
+    "client_request.reminder": (c) =>
+      c.reminderKind === "due_today"
+        ? { subject: `Due today: ${c.requestTitle}`, intro: `A reminder that "${c.requestTitle}" is due today.` }
+        : c.reminderKind === "manual"
+          ? { subject: `Reminder: ${c.requestTitle}`, intro: `${c.actorName} reminds you that we need "${c.requestTitle}"${c.dueDate ? ` (due ${c.dueDate})` : ""}.` }
+          : { subject: `Reminder: "${c.requestTitle}" is due ${c.dueDate}`, intro: `A reminder that we need "${c.requestTitle}" by ${c.dueDate}.` },
+    "client_request.overdue": (c) => ({
+      subject: `Overdue: ${c.requestTitle}`,
+      intro: `We are still waiting for "${c.requestTitle}", which was due ${c.dueDate}${c.daysLate ? ` (${c.daysLate} ${c.daysLate === 1 ? "day" : "days"} late)` : ""}. That part cannot move forward until it arrives.`,
+    }),
+    "stage.overdue": (c) => ({ subject: `Stage overdue: "${c.stageName}" · ${c.number}`, intro: `Stage "${c.stageName}" was due ${c.dueDate} and is still in progress.` }),
+    "sla.breached": (c) => ({ subject: `Overdue: ${ref(c)}`, intro: `${c.number} was due ${c.dueDate} and is still open.` }),
     test: (c) => ({ subject: `${c.companyName}: test email`, intro: "This is a test email from the Helpdesk. If you got it, email notifications are working." }),
   },
   generic: (c) => ({ subject: `Updates on ${ref(c)}`, intro: `There are updates on ${c.number}.` }),
@@ -128,6 +163,18 @@ const pt: LanguagePack = {
     "client_request.submitted": (c) => ({ subject: `O cliente entregou "${c.requestTitle}" · ${c.number}`, intro: `${c.actorName} entregou "${c.requestTitle}". Revise para aceitar ou devolver.` }),
     "client_request.accepted": (c) => ({ subject: `Aceito: ${c.requestTitle}`, intro: `${c.actorName} aceitou o que você entregou para "${c.requestTitle}".` }),
     "client_request.rejected": (c) => ({ subject: `Ajustes necessários: ${c.requestTitle}`, intro: `${c.actorName} pediu ajustes em "${c.requestTitle}".`, quote: c.reason }),
+    "client_request.reminder": (c) =>
+      c.reminderKind === "due_today"
+        ? { subject: `Vence hoje: ${c.requestTitle}`, intro: `Lembramos que a entrega de "${c.requestTitle}" vence hoje.` }
+        : c.reminderKind === "manual"
+          ? { subject: `Lembrete: ${c.requestTitle}`, intro: `${c.actorName} lembra que precisamos de "${c.requestTitle}"${c.dueDate ? ` (prazo: ${c.dueDate})` : ""}.` }
+          : { subject: `Lembrete: "${c.requestTitle}" vence em ${c.dueDate}`, intro: `Lembramos que precisamos de "${c.requestTitle}" até ${c.dueDate}.` },
+    "client_request.overdue": (c) => ({
+      subject: `Vencido: ${c.requestTitle}`,
+      intro: `Ainda aguardamos "${c.requestTitle}", que venceu em ${c.dueDate}${c.daysLate ? ` (${c.daysLate} ${c.daysLate === 1 ? "dia" : "dias"} de atraso)` : ""}. Essa parte não pode avançar até recebermos.`,
+    }),
+    "stage.overdue": (c) => ({ subject: `Etapa atrasada: "${c.stageName}" · ${c.number}`, intro: `A etapa "${c.stageName}" deveria terminar em ${c.dueDate} e continua em andamento.` }),
+    "sla.breached": (c) => ({ subject: `Vencido: ${ref(c)}`, intro: `${c.number} venceu em ${c.dueDate} e continua aberto.` }),
     test: (c) => ({ subject: `${c.companyName}: e-mail de teste`, intro: "Este é um e-mail de teste do Helpdesk. Se você o recebeu, os avisos por e-mail estão funcionando." }),
   },
   generic: (c) => ({ subject: `Novidades em ${ref(c)}`, intro: `Há novidades em ${c.number}.` }),
@@ -148,6 +195,10 @@ export const EVENT_PRIORITY = [
   "client_request.rejected",
   "client_request.accepted",
   "client_request.submitted",
+  "client_request.overdue",
+  "client_request.reminder",
+  "stage.overdue",
+  "sla.breached",
   "work_item.assigned",
   "work_item.created",
   "work_item.status_changed",
@@ -168,10 +219,10 @@ function escapeHtml(value: string): string {
 export function renderMail(language: Language, item: ItemContext, events: MailEvent[]): RenderedMail {
   const pack = PACKS[language] ?? es;
   const copies = events.map((e) => {
-    const ctx: Ctx = { ...item, ...e.details, actorName: e.details.actorName || pack.someone };
+    const ctx: Ctx = { ...item, ...e.details, actorName: e.details.actorName || pack.someone, dueDate: formatDay(language, e.details.dueDay) };
     return (pack.events[e.code] ?? pack.generic)(ctx);
   });
-  const subject = copies[0]?.subject ?? pack.generic({ ...item, actorName: "" }).subject;
+  const subject = copies[0]?.subject ?? pack.generic({ ...item, actorName: "", dueDate: "" }).subject;
   const kind = pack.kind[item.typeCode] ?? pack.kind.support;
   const button = pack.open(kind);
   const footer = pack.footer(item.companyName);

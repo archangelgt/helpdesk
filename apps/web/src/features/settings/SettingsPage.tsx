@@ -1,13 +1,22 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Bell, Building2, CalendarDays, CheckCircle2, Mail, Palette, Trash2, XCircle } from "lucide-react";
+import { AlarmClock, Bell, Building2, CalendarDays, CheckCircle2, Mail, Palette, Trash2, XCircle } from "lucide-react";
 import { adminApi, settingsApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthProvider";
 import { ErrorNote, Loading, NoAccess } from "../../components/Feedback";
 import { useAction, useApi } from "../../hooks/useApi";
 import { useInstance } from "../../instance/InstanceProvider";
-import type { InstanceSettingsValues, LanguageCode, NotificationsStatusDto, SettingsDto, ThemeName, Weekday } from "../../types/api";
+import type {
+  InstanceSettingsValues,
+  LanguageCode,
+  NotificationsStatusDto,
+  ReminderPolicy,
+  ReminderRunDto,
+  SettingsDto,
+  ThemeName,
+  Weekday,
+} from "../../types/api";
 import { formatDate, formatDateTime } from "../../utils/dates";
 
 const TABS = [
@@ -398,6 +407,64 @@ function EmailStatus() {
   );
 }
 
+function RemindersCard({ data, onSaved }: { data: SettingsDto; onSaved: (d: SettingsDto) => void }) {
+  const { t } = useTranslation();
+  const f = useValuesForm(data, onSaved, ["reminders"]);
+  const r = f.form.reminders ?? data.values.reminders;
+  const set = (patch: Partial<ReminderPolicy>) => f.set({ reminders: { ...r, ...patch } });
+  const runner = useAction();
+  const [result, setResult] = useState<ReminderRunDto | null>(null);
+  const days = (value: number, onChange: (n: number) => void, max = 30) => (
+    <input type="number" min={0} max={max} value={value} onChange={(e) => onChange(Math.max(0, Math.min(max, Math.round(Number(e.target.value) || 0))))} />
+  );
+  return (
+    <Card title={t("settings.reminders.title")} icon={<AlarmClock size={18} aria-hidden="true" />} lead={t("settings.reminders.lead")}>
+      <form
+        className="form-card"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void f.submit();
+        }}
+      >
+        <div className="form-grid">
+          <label className="field">
+            {t("settings.reminders.beforeDueDays")}
+            {days(r.beforeDueDays, (n) => set({ beforeDueDays: n }))}
+            <span className="hint">{t("settings.reminders.zeroOff")}</span>
+          </label>
+          <label className="field">
+            {t("settings.reminders.everyDaysAfter")}
+            {days(r.everyDaysAfter, (n) => set({ everyDaysAfter: n }))}
+            <span className="hint">{t("settings.reminders.zeroOff")}</span>
+          </label>
+          <label className="field">
+            {t("settings.reminders.maxReminders")}
+            {days(r.maxReminders, (n) => set({ maxReminders: n }), 50)}
+            <span className="hint">{t("settings.reminders.maxHint")}</span>
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={r.onDue} onChange={(e) => set({ onDue: e.target.checked })} /> {t("settings.reminders.onDue")}
+          </label>
+        </div>
+        <p className="hint">{t("settings.reminders.footnote")}</p>
+        <SaveRow busy={f.action.busy} error={f.action.error} saved={f.saved} disabled={!f.dirty} />
+      </form>
+      <div className="btn-row">
+        <button
+          type="button"
+          className="btn btn-soft"
+          disabled={runner.busy}
+          onClick={() => void runner.run(settingsApi.runReminders).then((res) => res && setResult(res))}
+        >
+          {t("settings.reminders.runNow")}
+        </button>
+        {result && <span className="success-note">{t("settings.reminders.result", { requests: result.requests, stages: result.stages, items: result.items })}</span>}
+      </div>
+      {runner.error && <p className="form-error">{runner.error}</p>}
+    </Card>
+  );
+}
+
 function NotificationsTab({ data, onSaved }: { data: SettingsDto; onSaved: (d: SettingsDto) => void }) {
   const { t } = useTranslation();
   const action = useAction();
@@ -409,6 +476,8 @@ function NotificationsTab({ data, onSaved }: { data: SettingsDto; onSaved: (d: S
     if (rules) onSaved({ ...data, rules });
   };
   return (
+    <>
+    <RemindersCard data={data} onSaved={onSaved} />
     <Card title={t("settings.rules.title")} icon={<Bell size={18} aria-hidden="true" />} lead={t("settings.rules.lead")}>
       {action.error && <p className="form-error">{action.error}</p>}
       <div className="table-card">
@@ -458,6 +527,7 @@ function NotificationsTab({ data, onSaved }: { data: SettingsDto; onSaved: (d: S
       </div>
       <p className="hint">{t("settings.rules.footnote")}</p>
     </Card>
+    </>
   );
 }
 

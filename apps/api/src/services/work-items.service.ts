@@ -416,7 +416,10 @@ export const workItemsService = {
     if (input.categoryId !== undefined) data.category = input.categoryId ?? "";
     if (input.productId !== undefined) data.product = input.productId ?? "";
     if (input.clientId !== undefined) data.client = input.clientId ?? "";
-    if (input.dueAt !== undefined) data.due_at = input.dueAt ? dayToPb(input.dueAt) : "";
+    if (input.dueAt !== undefined) {
+      data.due_at = input.dueAt ? dayToPb(input.dueAt) : "";
+      data.overdue_notified_at = "";
+    }
 
     if (input.assigneeId !== undefined && (input.assigneeId ?? "") !== row.assignee) {
       assertCan(actor, "work_item.assign");

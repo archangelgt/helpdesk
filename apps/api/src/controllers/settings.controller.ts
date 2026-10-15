@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { actorOf } from "../middlewares/authenticate.js";
+import { remindersService } from "../services/reminders.service.js";
 import { settingsService } from "../services/settings.service.js";
 import { parse } from "../validators/common.js";
 import { holidaySchema, senderSchema, settingsPatchSchema, updateRuleSchema, workingDaysSchema } from "../validators/settings.validators.js";
@@ -33,6 +34,10 @@ export const settingsController = {
 
   async addHoliday(request: FastifyRequest, reply: FastifyReply) {
     return reply.status(201).send(await settingsService.addHoliday(actorOf(request), parse(holidaySchema, request.body)));
+  },
+
+  async runReminders(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await remindersService.runNow(actorOf(request)));
   },
 
   async removeHoliday(request: FastifyRequest, reply: FastifyReply) {

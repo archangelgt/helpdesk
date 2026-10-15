@@ -23,6 +23,14 @@ export const settingsPatchSchema = z
     defaultLanguage: z.enum(LANGUAGES),
     languages: z.array(z.enum(LANGUAGES)).min(1).max(LANGUAGES.length).transform((l) => [...new Set(l)]),
     maxUploadMb: z.number().int().min(1).max(25),
+    reminders: z
+      .object({
+        beforeDueDays: z.number().int().min(0).max(30),
+        onDue: z.boolean(),
+        everyDaysAfter: z.number().int().min(0).max(30),
+        maxReminders: z.number().int().min(0).max(50),
+      })
+      .strict(),
   })
   .partial()
   .strict()

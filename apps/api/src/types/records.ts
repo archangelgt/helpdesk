@@ -138,6 +138,7 @@ export interface WorkItemRow extends RecordModel {
   progress_percent: number;
   parent: string;
   deleted_at: string;
+  overdue_notified_at?: string;
   created: string;
   updated: string;
   expand?: {
@@ -166,6 +167,7 @@ export interface StageRow extends RecordModel {
   client_visible: boolean;
   requires_evidence: boolean;
   requires_client_approval: boolean;
+  overdue_notified_at?: string;
   expand?: { owner?: UserRow };
 }
 
@@ -199,6 +201,8 @@ export interface ClientRequestRow extends RecordModel {
   reviewed_by: string;
   reviewed_at: string;
   rejection_reason: string;
+  reminders_sent?: number;
+  last_reminder_at?: string;
   created: string;
 }
 

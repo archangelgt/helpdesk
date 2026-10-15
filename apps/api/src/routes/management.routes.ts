@@ -20,6 +20,7 @@ export async function managementRoutes(app: FastifyInstance) {
   app.put("/settings/calendar/working-days", settingsController.setWorkingDays);
   app.post("/settings/calendar/holidays", settingsController.addHoliday);
   app.delete("/settings/calendar/holidays/:id", settingsController.removeHoliday);
+  app.post("/settings/reminders/run", settingsController.runReminders);
 
   app.get("/users", usersController.list);
   app.get("/users/roles", usersController.roles);

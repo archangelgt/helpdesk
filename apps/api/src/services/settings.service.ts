@@ -24,6 +24,7 @@ const DEFINITIONS = {
   "language.default": { group: "language", fallback: DEFAULT_LANGUAGE },
   "language.available": { group: "language", fallback: [...LANGUAGES] },
   "files.max_upload_mb": { group: "files", fallback: MAX_ATTACHMENT_BYTES / 1024 / 1024 },
+  "notifications.client_request_reminders": { group: "notifications", fallback: { before_due_days: 1, on_due: true, every_days_after: 2, max_reminders: 6 } },
 } as const;
 type SettingKey = keyof typeof DEFINITIONS;
 const KEYS = Object.keys(DEFINITIONS) as SettingKey[];
@@ -38,6 +39,7 @@ const FIELD_KEYS: Record<keyof SettingsPatch, SettingKey> = {
   defaultLanguage: "language.default",
   languages: "language.available",
   maxUploadMb: "files.max_upload_mb",
+  reminders: "notifications.client_request_reminders",
 };
 
 export const RECIPIENT_KINDS: RecipientKind[] = [
@@ -64,7 +66,33 @@ export interface InstanceSettings {
   defaultLanguage: Language;
   languages: Language[];
   maxUploadMb: number;
+  reminders: ReminderPolicy;
 }
+
+/** Recordatorios de requerimientos al cliente: días antes, el día del vencimiento y cada cuántos días después. */
+export interface ReminderPolicy {
+  beforeDueDays: number;
+  onDue: boolean;
+  everyDaysAfter: number;
+  maxReminders: number;
+}
+
+function reminderPolicy(raw: unknown): ReminderPolicy {
+  const v = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const int = (x: unknown, fallback: number) => (typeof x === "number" && Number.isInteger(x) && x >= 0 ? x : fallback);
+  return {
+    beforeDueDays: int(v.before_due_days, 1),
+    onDue: typeof v.on_due === "boolean" ? v.on_due : true,
+    everyDaysAfter: int(v.every_days_after, 2),
+    maxReminders: int(v.max_reminders, 6),
+  };
+}
+
+const storedValue = (field: keyof SettingsPatch, value: SettingsPatch[keyof SettingsPatch]) => {
+  if (field !== "reminders" || !value || typeof value !== "object") return value;
+  const r = value as ReminderPolicy;
+  return { before_due_days: r.beforeDueDays, on_due: r.onDue, every_days_after: r.everyDaysAfter, max_reminders: r.maxReminders };
+};
 
 let cached: { value: InstanceSettings; expires: number } | null = null;
 
@@ -90,6 +118,7 @@ async function load(): Promise<InstanceSettings> {
       [...LANGUAGES],
     ),
     maxUploadMb: pick(raw("files.max_upload_mb"), (v): v is number => typeof v === "number" && v > 0, 25),
+    reminders: reminderPolicy(raw("notifications.client_request_reminders")),
   };
   value.maxUploadMb = Math.min(value.maxUploadMb, MAX_ATTACHMENT_BYTES / 1024 / 1024);
   cached = { value, expires: Date.now() + CACHE_TTL_MS };
@@ -159,7 +188,7 @@ export const settingsService = {
     }
     const changes = (Object.keys(patch) as (keyof SettingsPatch)[]).map((field) => {
       const key = FIELD_KEYS[field];
-      return { key, group: DEFINITIONS[key].group, value: patch[field] };
+      return { key, group: DEFINITIONS[key].group, value: storedValue(field, patch[field]) };
     });
     const current = await settingsModel.byKeys(changes.map((c) => c.key));
     await unitOfWork.commit(settingsModel.changeOps(current, changes, actor.userId));

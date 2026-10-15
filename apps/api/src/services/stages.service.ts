@@ -125,7 +125,10 @@ export const stagesService = {
     if (input.description !== undefined) data.description = input.description;
     if (input.ownerId !== undefined) data.owner = input.ownerId ? (await usersService.assertStaff(input.ownerId, "ownerId")).id : "";
     if (input.plannedStart !== undefined) data.planned_start = input.plannedStart ? dayToPb(input.plannedStart) : "";
-    if (input.plannedEnd !== undefined) data.planned_end = input.plannedEnd ? dayToPb(input.plannedEnd) : "";
+    if (input.plannedEnd !== undefined) {
+      data.planned_end = input.plannedEnd ? dayToPb(input.plannedEnd) : "";
+      data.overdue_notified_at = "";
+    }
     await unitOfWork.commit([{ op: "update", collection: "stages", id: stage.id, data }]);
     return workItemsService.get(actor, item.id);
   },

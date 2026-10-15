@@ -44,7 +44,7 @@ COMMON_ENV=(
 
 docker run -d --name "$ID-api" --network "$NET" -p "127.0.0.1:$API_PORT:3000" "${COMMON_ENV[@]}" \
   -e COOKIE_SECURE=false -e TRUST_PROXY_HOPS=0 -e LOGIN_RATE_LIMIT_PER_MINUTE=100 helpdesk-v2-api:test >/dev/null
-docker run -d --name "$ID-worker" --network "$NET" "${COMMON_ENV[@]}" -e WORKER_POLL_MS=1000 \
+docker run -d --name "$ID-worker" --network "$NET" "${COMMON_ENV[@]}" -e WORKER_POLL_MS=1000 -e REMINDERS_INTERVAL_MINUTES=0 \
   helpdesk-v2-api:test node dist/worker.js >/dev/null
 
 for _ in $(seq 1 60); do curl -sf "http://127.0.0.1:$API_PORT/api/health" >/dev/null && break; sleep 1; done

@@ -41,6 +41,10 @@ const schema = z.object({
   MAIL_FROM: z.string().default(""),
   MAIL_REPLY_TO: z.string().default(""),
   WORKER_POLL_MS: z.coerce.number().int().min(1000).default(5000),
+  /** Cada cuánto revisa el worker los vencimientos (0 = no los revisa). */
+  REMINDERS_INTERVAL_MINUTES: z.coerce.number().int().min(0).default(15),
+  /** Hora local (de la empresa) desde la que se mandan los recordatorios en días hábiles. */
+  REMINDERS_FROM_HOUR: z.coerce.number().int().min(0).max(23).default(8),
 });
 
 const parsed = schema.safeParse(process.env);

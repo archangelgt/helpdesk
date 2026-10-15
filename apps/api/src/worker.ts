@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { env } from "./config/env.js";
 import { notificationDispatcher } from "./services/notifications/dispatcher.js";
+import { remindersService } from "./services/reminders.service.js";
 
 /** Proceso aparte de la API: toma los eventos del outbox y envía los avisos. Su healthcheck lee el latido. */
 export const HEARTBEAT_FILE = "/tmp/worker-heartbeat";
@@ -22,6 +23,8 @@ function log(level: "info" | "error", msg: string, extra: Record<string, unknown
 log("info", "worker started", { pollMs: env.WORKER_POLL_MS });
 while (!stopping) {
   try {
+    const reminders = await remindersService.tick();
+    if (reminders && !reminders.skipped && reminders.requests + reminders.stages + reminders.items) log("info", "reminders", { ...reminders });
     const { events, sent } = await notificationDispatcher.tick();
     if (events || sent) log("info", "tick", { events, sent });
     await writeFile(HEARTBEAT_FILE, String(Date.now()));

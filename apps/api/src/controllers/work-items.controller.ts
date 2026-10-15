@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { actorOf } from "../middlewares/authenticate.js";
 import { clientRequestsService } from "../services/client-requests.service.js";
 import { commentsService } from "../services/comments.service.js";
+import { remindersService } from "../services/reminders.service.js";
 import { stagesService } from "../services/stages.service.js";
 import { workItemsService } from "../services/work-items.service.js";
 import { parse } from "../validators/common.js";
@@ -106,5 +107,9 @@ export const clientRequestsController = {
 
   async review(request: FastifyRequest, reply: FastifyReply) {
     return reply.send(await clientRequestsService.review(actorOf(request), idOf(request), parse(reviewClientRequestSchema, request.body)));
+  },
+
+  async remind(request: FastifyRequest, reply: FastifyReply) {
+    return reply.send(await remindersService.remind(actorOf(request), idOf(request)));
   },
 };

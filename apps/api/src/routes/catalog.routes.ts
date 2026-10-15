@@ -9,6 +9,7 @@ export async function catalogRoutes(app: FastifyInstance) {
   app.get("/work-item-types", { ...view, handler: catalogController.workItemTypes });
   app.get("/statuses", { ...view, handler: catalogController.statuses });
   app.get("/priorities", { ...view, handler: catalogController.priorities });
+  app.get("/board", { ...view, handler: catalogController.board });
   app.get("/categories", { ...view, handler: catalogController.categories });
   app.get("/products", { ...view, handler: catalogController.products });
   app.get("/roles", { preHandler: requirePermission("user.manage"), handler: catalogController.roles });

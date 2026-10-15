@@ -14,7 +14,7 @@ import { outboxModel, type OutboxRow } from "../../models/outbox.model.js";
 import { stagesModel } from "../../models/stages.model.js";
 import { unitOfWork, type WriteOp } from "../../models/unit-of-work.model.js";
 import { workItemsModel } from "../../models/work-items.model.js";
-import type { StageRow, WorkItemRow, WorkItemTypeRow } from "../../types/records.js";
+import type { ClientRequestRow, StageRow, WorkItemRow, WorkItemTypeRow } from "../../types/records.js";
 import { catalogCache, type Catalog } from "../catalog-cache.service.js";
 import { mailer, mailerConfig } from "./mailer.js";
 import { EVENT_PRIORITY, hasTemplate, renderAccessMail, renderMail, type EventDetails, type ItemContext } from "./templates.js";
@@ -68,7 +68,14 @@ function clientMayReceive(user: RecipientUser, item: WorkItemRow, type: WorkItem
   return !stage || stage.client_visible;
 }
 
-async function idsFor(kind: RecipientKind, item: WorkItemRow, payload: OutboxRow["payload"], stage: StageRow | null, actorIsStaff: boolean): Promise<string[]> {
+async function idsFor(
+  kind: RecipientKind,
+  item: WorkItemRow,
+  payload: OutboxRow["payload"],
+  stage: StageRow | null,
+  request: ClientRequestRow | null,
+  actorIsStaff: boolean,
+): Promise<string[]> {
   switch (kind) {
     case "requester":
       return [item.requester];
@@ -76,8 +83,11 @@ async function idsFor(kind: RecipientKind, item: WorkItemRow, payload: OutboxRow
       return [typeof payload.assigneeId === "string" ? payload.assigneeId : item.assignee];
     case "stage_owner":
       return [stage?.owner ?? ""];
-    case "client_contacts":
-      return notificationsModel.clientContactIds(item.client);
+    case "client_contacts": {
+      // El contacto asignado al requerimiento se entera aunque no reciba los avisos generales de su empresa.
+      const contacts = await notificationsModel.clientContactIds(item.client);
+      return request?.contact ? [request.contact, ...contacts] : contacts;
+    }
     case "team":
       return notificationsModel.teamMemberIds(item.team);
     case "participants":
@@ -120,7 +130,7 @@ async function planEvent(row: OutboxRow, setup: Setup, item: WorkItemRow, type: 
   for (const rule of rules) {
     for (const kind of rule.recipients) {
       if (code === "work_item.created" && kind === "assignee") continue;
-      for (const id of await idsFor(kind, item, payload, stage, actorIsStaff)) {
+      for (const id of await idsFor(kind, item, payload, stage, request, actorIsStaff)) {
         if (id && id !== payload.actorId && !senderByUser.has(id)) senderByUser.set(id, rule.sender);
       }
     }
@@ -139,6 +149,9 @@ async function planEvent(row: OutboxRow, setup: Setup, item: WorkItemRow, type: 
     requestTitle: request?.title ?? (typeof payload.request === "string" ? payload.request : ""),
     reason: typeof payload.reason === "string" ? payload.reason : "",
     excerpt: typeof payload.excerpt === "string" ? payload.excerpt : "",
+    dueDay: typeof payload.dueDay === "string" ? payload.dueDay : undefined,
+    daysLate: typeof payload.daysLate === "number" ? payload.daysLate : undefined,
+    reminderKind: typeof payload.kind === "string" ? payload.kind : undefined,
   };
   return {
     row,

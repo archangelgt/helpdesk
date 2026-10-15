@@ -40,6 +40,10 @@ export interface StatusDto {
   isFinal: boolean;
 }
 
+export interface BoardStatusDto extends StatusDto {
+  next: { statusId: string; requiresComment: boolean }[];
+}
+
 export interface PriorityDto {
   id: string;
   code: string;
@@ -123,6 +127,8 @@ export interface ClientRequestDto {
   submittedAt: string | null;
   reviewedAt: string | null;
   rejectionReason: string | null;
+  remindersSent: number;
+  lastReminderAt: string | null;
 }
 
 export interface WorkItemDetailDto extends WorkItemSummaryDto {
@@ -258,9 +264,25 @@ export interface PublicSettingsDto {
   maxUploadMb: number;
 }
 
+export interface ReminderPolicy {
+  beforeDueDays: number;
+  onDue: boolean;
+  everyDaysAfter: number;
+  maxReminders: number;
+}
+
 export interface InstanceSettingsValues extends PublicSettingsDto {
   timezone: string;
   brandColor: string;
+  reminders: ReminderPolicy;
+}
+
+export interface ReminderRunDto {
+  day: string;
+  skipped: boolean;
+  requests: number;
+  stages: number;
+  items: number;
 }
 
 export type RecipientKind =

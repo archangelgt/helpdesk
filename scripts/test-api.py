@@ -676,6 +676,84 @@ check("filtrar por empresa", s == 200 and [c["name"] for c in only_a["byClient"]
 s, res = call("GET", f"{API}/reports/overview?from=2026-05-01&to=2026-04-01", token=OWNER)
 check("rango invertido → 400", s == 400, res)
 
+# --- Recordatorios de vencimientos ------------------------------------------------------
+print("Recordatorios")
+from datetime import datetime, timedelta, timezone
+today = datetime.now(timezone(timedelta(hours=-6))).date()
+yesterday, tomorrow = (today - timedelta(days=1)).isoformat(), (today + timedelta(days=1)).isoformat()
+s, conf = call("GET", f"{API}/settings", token=OWNER)
+check("política de recordatorios por defecto",
+      conf["values"]["reminders"] == {"beforeDueDays": 1, "onDue": True, "everyDaysAfter": 2, "maxReminders": 6}, conf["values"].get("reminders"))
+s, res = call("PATCH", f"{API}/settings", {"reminders": {"beforeDueDays": 1, "onDue": True, "everyDaysAfter": -1, "maxReminders": 6}}, OWNER)
+check("política inválida → 400", s == 400, res)
+
+s, late = call("POST", f"{API}/work-items", {"type": "support", "title": "Respaldo pendiente", "clientId": client_a["id"],
+                                             "assigneeId": tech_u["id"], "dueAt": yesterday}, OWNER)
+for title, due in (("Contrato firmado", yesterday), ("Lista de usuarios", today.isoformat()), ("Logo en alta", tomorrow)):
+    s, late = call("POST", f"{API}/work-items/{late['id']}/client-requests", {"title": title, "type": "document", "dueAt": due}, OWNER)
+check("caso vencido con tres requerimientos", s == 201 and len(late["clientRequests"]) == 3, late)
+analysis = manual["stages"][0]
+s, started = call("POST", f"{API}/stages/{analysis['id']}/transition", {"statusId": stage_status_id(analysis, "en_curso")}, OWNER)
+s2, _ = call("PATCH", f"{API}/stages/{analysis['id']}", {"plannedEnd": yesterday}, OWNER)
+check("etapa en curso con fecha de fin vencida", s == 200 and s2 == 200, started)
+
+s, res = call("POST", f"{API}/settings/reminders/run", {}, TECH)
+check("solo el dueño revisa vencimientos a mano → 403", s == 403, res)
+s, run1 = call("POST", f"{API}/settings/reminders/run", {}, OWNER)
+check("revisión de vencimientos", s == 200 and not run1["skipped"] and run1["requests"] >= 3 and run1["stages"] >= 1 and run1["items"] >= 1, run1)
+s, run2 = call("POST", f"{API}/settings/reminders/run", {}, OWNER)
+check("el mismo día no se repite", s == 200 and run2["requests"] == 0 and run2["stages"] == 0 and run2["items"] == 0, run2)
+s, detail = call("GET", f"{API}/work-items/{late['id']}", token=OWNER)
+check("cada requerimiento cuenta su recordatorio", all(r["remindersSent"] == 1 and r["lastReminderAt"] for r in detail["clientRequests"]), detail["clientRequests"])
+
+req0 = detail["clientRequests"][0]
+s, res = call("POST", f"{API}/client-requests/{req0['id']}/remind", {}, CA_ADMIN)
+check("el cliente no manda recordatorios → 403", s == 403, res)
+s, res = call("POST", f"{API}/client-requests/{req0['id']}/remind", {}, TECH)
+check("recordatorio manual", s == 200 and res["remindersSent"] == 2, res)
+
+for _ in range(60):
+    if not outbox_pending() and not pb_first("notifications", "status = 'pending'"):
+        break
+    time.sleep(1)
+fresh = [n for n in pb_first("notifications", f"work_item = '{late['id']}' || work_item = '{manual['id']}'")]
+by_user = {}
+for n in fresh:
+    by_user.setdefault(n["recipient"], []).append(n["payload"])
+admin_mails = [p for p in by_user.get(ca_admin["id"], []) if "overdue" in " ".join(p["events"]) or "reminder" in " ".join(p["events"])]
+auto = next((p for p in admin_mails if "client_request.overdue" in p["events"]), None)
+check("el cliente recibe un solo correo con lo vencido, lo que vence hoy y lo próximo",
+      auto is not None and auto["subject"] == "Vencido: Contrato firmado" and "Vence hoy" not in auto["subject"]
+      and "Seguimos esperando «Contrato firmado»" in auto["html"] and "hoy vence la entrega de «Lista de usuarios»" in auto["html"]
+      and "a más tardar el" in auto["html"] and "sla.breached" not in auto["events"],
+      [(p["subject"], p["events"]) for p in admin_mails])
+check("recordatorio manual con el nombre de quien lo manda",
+      any(p["subject"] == "Recordatorio: Contrato firmado" and "Técnico Prueba te recuerda" in p["html"] for p in admin_mails),
+      [p["subject"] for p in admin_mails])
+tech_subjects = [p["subject"] for p in by_user.get(tech_u["id"], [])]
+check("al técnico asignado le avisan que el caso venció", any(x.startswith(f"Vencido: {late['number']}") for x in tech_subjects), tech_subjects)
+owner_subjects = [p["subject"] for p in by_user.get(owner_u["id"], [])]
+check("a los jefes les avisan de la etapa atrasada", any(x.startswith("Etapa atrasada: «Análisis»") for x in owner_subjects), owner_subjects)
+
+call("PATCH", f"{API}/work-items/{late['id']}", {"dueAt": (today - timedelta(days=2)).isoformat()}, OWNER)
+s, run3 = call("POST", f"{API}/settings/reminders/run", {}, OWNER)
+check("al cambiar la fecha se vuelve a avisar", s == 200 and run3["items"] == 1, run3)
+s, res = call("PATCH", f"{API}/settings", {"reminders": {"beforeDueDays": 0, "onDue": False, "everyDaysAfter": 0, "maxReminders": 0}}, OWNER)
+check("apagar los recordatorios", s == 200 and res["values"]["reminders"]["maxReminders"] == 0, res.get("values"))
+s, run4 = call("POST", f"{API}/settings/reminders/run", {}, OWNER)
+check("sin recordatorios a requerimientos cuando están apagados", s == 200 and run4["requests"] == 0, run4)
+
+# --- Tablero ----------------------------------------------------------------------------
+print("Tablero")
+s, board = call("GET", f"{API}/catalog/board?type=support", token=TECH)
+codes = [x["code"] for x in board.get("statuses", [])] if s == 200 else []
+nuevo = next((x for x in board.get("statuses", []) if x["isInitial"]), None) if s == 200 else None
+check("columnas del tablero por estado con sus movimientos", s == 200 and len(codes) >= 4 and nuevo and nuevo["next"], board)
+s, cboard = call("GET", f"{API}/catalog/board?type=support", token=CA)
+check("el cliente no puede mover tickets nuevos", s == 200 and not next(x for x in cboard["statuses"] if x["isInitial"])["next"], cboard)
+s, res = call("GET", f"{API}/catalog/board?type=nada", token=TECH)
+check("tipo desconocido → 404", s == 404, res)
+
 print(f"\n{passed} comprobaciones correctas, {len(failed)} fallidas")
 if failed:
     print("Fallidas:", *failed, sep="\n  - ")

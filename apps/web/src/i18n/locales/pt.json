@@ -191,7 +191,11 @@
     "accept": "Aceitar",
     "reject": "Devolver",
     "rejectReason": "O que falta ou precisa ser corrigido?",
-    "rejectedBecause": "Devolvido: {{reason}}"
+    "rejectedBecause": "Devolvido: {{reason}}",
+    "remind": "Lembrar",
+    "reminded": "Lembrete enviado",
+    "remindersSent_one": "{{count}} lembrete",
+    "remindersSent_other": "{{count}} lembretes"
   },
   "home": {
     "title": "Meu trabalho",
@@ -471,6 +475,19 @@
       "add": "Adicionar",
       "noHolidays": "Nenhum feriado registrado para este ano ou os seguintes.",
       "remove": "Remover {{name}}"
+    },
+    "reminders": {
+      "title": "Lembretes de vencimento",
+      "lead": "Saem sozinhos em dias úteis, a partir das 8:00 (hora da empresa). Quem recebe é definido abaixo em “Lembrete de requisito”, “Requisito vencido”, “Etapa atrasada” e “Caso vencido”.",
+      "beforeDueDays": "Avisar o cliente quantos dias úteis antes de um requisito vencer",
+      "everyDaysAfter": "Se já venceu, avisar de novo a cada (dias úteis)",
+      "maxReminders": "Máximo de lembretes por requisito",
+      "maxHint": "Ao chegar ao máximo deixamos de insistir (0 = sem lembretes).",
+      "zeroOff": "0 = não avisar.",
+      "onDue": "Avisar também no dia do vencimento",
+      "footnote": "Etapas e casos que passam do prazo são avisados uma única vez; se você mudar a data, avisamos de novo quando a nova vencer.",
+      "runNow": "Verificar vencimentos agora",
+      "result": "Pronto: {{requests}} lembretes de requisitos, {{stages}} etapas atrasadas e {{items}} casos vencidos."
     }
   },
   "role": {
@@ -657,7 +674,37 @@
       "requested": "Aprovação solicitada"
     },
     "sla": {
-      "breached": "SLA descumprido"
+      "breached": "Caso vencido (passou do prazo)"
     }
+  },
+  "board": {
+    "layout": "Visualização",
+    "list": "Lista",
+    "board": "Quadro",
+    "mode": "Agrupar por",
+    "modes": {
+      "status": "Status",
+      "due": "Vencimento",
+      "assignee": "Técnico",
+      "priority": "Prioridade"
+    },
+    "due": {
+      "overdue": "Atrasados",
+      "today": "Hoje",
+      "tomorrow": "Amanhã",
+      "thisWeek": "Esta semana",
+      "nextWeek": "Próxima semana",
+      "later": "Depois",
+      "none": "Sem data"
+    },
+    "moveTo": "Mover {{item}} para…",
+    "dropHere": "Solte aqui",
+    "empty": "Nada por aqui",
+    "recentDone": "Fechados recentemente",
+    "load_one": "{{count}} caso",
+    "load_other": "{{count}} casos",
+    "truncated": "Mostrando {{shown}} de {{total}} casos abertos. Use a busca ou “Só os meus” para filtrar.",
+    "commentTitle": "{{item}} → {{status}}",
+    "commentLabel": "Esta mudança precisa de um comentário"
   }
 }

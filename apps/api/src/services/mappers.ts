@@ -84,6 +84,8 @@ export function toClientRequestDto(r: ClientRequestRow): ClientRequestDto {
     submittedAt: orNull(r.submitted_at),
     reviewedAt: orNull(r.reviewed_at),
     rejectionReason: orNull(r.rejection_reason),
+    remindersSent: r.reminders_sent ?? 0,
+    lastReminderAt: orNull(r.last_reminder_at ?? ""),
   };
 }
 

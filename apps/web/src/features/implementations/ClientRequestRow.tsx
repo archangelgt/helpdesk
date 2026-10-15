@@ -35,11 +35,13 @@ export function ClientRequestRow({
   const { busy, error, run } = useAction();
   const [mode, setMode] = useState<Mode>("idle");
   const [text, setText] = useState("");
+  const [reminded, setReminded] = useState(false);
 
   const open = request.status === "pending" || request.status === "rejected";
   const inReview = request.status === "submitted" || request.status === "in_review";
   const canSubmit = !readOnly && isClient && can("client_request.submit") && open;
   const canReview = !readOnly && !isClient && can("client_request.review") && (open || inReview);
+  const canRemind = !readOnly && !isClient && can("client_request.create") && open;
   const requestFiles = files.filter((f) => f.clientRequestId === request.id);
 
   const act = async (action: () => Promise<WorkItemDetailDto>) => {
@@ -59,6 +61,11 @@ export function ClientRequestRow({
           {stageName && <span className="muted small">{stageName}</span>}
           {request.blocking && <span className="muted small">{t("request.blocking")}</span>}
           {request.dueAt && <span className="muted small">{t("request.due", { date: formatDate(request.dueAt, lang) })}</span>}
+          {!isClient && request.remindersSent > 0 && (
+            <span className="muted small" title={request.lastReminderAt ? formatDate(request.lastReminderAt, lang) : undefined}>
+              {t("request.remindersSent", { count: request.remindersSent })}
+            </span>
+          )}
           <RequestPill status={request.status} />
         </span>
       </div>
@@ -78,7 +85,7 @@ export function ClientRequestRow({
         />
       )}
 
-      {mode === "idle" && (canSubmit || canReview) && (
+      {mode === "idle" && (canSubmit || canReview || canRemind) && (
         <div className="btn-row">
           {canSubmit && (
             <button type="button" className="btn btn-primary-sm" disabled={busy} onClick={() => setMode("submit")}>
@@ -96,6 +103,23 @@ export function ClientRequestRow({
                 </button>
               )}
             </>
+          )}
+          {canRemind && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy || reminded}
+              onClick={() =>
+                void run(() => clientRequestsApi.remind(request.id)).then((res) => {
+                  if (res) {
+                    setReminded(true);
+                    onReload();
+                  }
+                })
+              }
+            >
+              {reminded ? t("request.reminded") : t("request.remind")}
+            </button>
           )}
         </div>
       )}

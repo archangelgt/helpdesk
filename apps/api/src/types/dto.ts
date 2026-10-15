@@ -115,6 +115,8 @@ export interface ClientRequestDto {
   submittedAt: string | null;
   reviewedAt: string | null;
   rejectionReason: string | null;
+  remindersSent: number;
+  lastReminderAt: string | null;
 }
 
 export interface WorkItemDetailDto extends WorkItemSummaryDto {

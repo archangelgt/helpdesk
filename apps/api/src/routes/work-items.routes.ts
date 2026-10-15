@@ -33,6 +33,10 @@ export async function workItemsRoutes(app: FastifyInstance) {
 
   app.post("/client-requests/:id/submit", clientRequestsController.submit);
   app.post("/client-requests/:id/review", clientRequestsController.review);
+  app.post("/client-requests/:id/remind", {
+    config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
+    handler: clientRequestsController.remind,
+  });
 
   app.post("/work-items/:id/attachments", attachmentsController.upload);
   app.get("/attachments/:id/download", attachmentsController.download);

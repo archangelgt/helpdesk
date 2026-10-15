@@ -4,9 +4,11 @@ import type {
   ActivityDto,
   AdminUserDetailDto,
   AdminUserDto,
+  BoardStatusDto,
   CalendarDto,
   InstanceSettingsValues,
   NotificationRuleDto,
+  ReminderRunDto,
   PublicSettingsDto,
   RecipientKind,
   ReportDto,
@@ -134,6 +136,11 @@ export const clientRequestsApi = {
     api<WorkItemDetailDto>(`/client-requests/${id}/submit`, json("POST", note ? { note } : {})),
   review: (id: string, decision: "accept" | "reject", reason?: string) =>
     api<WorkItemDetailDto>(`/client-requests/${id}/review`, json("POST", { decision, ...(reason && { reason }) })),
+  remind: (id: string) => api<{ remindersSent: number }>(`/client-requests/${id}/remind`, { method: "POST" }),
+};
+
+export const catalogApi = {
+  board: (type: string) => api<{ statuses: BoardStatusDto[] }>(`/catalog/board${query({ type })}`),
 };
 
 export const adminApi = {
@@ -194,6 +201,7 @@ export const settingsApi = {
   setWorkingDays: (workingDays: Weekday[]) => api<CalendarDto>("/settings/calendar/working-days", json("PUT", { workingDays })),
   addHoliday: (day: string, name: string) => api<CalendarDto>("/settings/calendar/holidays", json("POST", { day, name })),
   removeHoliday: (id: string) => api<CalendarDto>(`/settings/calendar/holidays/${id}`, { method: "DELETE" }),
+  runReminders: () => api<ReminderRunDto>("/settings/reminders/run", { method: "POST" }),
 };
 
 export interface ReportQuery {

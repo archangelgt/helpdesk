@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Search } from "lucide-react";
+import { Columns3, List, Plus, Search } from "lucide-react";
 import { adminApi, workItemsApi } from "../../api/endpoints";
 import { useAuth } from "../../auth/AuthProvider";
 import { DueLabel } from "../../components/DueLabel";
@@ -9,6 +9,7 @@ import { ErrorNote, Loading } from "../../components/Feedback";
 import { PriorityLabel, StatusBadge } from "../../components/StatusBadge";
 import { useAction, useApi } from "../../hooks/useApi";
 import type { WorkItemView } from "../../types/api";
+import { BOARD_MODES, Board, type BoardMode } from "./Board";
 
 const VIEWS: WorkItemView[] = ["open", "waiting_client", "done", "all"];
 const DONE = new Set(["resolved", "closed", "cancelled"]);
@@ -121,7 +122,23 @@ function QuickCreate({ type, section, basePath }: { type: string; section: strin
   );
 }
 
-/** Lista de tickets o tareas con vistas, búsqueda y alta rápida. */
+function useStored<T extends string>(key: string, allowed: readonly T[], fallback: T): [T, (v: T) => void] {
+  const [value, setValue] = useState<T>(() => {
+    const stored = localStorage.getItem(key) as T | null;
+    return stored && allowed.includes(stored) ? stored : fallback;
+  });
+  return [
+    value,
+    (v: T) => {
+      localStorage.setItem(key, v);
+      setValue(v);
+    },
+  ];
+}
+
+const LAYOUTS = ["list", "board"] as const;
+
+/** Lista o tablero de tickets o tareas con vistas, búsqueda y alta rápida. */
 export function WorkItemsPage({ type, section, basePath }: { type: string; section: string; basePath: string }) {
   const { t } = useTranslation();
   const { user, can } = useAuth();
@@ -131,12 +148,16 @@ export function WorkItemsPage({ type, section, basePath }: { type: string; secti
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const q = useDebounced(search.trim());
+  const canBoard = !isClient && can("work_item.update");
+  const [storedLayout, setLayout] = useStored(`hd2-layout-${type}`, LAYOUTS, "list");
+  const [mode, setMode] = useStored<BoardMode>("hd2-board-mode", BOARD_MODES, "status");
+  const layout = canBoard ? storedLayout : "list";
 
   useEffect(() => setPage(1), [view, mine, q, type]);
 
   const list = useApi(
-    () => workItemsApi.list({ type, view, q, page, assignee: mine ? "me" : undefined, perPage: 25 }),
-    [type, view, mine, q, page],
+    () => (layout === "list" ? workItemsApi.list({ type, view, q, page, assignee: mine ? "me" : undefined, perPage: 25 }) : Promise.resolve(null)),
+    [type, view, mine, q, page, layout],
   );
 
   const canCreate = can("work_item.create") && (type === "support" || !isClient);
@@ -153,13 +174,35 @@ export function WorkItemsPage({ type, section, basePath }: { type: string; secti
       {canCreate && <QuickCreate type={type} section={section} basePath={basePath} />}
 
       <div className="toolbar">
-        <div className="tabs" role="tablist">
-          {VIEWS.map((v) => (
-            <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
-              {t(`work.views.${v}`)}
-            </button>
-          ))}
-        </div>
+        {canBoard && (
+          <div className="segmented" role="group" aria-label={t("board.layout")}>
+            {LAYOUTS.map((l) => (
+              <button key={l} type="button" className={layout === l ? "on" : ""} aria-pressed={layout === l} onClick={() => setLayout(l)}>
+                {l === "list" ? <List size={14} aria-hidden="true" /> : <Columns3 size={14} aria-hidden="true" />} {t(`board.${l}`)}
+              </button>
+            ))}
+          </div>
+        )}
+        {layout === "list" ? (
+          <div className="tabs" role="tablist">
+            {VIEWS.map((v) => (
+              <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
+                {t(`work.views.${v}`)}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <label className="field inline-field">
+            <span>{t("board.mode")}</span>
+            <select value={mode} onChange={(e) => setMode(e.target.value as BoardMode)}>
+              {BOARD_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {t(`board.modes.${m}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {!isClient && (
           <label className="check">
             <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> {t("work.onlyMine")}
@@ -171,6 +214,7 @@ export function WorkItemsPage({ type, section, basePath }: { type: string; secti
         </label>
       </div>
 
+      {layout === "board" && <Board type={type} basePath={basePath} mode={mode} q={q} mine={mine} />}
       {list.error && <ErrorNote error={list.error} onRetry={list.reload} />}
       {list.loading && !list.data && <Loading />}
       {list.data && (

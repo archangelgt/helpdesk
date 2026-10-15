@@ -146,7 +146,11 @@
     "accept": "Aceptar",
     "reject": "Devolver",
     "rejectReason": "¿Qué falta o qué hay que corregir?",
-    "rejectedBecause": "Devuelto: {{reason}}"
+    "rejectedBecause": "Devuelto: {{reason}}",
+    "remind": "Recordar",
+    "reminded": "Recordatorio enviado",
+    "remindersSent_one": "{{count}} recordatorio",
+    "remindersSent_other": "{{count}} recordatorios"
   },
   "home": {
     "title": "Mi trabajo",
@@ -426,6 +430,19 @@
       "add": "Agregar",
       "noHolidays": "No hay feriados registrados para este año ni los siguientes.",
       "remove": "Quitar {{name}}"
+    },
+    "reminders": {
+      "title": "Recordatorios de vencimientos",
+      "lead": "Se mandan solos en días hábiles, desde las 8:00 (hora de la empresa). A quién le llegan se define abajo en «Recordatorio de requerimiento», «Requerimiento vencido», «Etapa atrasada» y «Caso vencido».",
+      "beforeDueDays": "Avisar al cliente días hábiles antes de que venza un requerimiento",
+      "everyDaysAfter": "Si ya venció, volver a avisar cada (días hábiles)",
+      "maxReminders": "Máximo de recordatorios por requerimiento",
+      "maxHint": "Al llegar al máximo se deja de insistir (0 = no mandar recordatorios).",
+      "zeroOff": "0 = no avisar.",
+      "onDue": "Avisar también el día que vence",
+      "footnote": "Las etapas y los casos que pasan su fecha límite se avisan una sola vez; si cambias la fecha, se vuelve a avisar cuando venza la nueva.",
+      "runNow": "Revisar vencimientos ahora",
+      "result": "Listo: {{requests}} recordatorios de requerimientos, {{stages}} etapas atrasadas y {{items}} casos vencidos."
     }
   },
   "role": {
@@ -612,7 +629,37 @@
       "requested": "Aprobación solicitada"
     },
     "sla": {
-      "breached": "SLA incumplido"
+      "breached": "Caso vencido (pasó su fecha límite)"
     }
+  },
+  "board": {
+    "layout": "Vista",
+    "list": "Lista",
+    "board": "Tablero",
+    "mode": "Agrupar por",
+    "modes": {
+      "status": "Estado",
+      "due": "Vencimiento",
+      "assignee": "Técnico",
+      "priority": "Prioridad"
+    },
+    "due": {
+      "overdue": "Atrasados",
+      "today": "Hoy",
+      "tomorrow": "Mañana",
+      "thisWeek": "Esta semana",
+      "nextWeek": "Próxima semana",
+      "later": "Después",
+      "none": "Sin fecha"
+    },
+    "moveTo": "Mover {{item}} a…",
+    "dropHere": "Suelta aquí",
+    "empty": "Nada por aquí",
+    "recentDone": "Los últimos cerrados",
+    "load_one": "{{count}} caso",
+    "load_other": "{{count}} casos",
+    "truncated": "Se muestran {{shown}} de {{total}} casos abiertos. Usa la búsqueda o «Solo los míos» para acotar.",
+    "commentTitle": "{{item}} → {{status}}",
+    "commentLabel": "Este cambio necesita un comentario"
   }
 }

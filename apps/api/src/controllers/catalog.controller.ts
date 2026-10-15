@@ -1,7 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { actorOf } from "../middlewares/authenticate.js";
 import { catalogService } from "../services/catalog.service.js";
 import { categoriesQuerySchema } from "../validators/admin.validators.js";
-import { statusesQuerySchema } from "../validators/catalog.validators.js";
+import { boardQuerySchema, statusesQuerySchema } from "../validators/catalog.validators.js";
 import { parse } from "../validators/common.js";
 
 export const catalogController = {
@@ -12,6 +13,11 @@ export const catalogController = {
   async statuses(request: FastifyRequest, reply: FastifyReply) {
     const { workflow } = parse(statusesQuerySchema, request.query);
     return reply.send({ items: await catalogService.statuses(workflow) });
+  },
+
+  async board(request: FastifyRequest, reply: FastifyReply) {
+    const { type } = parse(boardQuerySchema, request.query);
+    return reply.send(await catalogService.board(actorOf(request), type));
   },
 
   async priorities(_request: FastifyRequest, reply: FastifyReply) {
