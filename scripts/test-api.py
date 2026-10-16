@@ -817,6 +817,28 @@ s, mimp = call("POST", f"{API}/work-items", {"type": "implementation", "title": 
 check("implementación manual desde el asistente", s == 201 and [x["name"] for x in mimp["stages"]] == ["Análisis", "Entrega"]
       and mimp["stages"][1]["plannedStart"].startswith("2026-10-07"), mimp)
 
+# --- Portal del cliente ---------------------------------------------------------------
+print("Portal del cliente")
+s, res = call("GET", f"{API}/client-requests?view=open", token=CA)
+items = res.get("items", []) if s == 200 else []
+check("el cliente ve lo que le toca entregar, de todos sus casos", s == 200 and items and all(i["status"] in ("pending", "rejected") for i in items)
+      and {i["workItem"]["typeCode"] for i in items} >= {"implementation", "support"}, res)
+s, res = call("GET", f"{API}/client-requests?view=open", token=CB)
+check("el cliente B no ve requerimientos de A", s == 200 and res["items"] == [], res)
+
+s, res = call("POST", f"{API}/work-items/{ta['id']}/client-requests", {"title": "Captura del error", "type": "document"}, OWNER)
+cap = next((r for r in res.get("clientRequests", []) if r["title"] == "Captura del error"), None) if s == 201 else None
+check("requerimiento general sobre un ticket", s == 201 and cap, res)
+s, res = call("GET", f"{API}/client-requests?view=open", token=CA)
+check("el ticket en espera aparece en los pendientes del cliente", s == 200 and cap and any(i["id"] == cap["id"] and i["stageName"] is None for i in res["items"]), res)
+s, _ = call("POST", f"{API}/client-requests/{cap['id']}/submit", {"note": "Adjunto la captura"}, CA)
+s, res = call("GET", f"{API}/client-requests?view=review", token=CA)
+check("el cliente ve lo que ya entregó y está en revisión", s == 200 and any(i["id"] == cap["id"] for i in res["items"]), res)
+s, res = call("GET", f"{API}/client-requests?view=review", token=TECH)
+check("el equipo ve las entregas por revisar de todos los casos", s == 200 and any(i["id"] == cap["id"] and i["workItem"]["id"] == ta["id"] for i in res["items"]), res)
+s, res = call("GET", f"{API}/work-items/summary", token=CA)
+check("resumen del cliente: pendientes y en espera", s == 200 and res["waitingMe"] >= 1 and res["assigned"] == 0, res)
+
 print(f"\n{passed} comprobaciones correctas, {len(failed)} fallidas")
 if failed:
     print("Fallidas:", *failed, sep="\n  - ")

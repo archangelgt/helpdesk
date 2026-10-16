@@ -42,7 +42,8 @@
     "reports": "Reportes",
     "chat": "Chat",
     "settings": "Configuración",
-    "users": "Usuarios"
+    "users": "Usuarios",
+    "portal": "Inicio"
   },
   "themes": {
     "blue": "Azul",
@@ -713,5 +714,29 @@
     "back": "Atrás",
     "next": "Siguiente",
     "create": "Crear implementación"
+  },
+  "portal": {
+    "title": "Hola, {{name}}",
+    "subtitle": "Aquí ves lo que necesitamos de ti y cómo van tus casos.",
+    "helpTitle": "¿Necesitas ayuda?",
+    "helpLead": "Cuéntanos qué pasa y nuestro equipo te responde por aquí y por correo.",
+    "report": "Reportar un problema",
+    "whatHappens": "¿Qué pasa?",
+    "whatHappensHint": "Ej. No puedo imprimir facturas",
+    "details": "Detalles",
+    "detailsHint": "Qué estabas haciendo, desde cuándo pasa, a quién afecta…",
+    "filesHint": "Después de enviarlo puedes adjuntar capturas o archivos.",
+    "send": "Enviar",
+    "pendingTitle_one": "{{count}} pendiente de tu parte",
+    "pendingTitle_other": "{{count}} pendientes de tu parte",
+    "pendingLead": "Para avanzar necesitamos lo siguiente. Puedes entregar cada cosa aquí mismo.",
+    "ticketWaiting": "Esperamos tu respuesta en este ticket.",
+    "nothingPending": "No tienes nada pendiente. ¡Gracias!",
+    "deliveredOn": "entregado el {{date}}",
+    "implementations": "Tus implementaciones",
+    "tickets": "Tus tickets abiertos",
+    "allTickets": "Ver todos",
+    "noTickets": "No tienes tickets abiertos.",
+    "updated": "Actualizado {{date}}"
   }
 }

@@ -103,6 +103,11 @@ export interface StageDto {
   transitions: TransitionDto[];
 }
 
+export interface ClientRequestListItemDto extends ClientRequestDto {
+  workItem: { id: string; number: string; title: string; typeCode: string };
+  stageName: string | null;
+}
+
 export interface ClientRequestDto {
   id: string;
   stageId: string | null;

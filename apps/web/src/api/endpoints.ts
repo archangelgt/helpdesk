@@ -5,6 +5,7 @@ import type {
   AdminUserDetailDto,
   AdminUserDto,
   BoardStatusDto,
+  ClientRequestListItemDto,
   PlanPreviewDto,
   PlanStageInput,
   CalendarDto,
@@ -140,6 +141,7 @@ export const stagesApi = {
 };
 
 export const clientRequestsApi = {
+  list: (view: "open" | "review") => api<{ items: ClientRequestListItemDto[] }>(`/client-requests${query({ view })}`).then((r) => r.items),
   submit: (id: string, note?: string) =>
     api<WorkItemDetailDto>(`/client-requests/${id}/submit`, json("POST", note ? { note } : {})),
   review: (id: string, decision: "accept" | "reject", reason?: string) =>

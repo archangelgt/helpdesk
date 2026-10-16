@@ -54,7 +54,7 @@ export function Layout() {
           {NAV.filter((item) => (!isClient || item.client) && (!item.perm || can(item.perm))).map(({ to, key, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className="nav-item">
               <Icon size={18} aria-hidden="true" />
-              <span>{t(`nav.${key}`)}</span>
+              <span>{t(isClient && key === "home" ? "nav.portal" : `nav.${key}`)}</span>
             </NavLink>
           ))}
         </nav>

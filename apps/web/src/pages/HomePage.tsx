@@ -1,31 +1,32 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { workItemsApi } from "../api/endpoints";
+import { Inbox } from "lucide-react";
+import { clientRequestsApi, workItemsApi } from "../api/endpoints";
 import { useAuth } from "../auth/AuthProvider";
 import { DueLabel } from "../components/DueLabel";
 import { ErrorNote } from "../components/Feedback";
 import { StatusBadge } from "../components/StatusBadge";
 import { ImplementationCard } from "../features/implementations/ImplementationCard";
 import { useApi } from "../hooks/useApi";
-import { detailPath } from "../utils/paths";
+import { formatDate } from "../utils/dates";
+import { detailPath, pathFor } from "../utils/paths";
+import { ClientPortal } from "./ClientPortal";
 
 export function HomePage() {
-  const { t } = useTranslation();
   const { user } = useAuth();
-  const isClient = user?.role?.scope === "client";
+  return user?.role?.scope === "client" ? <ClientPortal /> : <StaffHome />;
+}
+
+function StaffHome() {
+  const { t, i18n } = useTranslation();
+  const { user, can } = useAuth();
+  const canReview = can("client_request.review");
   const summary = useApi(() => workItemsApi.summary(), []);
   const impls = useApi(() => workItemsApi.list({ type: "implementation", view: "open", perPage: 12, sort: "due_at" }), []);
-  const mine = useApi(
-    () =>
-      isClient
-        ? workItemsApi.list({ type: "support", view: "open", perPage: 10, sort: "-updated" })
-        : workItemsApi.list({ assignee: "me", view: "open", perPage: 10, sort: "due_at" }),
-    [isClient],
-  );
+  const mine = useApi(() => workItemsApi.list({ assignee: "me", view: "open", perPage: 10, sort: "due_at" }), []);
+  const toReview = useApi(() => (canReview ? clientRequestsApi.list("review") : Promise.resolve([])), [canReview]);
 
-  const keys = isClient
-    ? (["waitingMe", "waitingClient", "overdue"] as const)
-    : (["waitingMe", "assigned", "toReview", "waitingClient", "overdue"] as const);
+  const keys = ["waitingMe", "assigned", "toReview", "waitingClient", "overdue"] as const;
   const myItems = (mine.data?.items ?? []).filter((i) => i.type.code !== "implementation");
 
   return (
@@ -42,14 +43,35 @@ export function HomePage() {
         {keys.map((key) => (
           <div key={key} className={`card counter ${key}`}>
             <span className="counter-value">{summary.data ? summary.data[key] : "…"}</span>
-            <span className="counter-label">{t(isClient ? `home.clientCounters.${key}` : `home.counters.${key}`)}</span>
+            <span className="counter-label">{t(`home.counters.${key}`)}</span>
           </div>
         ))}
       </div>
 
+      {toReview.data && toReview.data.length > 0 && (
+        <section className="card review-box">
+          <h2 className="review-title">
+            <Inbox size={18} aria-hidden="true" /> {t("impl.reviewTitle", { count: toReview.data.length })}
+          </h2>
+          <ul className="requests">
+            {toReview.data.map((r) => (
+              <li key={r.id}>
+                <Link to={pathFor(r.workItem.typeCode, r.workItem.id)} className="row-link">
+                  {r.title}
+                </Link>
+                <span className="muted small">
+                  {r.workItem.number} · {r.workItem.title}
+                  {r.submittedAt && ` · ${t("portal.deliveredOn", { date: formatDate(r.submittedAt, i18n.language) })}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {myItems.length > 0 && (
         <>
-          <h2 className="section-title">{isClient ? t("home.myTickets") : t("home.assignedToMe")}</h2>
+          <h2 className="section-title">{t("home.assignedToMe")}</h2>
           <section className="card table-card">
             <table className="table">
               <tbody>

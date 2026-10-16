@@ -33,6 +33,7 @@ export async function workItemsRoutes(app: FastifyInstance) {
   app.patch("/checklist-items/:id", stagesController.updateChecklistItem);
 
   app.post("/plans/preview", plansController.preview);
+  app.get("/client-requests", clientRequestsController.list);
   app.post("/client-requests/:id/submit", clientRequestsController.submit);
   app.post("/client-requests/:id/review", clientRequestsController.review);
   app.post("/client-requests/:id/remind", {

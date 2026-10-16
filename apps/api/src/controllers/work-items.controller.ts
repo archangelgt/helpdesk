@@ -12,6 +12,7 @@ import {
   checklistUpdateSchema,
   commentSchema,
   createClientRequestSchema,
+  listClientRequestsSchema,
   planPreviewSchema,
   createStageSchema,
   createWorkItemSchema,
@@ -108,6 +109,11 @@ export const plansController = {
 };
 
 export const clientRequestsController = {
+  async list(request: FastifyRequest, reply: FastifyReply) {
+    const { view } = parse(listClientRequestsSchema, request.query);
+    return reply.send(await clientRequestsService.list(actorOf(request), view));
+  },
+
   async submit(request: FastifyRequest, reply: FastifyReply) {
     const { note } = parse(submitClientRequestSchema, request.body ?? {});
     return reply.send(await clientRequestsService.submit(actorOf(request), idOf(request), note));

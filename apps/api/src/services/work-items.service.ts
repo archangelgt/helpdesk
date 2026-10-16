@@ -261,10 +261,10 @@ export const workItemsService = {
     const [assigned, waitingMe, overdue, waitingClient, toReview] = await Promise.all([
       actor.isClient ? Promise.resolve(0) : workItemsModel.count({ visibility, assigneeId: actor.userId, categories: OPEN_CATEGORIES }),
       actor.isClient
-        ? clientRequestsModel.countActionable(OPEN_REQUEST_STATUSES, requestScope)
+        ? clientRequestsModel.countActionable(OPEN_REQUEST_STATUSES, requestScope, true)
         : workItemsModel.count({ visibility, assigneeId: actor.userId, categories: ["new", "open"] }),
       workItemsModel.count({ visibility, categories: OPEN_CATEGORIES, dueBefore: new Date() }),
-      clientRequestsModel.countActionable(OPEN_REQUEST_STATUSES, requestScope),
+      clientRequestsModel.countActionable(OPEN_REQUEST_STATUSES, requestScope, actor.isClient),
       actor.isClient ? Promise.resolve(0) : clientRequestsModel.countActionable(REVIEW_REQUEST_STATUSES, requestScope),
     ]);
     return { waitingMe, assigned, toReview, waitingClient, overdue };

@@ -1,13 +1,16 @@
 import { pbDate } from "../db/pocketbase.js";
 import { clientRequestsModel } from "../models/client-requests.model.js";
 import { unitOfWork, type WriteOp } from "../models/unit-of-work.model.js";
-import type { WorkItemDetailDto } from "../types/dto.js";
+import { workItemVisibility } from "../models/visibility.js";
+import type { ClientRequestListItemDto, WorkItemDetailDto } from "../types/dto.js";
+import { OPEN_REQUEST_STATUSES, REVIEW_REQUEST_STATUSES } from "../types/records.js";
 import { dayToPb } from "../utils/business-days.js";
 import { Errors } from "../utils/errors.js";
 import type { CreateClientRequestInput, ReviewClientRequestInput } from "../validators/work-items.validators.js";
 import { assertCan, type Actor } from "./actor.service.js";
 import { catalogCache } from "./catalog-cache.service.js";
 import { eventOps, type DomainEvent } from "./events.js";
+import { toClientRequestDto } from "./mappers.js";
 import { ImplementationPlan, loadImplementationState } from "./implementation-engine.js";
 import { loadVisibleWorkItem, workItemsService } from "./work-items.service.js";
 
@@ -28,6 +31,32 @@ async function loadRequest(actor: Actor, requestId: string) {
 }
 
 export const clientRequestsService = {
+  /**
+   * Requerimientos accionables de todos los casos visibles: `open` = pendientes de entregar (lo que le toca al
+   * cliente), `review` = entregados y por revisar. Primero los que tienen fecha límite, de la más próxima a la más lejana.
+   */
+  async list(actor: Actor, view: "open" | "review"): Promise<{ items: ClientRequestListItemDto[] }> {
+    const catalog = await catalogCache.get();
+    const rows = await clientRequestsModel.listActionable(
+      view === "open" ? OPEN_REQUEST_STATUSES : REVIEW_REQUEST_STATUSES,
+      workItemVisibility(actor, "work_item."),
+      actor.isClient,
+      200,
+    );
+    const items = rows
+      .filter((r) => r.expand?.work_item)
+      .map((r): ClientRequestListItemDto => {
+        const item = r.expand!.work_item!;
+        return {
+          ...toClientRequestDto(r),
+          workItem: { id: item.id, number: item.number, title: item.title, typeCode: catalog.typeById.get(item.type)?.code ?? "" },
+          stageName: r.expand?.stage?.name ?? null,
+        };
+      })
+      .sort((a, b) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
+    return { items };
+  },
+
   async create(actor: Actor, workItemId: string, input: CreateClientRequestInput): Promise<WorkItemDetailDto> {
     assertCan(actor, "client_request.create");
     if (actor.isClient) throw Errors.forbidden();

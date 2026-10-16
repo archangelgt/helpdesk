@@ -1,6 +1,17 @@
 import { ClientResponseError } from "pocketbase";
 import { anyOf, ensureAdminAuth, pb } from "../db/pocketbase.js";
-import type { ClientRequestRow, ClientRequestStatus } from "../types/records.js";
+import type { ClientRequestRow, ClientRequestStatus, StageRow, WorkItemRow } from "../types/records.js";
+
+export type ClientRequestWithContext = ClientRequestRow & { expand?: { work_item?: WorkItemRow; stage?: StageRow } };
+
+const ACTIVE_STAGE = `(stage = "" || (stage.status.category != "new" && stage.status.category != "closed" && stage.status.category != "cancelled"))`;
+
+/** Accionables: sin etapa o de una etapa ya iniciada y no terminada; para el cliente, solo de etapas que puede ver. */
+function actionableFilter(statuses: ClientRequestStatus[], workItemFilter: string, clientView: boolean): string {
+  return [anyOf("status", statuses), ACTIVE_STAGE, clientView ? `(stage = "" || stage.client_visible = true)` : "", workItemFilter]
+    .filter(Boolean)
+    .join(" && ");
+}
 
 export const clientRequestsModel = {
   async listByWorkItem(workItemId: string): Promise<ClientRequestRow[]> {
@@ -20,16 +31,21 @@ export const clientRequestsModel = {
     });
   },
 
-  /**
-   * Cuenta requerimientos en ciertos estados sobre los casos que cumplen `workItemFilter` (con prefijo `work_item.`).
-   * Solo cuenta los accionables: sin etapa o de una etapa ya iniciada y no terminada.
-   */
-  async countActionable(statuses: ClientRequestStatus[], workItemFilter: string): Promise<number> {
+  /** Cuenta requerimientos accionables en ciertos estados sobre los casos que cumplen `workItemFilter` (con prefijo `work_item.`). */
+  async countActionable(statuses: ClientRequestStatus[], workItemFilter: string, clientView = false): Promise<number> {
     await ensureAdminAuth();
-    const activeStage = `(stage = "" || (stage.status.category != "new" && stage.status.category != "closed" && stage.status.category != "cancelled"))`;
-    const filter = [anyOf("status", statuses), activeStage, workItemFilter].filter(Boolean).join(" && ");
-    const result = await pb.collection("client_requests").getList(1, 1, { filter, fields: "id" });
+    const result = await pb.collection("client_requests").getList(1, 1, { filter: actionableFilter(statuses, workItemFilter, clientView), fields: "id" });
     return result.totalItems;
+  },
+
+  async listActionable(statuses: ClientRequestStatus[], workItemFilter: string, clientView: boolean, limit: number): Promise<ClientRequestWithContext[]> {
+    await ensureAdminAuth();
+    const result = await pb.collection("client_requests").getList<ClientRequestWithContext>(1, limit, {
+      filter: actionableFilter(statuses, workItemFilter, clientView),
+      sort: "created",
+      expand: "work_item,stage",
+    });
+    return result.items;
   },
 
   async findById(id: string): Promise<ClientRequestRow | null> {

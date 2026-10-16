@@ -467,3 +467,16 @@ a.user-chip:hover { background: rgba(255,255,255,.12); }
   .wiz-stage-fields { grid-template-columns: 1fr 1fr; }
   .wiz-request { grid-template-columns: 1fr 1fr; }
 }
+
+/* Portal del cliente */
+.portal-help { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.portal-help > svg { color: var(--primary-soft); flex: none; }
+.portal-help > div { flex: 1; min-width: 200px; }
+.portal-help p { margin: 2px 0 0; }
+.portal-groups { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.portal-group { display: flex; flex-direction: column; gap: 4px; }
+.portal-group-title { font-weight: 600; color: var(--text); text-decoration: none; }
+.portal-group-title:hover { color: var(--primary-soft); text-decoration: underline; }
+.portal-group-title .number { margin-right: 6px; }
+.portal-group > p { margin: 0; }
+.portal-clear { display: flex; align-items: center; gap: 10px; color: var(--ok); font-weight: 600; }

@@ -650,6 +650,25 @@ Tickets, tareas e implementaciones ya funcionan de punta a punta sobre la base n
 - **Reportes** (`/reportes`, permiso `report.view`): periodo (7/30/90/365 días o rango), empresa y tipo; totales (creados, resueltos, abiertos, vencidos, sin asignar, esperando al cliente, primera respuesta y resolución promedio), gráfica creados vs resueltos, por tipo, por técnico (incluye etapas completadas, sin usuarios del cliente), por empresa, quién pide más, implementaciones con avance y atraso atribuido al cliente o al equipo, y requerimientos al cliente por empresa. Cada tabla se exporta a CSV.
 - **Pruebas**: 187 comprobaciones.
 
+### 9.6 Recordatorios de vencimientos y tablero (2026-10-15)
+
+- **Recordatorios** (worker, cada `REMINDERS_INTERVAL_MINUTES`, solo días hábiles desde `REMINDERS_FROM_HOUR`): requerimientos al cliente por vencer, que vencen hoy y vencidos (cada N días, con tope), etapas atrasadas y casos que pasaron su fecha límite (`sla.breached`). Política editable en Configuración → Avisos; botón "Recordar" en cada requerimiento y "Ejecutar ahora". Cambiar la fecha de una etapa o caso reinicia su aviso de atraso.
+- **Tablero** de tickets y tareas (selector Lista/Tablero) agrupado por estado, vencimiento, responsable o prioridad; arrastrar y soltar (o "Mover a…") cambia estado, fecha, responsable o prioridad; pide comentario cuando la transición lo exige.
+
+### 9.7 Asistente para crear implementaciones (2026-10-15)
+
+- Cuatro pasos: **Datos** (título, empresa —con alta rápida si tienes `client.manage`—, responsable, inicio y fecha límite), **Plan** (una plantilla activa o empezar desde cero), **Etapas** (nombre, duración en días hábiles, de quién depende, responsable, dependencias —también en paralelo—, visible al cliente, evidencia, aprobación del cliente, tareas y requerimientos al cliente; reordenar, agregar y quitar) y **Revisar**.
+- `POST /plans/preview` calcula las fechas con el calendario laboral mientras se edita; valida claves repetidas, dependencias inexistentes y ciclos (`plan.*`).
+- `POST /work-items` acepta `plan` (las etapas editadas); conserva el vínculo con las etapas y requerimientos de la plantilla cuando vienen de ella. Los responsables deben ser del equipo.
+- **Pruebas**: 221 comprobaciones.
+
+### 9.8 Portal del cliente (2026-10-16)
+
+- El inicio del cliente (`/`, menú "Inicio") muestra: **Pendientes de tu parte** (requerimientos de todos sus casos, agrupados por caso, con entrega y archivos aquí mismo, más los tickets que esperan su respuesta), lo que ya entregó y está en revisión, sus implementaciones con avance y sus tickets abiertos.
+- "Reportar un problema" crea un ticket en dos campos (título y detalle) y lo lleva al caso para adjuntar archivos.
+- `GET /client-requests?view=open|review`: requerimientos accionables de los casos visibles (solo de etapas iniciadas y, para el cliente, de etapas visibles para él); `open` = por entregar, `review` = por revisar. El inicio del equipo lista las entregas por revisar.
+- **Pruebas**: 228 comprobaciones.
+
 ---
 
 ## 10. Integraciones y APIs

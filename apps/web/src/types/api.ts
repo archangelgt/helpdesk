@@ -131,6 +131,11 @@ export interface ClientRequestDto {
   lastReminderAt: string | null;
 }
 
+export interface ClientRequestListItemDto extends ClientRequestDto {
+  workItem: { id: string; number: string; title: string; typeCode: string };
+  stageName: string | null;
+}
+
 export interface WorkItemDetailDto extends WorkItemSummaryDto {
   description: string;
   category: Ref | null;

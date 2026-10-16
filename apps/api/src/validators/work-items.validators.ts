@@ -174,6 +174,7 @@ export type CreateClientRequestInput = z.infer<typeof createClientRequestSchema>
 
 export const uploadTargetSchema = z.object({ stageId: recordId.optional(), clientRequestId: recordId.optional() });
 
+export const listClientRequestsSchema = z.object({ view: z.enum(["open", "review"]).default("open") }).strict();
 export const submitClientRequestSchema = z.object({ note: text(5_000).optional() }).strict();
 export const reviewClientRequestSchema = z
   .object({

@@ -42,7 +42,8 @@
     "reports": "Reports",
     "chat": "Chat",
     "settings": "Settings",
-    "users": "Users"
+    "users": "Users",
+    "portal": "Home"
   },
   "themes": {
     "blue": "Blue",
@@ -758,5 +759,29 @@
     "back": "Back",
     "next": "Next",
     "create": "Create implementation"
+  },
+  "portal": {
+    "title": "Hi, {{name}}",
+    "subtitle": "Here is what we need from you and how your cases are going.",
+    "helpTitle": "Need help?",
+    "helpLead": "Tell us what is happening and our team will reply here and by email.",
+    "report": "Report a problem",
+    "whatHappens": "What is happening?",
+    "whatHappensHint": "E.g. I can't print invoices",
+    "details": "Details",
+    "detailsHint": "What you were doing, since when, who is affected…",
+    "filesHint": "After sending it you can attach screenshots or files.",
+    "send": "Send",
+    "pendingTitle_one": "{{count}} item waiting on you",
+    "pendingTitle_other": "{{count}} items waiting on you",
+    "pendingLead": "To move forward we need the following. You can deliver each item right here.",
+    "ticketWaiting": "We are waiting for your reply on this ticket.",
+    "nothingPending": "Nothing is waiting on you. Thank you!",
+    "deliveredOn": "delivered on {{date}}",
+    "implementations": "Your implementations",
+    "tickets": "Your open tickets",
+    "allTickets": "See all",
+    "noTickets": "You have no open tickets.",
+    "updated": "Updated {{date}}"
   }
 }
